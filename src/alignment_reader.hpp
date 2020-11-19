@@ -3,6 +3,20 @@
 #include <string>
 #include <vector>
 
+#include <seqan/index.h>
+#include <seqan/sequence.h>
+#include <seqan/stream.h>
+#include <seqan/translation.h>
+
+inline std::string translate(const std::string & s)
+{
+    const seqan::Dna5String s2(s.c_str());
+    seqan::Peptide p2;
+    seqan::translate(p2, s2, seqan::SINGLE_FRAME, seqan::Serial());
+    seqan::CharString c2 = p2;
+    return seqan::toCString(c2);
+}
+
 int read_alignment(const char * const file_path, std::vector<std::string>& ids, std::vector<std::string>& seqs)
 {
     char * linebuf;

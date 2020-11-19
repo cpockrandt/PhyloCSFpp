@@ -7,6 +7,7 @@ struct empirical_codon_model
     float matrix[64][64]; // TODO: only store triangle and flatten array for cache locality, also don't store diag since it's 0
     float codon_freq[64];
 
+    // makes matrix symmetric and set diagonal to 0
     bool open(const char* path)
     {
         FILE* stream = fopen(path, "r");
