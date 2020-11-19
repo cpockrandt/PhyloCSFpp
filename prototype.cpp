@@ -7,9 +7,10 @@
 #include "src/newick.hpp"
 #include "src/ecm.hpp"
 
-// #include <seqan/sequence.h>
-//
-// using namespace seqan;
+#include <seqan/index.h>
+#include <seqan/sequence.h>
+#include <seqan/stream.h>
+#include <seqan/translation.h>
 
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
 {
@@ -31,6 +32,15 @@ enum domain : uint8_t { // this is a C++11 feature
     Probability
 };
 
+inline std::string translate(const std::string & s)
+{
+    const seqan::Dna5String s2(s.c_str());
+    seqan::Peptide p2;
+    seqan::translate(p2, s2, seqan::SINGLE_FRAME, seqan::Serial());
+    seqan::CharString c2 = p2;
+    return seqan::toCString(c2);
+}
+
 struct instance_t
 {
     struct model_t {
@@ -38,22 +48,16 @@ struct instance_t
         struct q_diag_t {
             gsl_matrix q;
 
-            gsl_matrix r_s;
-            gsl_matrix r_s2;
-            gsl_matrix r_l;
+            struct eig_t {
+                gsl_matrix r_s;  // S = right eigenvectors (in the columns)
+                gsl_matrix r_s2; // S' = left eigenvectors (in the rows)
+                gsl_matrix r_l;  // diag(L) = eigenvalues
 
-            gsl_matrix_complex nr_s; // don't duplicate here! maybe templatize?
-            gsl_matrix_complex nr_s2;
-            gsl_matrix_complex nr_l;
-//        eig : [`r of eig_r | `nr of eig_nr] = {
-//            r_s : Gsl.Matrix.matrix;			(* S = right eigenvectors (in the columns) *)
-//            r_s' : Gsl.Matrix.matrix;			(* S' = left eigenvectors (in the rows) *)
-//            r_l : Gsl.Vector.vector 			(* diag(L) = eigenvalues *)
-//                          --- OR ---
-//            nr_s : Gsl.Matrix_complex.matrix;	(* S = right eigenvectors (in the columns) *)
-//            nr_s' : Gsl.Matrix_complex.matrix;	(* S' = left eigenvectors (in the rows) *)
-//            nr_l : Gsl.Vector_complex.vector;	(* diag(L) = eigenvalues *)
-//        }
+                gsl_matrix_complex nr_s; // TODO: don't duplicate here! maybe templatize?
+                gsl_matrix_complex nr_s2;
+                gsl_matrix_complex nr_l;
+            } eig;
+
             gsl_vector  pi;
 
             bool have_pi; // mutable
@@ -66,6 +70,7 @@ struct instance_t
         std::vector<gsl_matrix*> pms;
         std::vector<float> prior; // this used to be of type "float array option", i.e., float array or nothing
     } model;
+
     struct p14n_t {
 //        q_p14ns : q_p14n array = Expr.t array array array
 //        q_scale_p14ns : Expr.t array;
@@ -96,23 +101,25 @@ int main(int argc, char ** argv)
     // read alignment
     std::vector<std::string> ids;
     std::vector<std::string> seqs;
+    std::vector<std::string> peptides;
     read_alignment(aln_path.c_str(), ids, seqs);
 
-//    for (auto const & id : ids)
-//        std::cout << id << '\n';
-//    for (auto const & s : seqs)
-//        std::cout << s << '\n';
+    for (uint16_t i = 0; i < seqs.size(); ++i)
+    {
+        peptides.push_back(translate(seqs[i]));
+        std::cout << ids[i] << '\t' << seqs[i] << '\t' << peptides[i] << '\n';
+    }
 
     // open newick (and ignore spaces)
     newick_node* root = newick_open(std::string(model_path + ".nh").c_str());
-    std::cout << newick_print(root) << '\n';
+//    std::cout << newick_print(root) << '\n';
     // transform tree into array notation
     std::vector<newick_elem> newick_flattened;
     newick_flatten(root, newick_flattened);
-    for (const auto & elem : newick_flattened)
-        std::cout << elem << '\n';
+//    for (const auto & elem : newick_flattened)
+//        std::cout << elem << '\n';
 
-    // initialize model
+    // TODO: initialize model
     instance_t instance;
 
     return 0;
