@@ -24,4 +24,4 @@ set(CMAKE_CXX_STANDARD 14)
 
 add_executable(phylocsf prototype.cpp src/newick.hpp src/ecm.hpp)
 target_link_libraries (phylocsf ${SEQAN_LIBRARIES})
-# target_link_libraries (phylocsf pthread)
+target_link_libraries (phylocsf gsl gslcblas) #pthread
