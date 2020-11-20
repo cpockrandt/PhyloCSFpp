@@ -43,6 +43,67 @@ struct instance_t
             bool have_pi; // mutable
 //        mutable memoized_to_Pt : (float -> Gsl.Matrix.matrix) option; // TODO
             double tol; // mutable
+
+            gsl_matrix * _deep_copy_matrix(const gsl_matrix * src)
+            {
+                if (src == NULL)
+                    return NULL;
+                gsl_matrix * dest = gsl_matrix_alloc(src->size1, src->size2);
+                gsl_matrix_memcpy(dest, src);
+                return dest;
+            }
+
+            gsl_vector * _deep_copy_vector(const gsl_vector * src)
+            {
+                if (src == NULL)
+                    return NULL;
+                gsl_vector * dest = gsl_vector_alloc(src->size);
+                gsl_vector_memcpy(dest, src);
+                return dest;
+            }
+
+            gsl_matrix_complex * _deep_copy_matrix_complex(const gsl_matrix_complex * src)
+            {
+                if (src == NULL)
+                    return NULL;
+                gsl_matrix_complex * dest = gsl_matrix_complex_alloc(src->size1, src->size2);
+                gsl_matrix_complex_memcpy(dest, src);
+                return dest;
+            }
+
+            gsl_vector_complex * _deep_copy_vector_complex(const gsl_vector_complex * src)
+            {
+                if (src == NULL)
+                    return NULL;
+                gsl_vector_complex * dest = gsl_vector_complex_alloc(src->size);
+                gsl_vector_complex_memcpy(dest, src);
+                return dest;
+            }
+
+            q_diag_t() = default;
+            q_diag_t(const q_diag_t&) = default; // copy constructor
+            q_diag_t(q_diag_t&&) = default; // move constructor
+            q_diag_t& operator=(const q_diag_t& other) // copy assignment
+            {
+                this->q = _deep_copy_matrix(other.q);
+
+                this->eig.r_l = _deep_copy_vector(other.eig.r_l);
+                this->eig.r_s = _deep_copy_matrix(other.eig.r_s);
+                this->eig.r_s2 = _deep_copy_matrix(other.eig.r_s2);
+
+                this->eig.nr_l = _deep_copy_vector_complex(other.eig.nr_l);
+                this->eig.nr_s = _deep_copy_matrix_complex(other.eig.nr_s);
+                this->eig.nr_s2 = _deep_copy_matrix_complex(other.eig.nr_s2);
+
+                this->pi = _deep_copy_vector(other.pi);
+
+                this->have_pi = other.have_pi;
+                // mutable memoized_to_Pt
+                this->tol = other.tol;
+                return *this;
+            };
+            q_diag_t& operator=(q_diag_t&&) = default; // move assignment
+            virtual ~q_diag_t() = default; // destructor
         };
 
         std::vector<newick_elem> tree;
@@ -181,7 +242,6 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
 //        std::cout << '\n';
 //    }
 
-    // TODO: somewhere also Q.of_Q is computed on result. Eigen computations, etc.
     instance.model.qms.resize(instance.p14n.tree.size() - 1);
     instance.model.qms[0].q = gsl_matrix_alloc(64, 64);
     for (uint8_t i = 0; i < 64; ++i)
@@ -202,7 +262,7 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
     gsl_eigen_nonsymmv_free(w);
     // NOTE: it seems that order does not seem to matter! can sort in Ocaml and does not change the result
     // NOTE: even though we sort, some values are neg. instead of pos and vice versa
-    gsl_eigen_nonsymmv_sort (l, s, GSL_EIGEN_SORT_ABS_ASC); // TODO: not necessary
+    gsl_eigen_nonsymmv_sort (l, s, GSL_EIGEN_SORT_ABS_ASC); // TODO: not necessary, just for comparing results with ocaml helpful
 
 //    let p = Gsl.Permut.make n (***)
 //    let lu = Gsl.Vectmat.cmat_convert (`CM (Gsl.Matrix_complex.copy m)) (** REVIEW: it seems cmat_convert doesn't do anything according to source: https://github.com/mmottl/gsl-ocaml/blob/master/src/vectmat.ml#L73 *)
@@ -211,12 +271,12 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
 //    Gsl.Linalg.complex_LU_invert lu p m'
 
     int signum;
-    gsl_permutation * p = gsl_permutation_alloc(64);
+    gsl_permutation * permut = gsl_permutation_alloc(64);
     gsl_matrix_complex *lu = gsl_matrix_complex_alloc(64, 64);
     gsl_matrix_complex_memcpy(lu, s);
     gsl_matrix_complex *s2 = gsl_matrix_complex_alloc(64, 64);
-    gsl_linalg_complex_LU_decomp(lu, p, &signum);
-    gsl_linalg_complex_LU_invert(lu, p, s2 /* inverse */);
+    gsl_linalg_complex_LU_decomp(lu, permut, &signum);
+    gsl_linalg_complex_LU_invert(lu, permut, s2 /* inverse */);
 
     for (uint8_t i = 0; i < 64; ++i)
     {
@@ -249,7 +309,7 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
         }
     }
 
-    std::cout << "is complex? " << is_l_complex << '\n';
+//    std::cout << "is complex? " << is_l_complex << '\n';
     if (is_l_complex)
     {
         instance.model.qms[0].eig.nr_s = s;
@@ -290,6 +350,38 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
     instance.model.qms[0].have_pi = false;
     instance.model.qms[0].pi = gsl_vector_alloc(64); // unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
 
+    // do this only in the initialization step (copy qms[0] to all other (uninitialized) members)
+    instance.model.pms.resize(instance.p14n.tree.size() - 1);
+    instance.model.qms.resize(instance.p14n.tree.size() - 1);
+    for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
+    {
+        instance.model.qms[i] = instance.model.qms[0]; // deep-copy
+//        gsl_vector_scale(instance.model.qms[i].eig.r_l, (double)i);
+    }
+
+//    for (uint16_t i = 0; i < instance.model.qms.size(); ++i)
+//        std::cout << "TEST: " << gsl_vector_get(instance.model.qms[i].eig.r_l, 0) << '\n';
+
+//    struct q_diag_t {
+//        gsl_matrix * q;
+//
+//        struct eig_t {
+//            gsl_matrix * r_s;  // S = right eigenvectors (in the columns)
+//            gsl_matrix * r_s2; // S' = left eigenvectors (in the rows)
+//            gsl_vector * r_l;  // diag(L) = eigenvalues
+//
+//            gsl_matrix_complex * nr_s; // TODO: don't duplicate here! maybe templatize?
+//            gsl_matrix_complex * nr_s2;
+//            gsl_vector_complex * nr_l;
+//        } eig;
+//
+//        gsl_vector * pi;
+//
+//        bool have_pi; // mutable
+////        mutable memoized_to_Pt : (float -> Gsl.Matrix.matrix) option; // TODO
+//        double tol; // mutable
+//    };
+
     instance.model.tree = instance.p14n.tree; // tree with evaluated expressions (i.e., multiplied)
     instance.model.prior = codon_freq;
     // pms = Array.init (T.size t - 1) (fun br -> Q.Diag.to_Pt qms.(br) (T.branch t br))
@@ -297,24 +389,25 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
     {
         // to_Pt:
         // TODO: here is memoization happening with q.memoized_to_Pt
-        auto & q = instance.model.qms[i]; // TODO: make sure whether tree[i] matches qms[i] (but should)
-        auto & p = instance.model.pms[i];
+        // especially inefficient since for initialization all qms[i] are identical!
+        instance_t::model_t::q_diag_t &q = instance.model.qms[i]; // TODO: make sure whether tree[i] matches qms[i] (but should)
+        gsl_matrix *&p = instance.model.pms[i];
         const double t = instance.p14n.tree[i].branch_length;
 
+        p = gsl_matrix_alloc(64, 64); // p is the i-th matrix in pms, and will have first gemm_c (variable name from Ocaml), and afterwards sm (substitution matrix of gemm_c)
         // real part
-        if (q.eig.r_l != NULL)
+        if (q.eig.nr_l == NULL)
         {
             assert(q.eig.r_l != NULL && q.eig.r_s != NULL && q.eig.r_s2 != NULL);
             assert(q.eig.nr_l == NULL && q.eig.nr_s == NULL && q.eig.nr_s2 == NULL);
 
             gsl_vector * expLt = gsl_vector_alloc(64);
-            gsl_vector_memcpy(expLt, q.eig.r_l);
+            gsl_vector_memcpy(expLt, q.eig.r_l); // remove memcopy and insert below!
             for (uint8_t expLt_i = 0; expLt_i < 64; ++expLt_i)
                 gsl_vector_set(expLt, expLt_i, gsl_sf_exp(gsl_vector_get(expLt, expLt_i) * t)); // gsl_sf_exp might to error checking! maybe avoid in the end
 
             // gemm r_s (diagm expLt r_s')
             gsl_matrix * diagm_c = gsl_matrix_alloc(64, 64);
-
             for (uint8_t diagm_i = 0; diagm_i < 64; ++diagm_i)
             {
                 const double expLt_i = gsl_vector_get(expLt, diagm_i);
@@ -324,24 +417,23 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
                 }
             }
 
-            gsl_matrix * gemm_c = gsl_matrix_alloc(64, 64);
             gsl_blas_dgemm(CBLAS_TRANSPOSE::CblasNoTrans,
                            CBLAS_TRANSPOSE::CblasNoTrans,
                            1.0 /* alpha */,
                            q.eig.r_s /* A */,
                            diagm_c /* B */,
                            0.0 /* beta */,
-                           gemm_c /* C result */);
+                           p /* C result */);
 
-            // results are equal!!!!
-            for (uint8_t tmp_i = 0; tmp_i < 64; ++tmp_i)
-            {
-                for (uint8_t tmp_j = 0; tmp_j < 64; ++tmp_j)
-                {
-                    printf("%.3f\t", gsl_matrix_get(gemm_c, tmp_i, tmp_j));
-                }
-                printf("\n");
-            }
+            // results are equal with ocaml until here!!!! :)
+//            for (uint8_t tmp_i = 0; tmp_i < 64; ++tmp_i)
+//            {
+//                for (uint8_t tmp_j = 0; tmp_j < 64; ++tmp_j)
+//                {
+//                    printf("%.3f\t", gsl_matrix_get(gemm_c, tmp_i, tmp_j));
+//                }
+//                printf("\n");
+//            }
         }
         // non-real-part
         else
@@ -350,19 +442,98 @@ inline void make(instance_t & instance, const empirical_codon_model & ecm, std::
             //assert(q.eig.r_l == NULL && q.eig.r_s == NULL && q.eig.r_s2 == NULL);
             //assert(q.eig.nr_l != NULL && q.eig.nr_s != NULL && q.eig.nr_s2 != NULL);
 
-//        | `nr { nr_s; nr_s'; nr_l } ->
-//            let ct = { Complex.re = t; im = 0. }
-//            let expLt = Gsl.Vector_complex.copy nr_l
-//            for i = 0 to Gsl.Vector_complex.length expLt - 1 do
-//                expLt.{i} <- Complex.exp (Complex.mul ct expLt.{i})
-//            m_of_cm (zgemm nr_s (zdiagm expLt nr_s'))
+            gsl_vector_complex * expLt = gsl_vector_complex_alloc(64);
+            for (uint8_t expLt_i = 0; expLt_i < 64; ++expLt_i)
+            {
+                const gsl_complex complex_t = gsl_complex_rect(t, 0.0); // TODO: test whether this works!
+                // val = exp((q.eig.nr_l[expLt_i] * complex_t))
+                const gsl_complex expLt_val = gsl_complex_exp(gsl_complex_mul(gsl_vector_complex_get(q.eig.nr_l, expLt_i), complex_t));
+                gsl_vector_complex_set(expLt, expLt_i, expLt_val);
+            }
+
+            // OLD: gemm r_s (diagm expLt r_s')
+            // NEW: m_of_cm (zgemm nr_s (zdiagm expLt nr_s'))
+            gsl_matrix_complex * zdiagm_c = gsl_matrix_complex_alloc(64, 64);
+            for (uint8_t diagm_i = 0; diagm_i < 64; ++diagm_i)
+            {
+                const gsl_complex expLt_i = gsl_vector_complex_get(expLt, diagm_i);
+                for (uint8_t diagm_j = 0; diagm_j < 64; ++diagm_j)
+                {
+                    gsl_matrix_complex_set(zdiagm_c, diagm_i, diagm_j, gsl_complex_mul(gsl_matrix_complex_get(q.eig.nr_s2, diagm_i, diagm_j), expLt_i));
+                }
+            }
+
+            gsl_matrix_complex * zgemm_c = gsl_matrix_complex_alloc(64, 64);
+            gsl_blas_zgemm(CBLAS_TRANSPOSE::CblasNoTrans,
+                           CBLAS_TRANSPOSE::CblasNoTrans,
+                           GSL_COMPLEX_ONE /* alpha */,
+                           q.eig.nr_s /* A */,
+                           zdiagm_c /* B */,
+                           GSL_COMPLEX_ZERO /* beta */,
+                           zgemm_c /* C result */);
+
+            // extract real part of matrix into gemm_c
+            for (uint8_t diagm_i = 0; diagm_i < 64; ++diagm_i)
+            {
+                for (uint8_t diagm_j = 0; diagm_j < 64; ++diagm_j)
+                {
+                    gsl_matrix_set(p, diagm_i, diagm_j, GSL_REAL(gsl_matrix_complex_get(zgemm_c, diagm_i, diagm_j)));
+                }
+            }
         }
 
+        // now doing something on gemm_c ... gemm_c is referred to as matrix "sm" (substitution matrix) in the ocaml code
+        for (uint8_t index_i = 0; index_i < 64; ++index_i)
+        {
+            double total = 0.0;
+            double smii = 1.0;
 
+            for (uint8_t index_j = 0; index_j < 64; ++index_j)
+            {
+                double cell_value = gsl_matrix_get(p, index_i, index_j); // sm[i][j]
 
+                total += cell_value;
+                if (cell_value < 0.0)
+                {
+                    if (fabs(cell_value) > q.tol) // fabs is for doubles, fabsf is for floats
+                    {
+                        printf("CamlPaml.Q.substition_matrix: expm(%.2e*Q)[%d,%d] = %e < 0", t, index_i, index_j, cell_value);
+                        exit(1);
+                    }
+                    else
+                    {
+                        gsl_matrix_set(p, index_i, index_j, 0.0);
+                    }
+                }
+                if (index_i != index_j)
+                {
+                    smii -= gsl_matrix_get(p, index_i, index_j);
+                }
+            }
 
+            if (fabs(total - 1.0) > q.tol)
+            {
+                printf("CamlPaml.Q.substitution matrix: sum(expm(%.2e*Q)[%d,] = %e > 1", t, index_i, total);
+                exit(2);
+            }
+            assert(smii <= 1.0 && smii > 0.0);
 
-//        p = ...;
+            gsl_matrix_set(p, index_i, index_i, smii);
+        }
+        // p now is the i-th gemm_c matrix / substitution matrix sm
     }
 
+    // results are equal with ocaml until here!!!! :) (except complex case - didn't occur yet!)
+    for (auto & p : instance.model.pms)
+    {
+        for (uint8_t tmp_i = 0; tmp_i < 64; ++tmp_i)
+        {
+            for (uint8_t tmp_j = 0; tmp_j < 64; ++tmp_j)
+            {
+                printf("%.3f\t", gsl_matrix_get(p, tmp_i, tmp_j));
+            }
+            printf("\n");
+        }
+        printf("---\n");
     }
+}
