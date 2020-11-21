@@ -8,6 +8,13 @@
 #include <seqan/stream.h>
 #include <seqan/translation.h>
 
+struct alignment_t
+{
+    std::vector<std::string> ids;
+    std::vector<std::string> seqs;
+    std::vector<std::string> peptides;
+};
+
 inline std::string translate(const std::string & s)
 {
     const seqan::Dna5String s2(s.c_str());
@@ -17,7 +24,7 @@ inline std::string translate(const std::string & s)
     return seqan::toCString(c2);
 }
 
-int read_alignment(const char * const file_path, std::vector<std::string>& ids, std::vector<std::string>& seqs)
+int read_alignment(const char * const file_path, alignment_t & alignment)
 {
     char * linebuf;
     size_t linesiz = 0;
@@ -36,11 +43,11 @@ int read_alignment(const char * const file_path, std::vector<std::string>& ids, 
         if (linebuf[0] == '>') // TODO: remove space after ">" and  suffix after first space after species name
         {
             ++i;
-            ids.emplace_back(std::string(linebuf + 1, linelen - 2)); // remove first char, i.e. '>', and remove last char, i.e., '\n'
+            alignment.ids.emplace_back(std::string(linebuf + 1, linelen - 2)); // remove first char, i.e. '>', and remove last char, i.e., '\n'
 //            std::cout << "id: " << ids[i] << '\n';
-            seqs.emplace_back();
+            alignment.seqs.emplace_back();
         } else {
-            seqs[i] += std::string(linebuf, linelen - 1); // remove last char, i.e., '\n'
+            alignment.seqs[i] += std::string(linebuf, linelen - 1); // remove last char, i.e., '\n'
 //            std::cout << "seqs: " << seqs[i] << '\n';
         }
 
@@ -53,5 +60,13 @@ int read_alignment(const char * const file_path, std::vector<std::string>& ids, 
     linebuf = NULL;
 
     fclose(fptr);
+
+    // translate nucleotides
+    for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
+    {
+        assert(alignment.seqs[0].size() == alignment.seqs[i].size());
+        alignment.peptides.push_back(translate(alignment.seqs[i]));
+    }
+
     return 0;
 }

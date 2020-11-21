@@ -110,6 +110,19 @@ inline void newick_annotate_nodes(newick_node * node, int16_t & leaf_id, int16_t
     }
 }
 
+uint16_t newick_count_leaves(const newick_node * const node)
+{
+    assert((node->left == NULL) == (node->right == NULL));
+    if (node->left) // inner node
+    {
+        return newick_count_leaves(node->left) + newick_count_leaves(node->right);
+    }
+    else // leaf
+    {
+        return 1;
+    }
+}
+
 inline newick_node* newick_parse(std::string& str)
 {
     // TODO: remove trailing semicolon
@@ -152,7 +165,7 @@ inline newick_node* newick_open(const char * const file_path)
 
     // remove any newlines, spaces, etc.
     str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
-    std::cout << str << '\n';
+//    std::cout << str << '\n';
     return newick_parse(str);
 }
 

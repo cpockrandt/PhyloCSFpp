@@ -6,6 +6,7 @@
 #include "src/newick.hpp"
 #include "src/ecm.hpp"
 #include "src/instance.hpp"
+#include "src/fixed_lik.hpp"
 
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
 {
@@ -23,22 +24,19 @@ int main(int argc, char ** argv)
     std::string aln_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny.fa";
     std::string model_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Parameters/23flies";
 
+//    std::string aln_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa";
+//    std::string model_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Parameters/100vertebrates";
+
     empirical_codon_model ecm_coding, ecm_noncoding;
     ecm_coding.open(std::string(model_path + "_coding.ECM").c_str());
     ecm_noncoding.open(std::string(model_path + "_noncoding.ECM").c_str());
 //    ecm_coding.print_model();
 
     // read alignment
-    std::vector<std::string> ids;
-    std::vector<std::string> seqs;
-    std::vector<std::string> peptides;
-    read_alignment(aln_path.c_str(), ids, seqs);
-
-    for (uint16_t i = 0; i < seqs.size(); ++i)
-    {
-        peptides.push_back(translate(seqs[i]));
-        std::cout << ids[i] << '\t' << seqs[i] << '\t' << peptides[i] << '\n';
-    }
+    alignment_t alignment;
+    read_alignment(aln_path.c_str(), alignment);
+//    for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
+//        std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << alignment.peptides[i] << '\n';
 
     // open newick (and ignore spaces)
     newick_node* root = newick_open(std::string(model_path + ".nh").c_str());
@@ -49,10 +47,17 @@ int main(int argc, char ** argv)
     for (const auto & elem : newick_flattened)
         std::cout << elem << '\n';
 
-    // TODO: initialize model
+    // initialize model
+    const uint16_t nbr_leaves_in_tree = newick_count_leaves(root);
     instance_t instance_coding, instance_noncoding;
-    make(instance_coding, ecm_coding, newick_flattened);
-//    make(instance_noncoding, ecm_noncoding, newick_flattened);
+    PhyloCSFModel_make(instance_coding, ecm_coding, newick_flattened);
+    PhyloCSFModel_make(instance_noncoding, ecm_noncoding, newick_flattened);
+
+    const double lpr_c = lpr_leaves(instance_coding, alignment, 1.0, nbr_leaves_in_tree);
+    const double lpr_nc = lpr_leaves(instance_noncoding, alignment, 1.0, nbr_leaves_in_tree);
+
+    const double decibans_score = (10.0 * (lpr_c - lpr_nc) / log(10.0));
+    printf("%.5f\t%.5f\t%.5f\n", lpr_c, lpr_nc, decibans_score);
 
     return 0;
 }
