@@ -21,6 +21,14 @@ enum domain : uint8_t { // this is a C++11 feature
     Probability
 };
 
+inline bool check_real(const gsl_complex& c, const double tol)
+{
+    return
+        c.dat[1] == 0.0 ||
+        (fabs(c.dat[1]) * 1000. < gsl_complex_abs(c)) ||
+        (fabs(c.dat[0]) < tol && fabs(c.dat[1]) < tol);
+}
+
 gsl_matrix * _deep_copy_matrix(const gsl_matrix * src)
 {
     if (src == NULL)
@@ -72,6 +80,16 @@ struct instance_t
                 gsl_matrix_complex * nr_s; // TODO: don't duplicate here! maybe templatize?
                 gsl_matrix_complex * nr_s2;
                 gsl_vector_complex * nr_l;
+
+                ~eig_t()
+                {
+                    gsl_matrix_free(r_s);
+                    gsl_matrix_free(r_s2);
+                    gsl_vector_free(r_l);
+                    gsl_matrix_complex_free(nr_s);
+                    gsl_matrix_complex_free(nr_s2);
+                    gsl_vector_complex_free(nr_l);
+                }
             } eig;
 
             gsl_vector * pi;
@@ -103,7 +121,10 @@ struct instance_t
                 return *this;
             };
             q_diag_t& operator=(q_diag_t&&) = default; // move assignment
-            virtual ~q_diag_t() = default; // destructor
+            virtual ~q_diag_t()
+            {
+                gsl_vector_free(pi);
+            }; // destructor
         };
 
         std::vector<newick_elem> tree;
@@ -133,7 +154,14 @@ struct instance_t
 //            return *this;
 //        };
         model_t& operator=(model_t&&) = default; // move assignment
-        virtual ~model_t() = default; // destructor
+        virtual ~model_t()
+        {
+            delete prior;
+            for (auto p : pms)
+            {
+                gsl_matrix_free(p);
+            }
+        }; // destructor
     } model;
 
     struct p14n_t {
@@ -266,6 +294,8 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
                     gsl_matrix_set(diagm_c, diagm_i, diagm_j, gsl_matrix_get(q.eig.r_s2, diagm_i, diagm_j) * expLt_i);
                 }
             }
+
+            gsl_vector_free(expLt);
 
             gsl_blas_dgemm(CBLAS_TRANSPOSE::CblasNoTrans,
                            CBLAS_TRANSPOSE::CblasNoTrans,
@@ -446,11 +476,7 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     for (uint8_t i = 0; i < 64 && !is_l_complex; ++i)
     {
         const gsl_complex &x = gsl_vector_complex_get(l, i);
-        if (!(
-                x.dat[1] == 0.0 ||
-                (fabs(x.dat[1]) * 1000. < gsl_complex_abs(x)) ||
-                (fabs(x.dat[0]) < tol && fabs(x.dat[1]) < tol)
-            )) // NOTE: fabs() is for doubles, fabsf() is for floats
+        if (!check_real(x, tol)) // NOTE: fabs() is for doubles, fabsf() is for floats
         {
             is_l_complex = true;
         }

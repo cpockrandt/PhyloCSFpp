@@ -3,26 +3,23 @@
 #include <string>
 #include <vector>
 
-#include <seqan/index.h>
-#include <seqan/sequence.h>
-#include <seqan/stream.h>
-#include <seqan/translation.h>
+#include "translation.h"
 
 struct alignment_t
 {
     std::vector<std::string> ids;
     std::vector<std::string> seqs;
-    std::vector<std::string> peptides;
+    std::vector<std::vector<uint8_t> > peptides;
 };
 
-inline std::string translate(const std::string & s)
-{
-    const seqan::Dna5String s2(s.c_str());
-    seqan::Peptide p2;
-    seqan::translate(p2, s2, seqan::SINGLE_FRAME, seqan::Serial());
-    seqan::CharString c2 = p2;
-    return seqan::toCString(c2);
-}
+//inline std::string translate(const std::string & s)
+//{
+//    const seqan::Dna5String s2(s.c_str());
+//    seqan::Peptide p2;
+//    seqan::translate(p2, s2, seqan::SINGLE_FRAME, seqan::Serial());
+//    seqan::CharString c2 = p2;
+//    return seqan::toCString(c2);
+//}
 
 int read_alignment(const char * const file_path, alignment_t & alignment)
 {
@@ -62,10 +59,20 @@ int read_alignment(const char * const file_path, alignment_t & alignment)
     fclose(fptr);
 
     // translate nucleotides
+    alignment.peptides.resize(alignment.seqs.size());
     for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
     {
         assert(alignment.seqs[0].size() == alignment.seqs[i].size());
-        alignment.peptides.push_back(translate(alignment.seqs[i]));
+
+        // alignment.peptides.push_back(translate(alignment.seqs[i]));
+        alignment.peptides[i].resize(alignment.seqs[i].size() / 3);
+        for (uint64_t aa_pos = 0; aa_pos < alignment.peptides[i].size(); ++aa_pos)
+        {
+            alignment.peptides[i][aa_pos] = get_amino_acid_id(
+                    alignment.seqs[i][3 * aa_pos],
+                    alignment.seqs[i][3 * aa_pos + 1],
+                    alignment.seqs[i][3 * aa_pos + 2]);
+        }
     }
 
     return 0;

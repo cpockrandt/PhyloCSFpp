@@ -247,5 +247,5 @@ inline void newick_free(newick_node* n)
         newick_free(n->left);
     if (n->right != NULL)
         newick_free(n->right);
-    free(n);
+    delete n;
 }

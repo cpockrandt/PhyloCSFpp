@@ -35,8 +35,8 @@ int main(int argc, char ** argv)
     // read alignment
     alignment_t alignment;
     read_alignment(aln_path.c_str(), alignment);
-//    for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
-//        std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << alignment.peptides[i] << '\n';
+    for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
+        std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << print_peptide(alignment.peptides[i]) << '\n';
 
     // open newick (and ignore spaces)
     newick_node* root = newick_open(std::string(model_path + ".nh").c_str());
@@ -58,6 +58,8 @@ int main(int argc, char ** argv)
 
     const double decibans_score = (10.0 * (lpr_c - lpr_nc) / log(10.0));
     printf("%.5f\t%.5f\t%.5f\n", lpr_c, lpr_nc, decibans_score);
+
+    newick_free(root);
 
     return 0;
 }
