@@ -254,6 +254,7 @@ bool newick_is_leaf(newick_node* node)
     return node->left == NULL && node->right == NULL;
 }
 
+// cannot be called on NULL!
 uint16_t newick_overlap_size(newick_node* node, const std::unordered_set<std::string> & subset)
 {
     if (newick_is_leaf(node))
@@ -262,39 +263,83 @@ uint16_t newick_overlap_size(newick_node* node, const std::unordered_set<std::st
         return newick_overlap_size(node->left, subset) + newick_overlap_size(node->right, subset);
 }
 
-newick_node* newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset, bool free_cutted_nodes)
+void newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset, bool free_cutted_nodes)
 {
     if (node->left == NULL)
-        return node;
+        return;
 
     const uint16_t overlap_left_child = newick_overlap_size(node->left, subset);
+    const uint16_t overlap_right_child = newick_overlap_size(node->right, subset); // store nbr of hits in parent node to avoid two passes!
+
     if (overlap_left_child == 0)
     {
-        newick_node* right_node = node->right;
+        newick_node* left_node_old = node->left;
+        newick_node* right_node_old = node->right;
+
+        // merge current node and right node, because left node is about to get deleted
+        node->left = right_node_old->left;
+        node->right = right_node_old->right;
+
+        // update parents and add branch lengths when we merge two nodes
+        if (node->left != NULL)
+        {
+            assert(node->right != NULL);
+            node->left->parent = node;
+            node->right->parent = node;
+        }
+        else
+        {
+            assert(node->right == NULL);
+            node->label = right_node_old->label;
+        }
+        node->branch_length += right_node_old->branch_length;
+
+        // delete left subtree
         if (free_cutted_nodes)
         {
-            newick_free(node->left);
-            delete node;
+            delete right_node_old;
+            newick_free(left_node_old);
         }
-        return newick_reduce(right_node, subset, free_cutted_nodes);
+
+        // continue on right subtree (which is now "node")
+        newick_reduce(node, subset, free_cutted_nodes);
     }
-    else if (overlap_left_child == subset.size())
+    else if (overlap_right_child == 0)
     {
-        newick_node* left_node = node->left;
+        newick_node* left_node_old = node->left;
+        newick_node* right_node_old = node->right;
+
+        // merge current node and left node, because right node is about to get deleted
+        node->left = left_node_old->left;
+        node->right = left_node_old->right;
+
+        // update parents and add branch lengths when we merge two nodes
+        if (node->left != NULL)
+        {
+            assert(node->right != NULL);
+            node->left->parent = node;
+            node->right->parent = node;
+        }
+        else
+        {
+            assert(node->right == NULL);
+            node->label = left_node_old->label;
+        }
+        node->branch_length += left_node_old->branch_length;
+
+        // delete right subtree
         if (free_cutted_nodes)
         {
-            newick_free(node->right);
-            delete node;
+            delete left_node_old;
+            newick_free(right_node_old);
         }
-        return newick_reduce(left_node, subset, free_cutted_nodes);
+
+        // continue on left subtree (which is now "node")
+        newick_reduce(node, subset, free_cutted_nodes);
     }
     else
     {
-        if (free_cutted_nodes) // TODO: rename into: modify_and_free
-        {
-            node->parent = NULL;
-            node->sibling = NULL;
-        }
-        return node;
+        newick_reduce(node->left, subset, free_cutted_nodes);
+        newick_reduce(node->right, subset, free_cutted_nodes);
     }
 }
