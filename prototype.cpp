@@ -69,20 +69,50 @@ std::ostream& operator<<(std::ostream & os, const std::vector<T> & v)
 #include "src/instance.hpp"
 #include "src/fixed_lik.hpp"
 
-double compute_bls_score(const uint64_t lo, const uint64_t hi)
+double newick_sum_branch_lengths(newick_node* node, const std::unordered_set<std::string> & subset)
 {
+    if (node == NULL) // not necessary I think
+        return 0.0;
+    else
+    {
+        double bl = 0.0;
+        // take entire subtree, but ignore *leaves* that are not selected (but if there is a node with two leaves both not selected, the branch to that inner node will still be added: TODO VERIFY THAT in Ocaml!)
+        if (node->label == "" || subset.find(node->label) != subset.end())
+            bl = node->branch_length;
+        return bl
+               + newick_sum_branch_lengths(node->left, subset)
+               + newick_sum_branch_lengths(node->right, subset);
+    }
+}
+
+double compute_bls_score(newick_node* node, const alignment_t & alignment)
+{
+    const uint64_t lo = 0;
+    const uint64_t hi = alignment.seqs[0].size();
     assert(hi >= lo);
-//    let bls nt aln which_row lo hi =
-//        let pres = function '-' | '.' | 'N' -> false | _ -> true
     double bl_total = 0.0;
-//        for i = lo to hi do
-//            let subtree =
-//                Newick.subtree
-//                    fun sp -> try pres aln.(SMap.find sp which_row).[i] with Not_found -> false
-//                    nt
-//            bl_total := !bl_total +. Option.map_default Newick.total_length 0. subtree
-//        !bl_total /. (Newick.total_length nt *. float (hi-lo+1))
-    return 0.0;
+    for (uint64_t i = lo; i < hi; ++i)
+    {
+        // determine subspecies set that has A,C,G or T at position i
+        std::unordered_set<std::string> subset;
+        for (uint16_t species_id = 0; species_id < alignment.seqs.size(); ++species_id)
+        {
+            if (get_dna_id(alignment.seqs[species_id][i]) <= 3)
+                subset.insert(alignment.ids[species_id]);
+        }
+        newick_node* subtree_node = newick_reduce(node, subset, false);
+
+        if (subtree_node != NULL && subtree_node->left != NULL)
+            bl_total += newick_sum_branch_lengths(subtree_node->left, subset) + newick_sum_branch_lengths(subtree_node->right, subset);
+        std::cout << subset.size() << ' ' << (newick_sum_branch_lengths(subtree_node->left, subset) + newick_sum_branch_lengths(subtree_node->right, subset)) << '\n';
+    }
+
+    std::unordered_set<std::string> all_species(alignment.ids.begin(), alignment.ids.end());
+    const double divisor = newick_sum_branch_lengths(node, all_species) * (hi-lo);
+    std::cout << "sum: " << bl_total << '\n';
+    std::cout << "divisor: " << divisor << '\n';
+
+    return bl_total/divisor;
 }
 
 int main(int argc, char ** argv)
@@ -90,12 +120,13 @@ int main(int argc, char ** argv)
     std::string aln_path, model_path; //, selected_species;
 
     aln_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny.fa";
-    model_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Parameters/12flies";
+    model_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Parameters/23flies";
 
     aln_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa";
     model_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Parameters/100vertebrates";
 
-    std::unordered_set<std::string> selected_species = {"Human", "Mouse", "Rat", "Cow", "Horse", "Dog"};
+    // TODO: if we use Human,Mouse for 12flies, we get a segfault
+    std::unordered_set<std::string> selected_species = {/*"Human", "Mouse", "Rat", "Cow", "Horse", "Dog"*/};
 
     empirical_codon_model ecm_coding, ecm_noncoding;
     ecm_coding.open(std::string(model_path + "_coding.ECM").c_str());
@@ -105,7 +136,7 @@ int main(int argc, char ** argv)
     newick_node* root = newick_open(std::string(model_path + ".nh").c_str());
     if (selected_species.size() > 0)
     {
-        root = newick_reduce(root, selected_species);
+        root = newick_reduce(root, selected_species, true);
 //        std::cout << newick_print(root) << '\n';
     }
 
@@ -151,7 +182,7 @@ int main(int argc, char ** argv)
     const double lpr_nc = lpr_leaves(instance_noncoding, alignment, 1.0, nbr_leaves_in_tree);
 
     const double decibans_score = (10.0 * (lpr_c - lpr_nc) / log(10.0));
-    const double bls_score = 0.0; // TODO: compute_bls_score();
+    const double bls_score = compute_bls_score(root, alignment);
     printf("%f\t%f\t%f", decibans_score, bls_score);
 
     newick_free(root);

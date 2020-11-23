@@ -262,8 +262,7 @@ uint16_t newick_overlap_size(newick_node* node, const std::unordered_set<std::st
         return newick_overlap_size(node->left, subset) + newick_overlap_size(node->right, subset);
 }
 
-//root = newick_reduce(root, selected_species);
-newick_node* newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset)
+newick_node* newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset, bool free_cutted_nodes)
 {
     if (node->left == NULL)
         return node;
@@ -271,22 +270,31 @@ newick_node* newick_reduce(newick_node* node, const std::unordered_set<std::stri
     const uint16_t overlap_left_child = newick_overlap_size(node->left, subset);
     if (overlap_left_child == 0)
     {
-        newick_free(node->left);
         newick_node* right_node = node->right;
-        delete node;
-        return newick_reduce(right_node, subset);
+        if (free_cutted_nodes)
+        {
+            newick_free(node->left);
+            delete node;
+        }
+        return newick_reduce(right_node, subset, free_cutted_nodes);
     }
     else if (overlap_left_child == subset.size())
     {
-        newick_free(node->right);
         newick_node* left_node = node->left;
-        delete node;
-        return newick_reduce(left_node, subset);
+        if (free_cutted_nodes)
+        {
+            newick_free(node->right);
+            delete node;
+        }
+        return newick_reduce(left_node, subset, free_cutted_nodes);
     }
     else
     {
-        node->parent = NULL;
-        node->sibling = NULL;
+        if (free_cutted_nodes) // TODO: rename into: modify_and_free
+        {
+            node->parent = NULL;
+            node->sibling = NULL;
+        }
         return node;
     }
 }
