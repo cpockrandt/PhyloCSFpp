@@ -1,9 +1,12 @@
+#pragma once
+
 #include <stdio.h>
 
 #include <string>
 #include <vector>
 
-#include "translation.h"
+#include "translation.hpp"
+#include "newick.hpp"
 
 struct alignment_t
 {
@@ -34,18 +37,32 @@ int read_alignment(const char * const file_path, alignment_t & alignment)
         return -1;
     }
 
+    uint64_t max_seq_len = 0;
+
     int16_t i = -1;
+    int16_t current_species_id = -1;
     while ((linelen = getline(&linebuf, &linesiz, fptr)) > 0)
     {
         if (linebuf[0] == '>') // TODO: remove space after ">" and  suffix after first space after species name
         {
             ++i;
-            alignment.ids.emplace_back(std::string(linebuf + 1, linelen - 2)); // remove first char, i.e. '>', and remove last char, i.e., '\n'
-//            std::cout << "id: " << ids[i] << '\n';
-            alignment.seqs.emplace_back();
+            const std::string species_name = std::string(linebuf + 1, linelen - 2); // remove first char, i.e. '>', and remove last char, i.e., '\n'
+            // search species in ids
+            for (current_species_id = 0; current_species_id < alignment.ids.size(); ++current_species_id)
+            {
+                if (species_name == alignment.ids[current_species_id])
+                    break;
+            }
+            if (current_species_id == alignment.ids.size())
+            {
+                printf("ERROR: Species %s from alignment does not occur in phylogenetic tree!\n", species_name.c_str());
+                exit(23);
+            }
         } else {
-            alignment.seqs[i] += std::string(linebuf, linelen - 1); // remove last char, i.e., '\n'
+            alignment.seqs[current_species_id] += std::string(linebuf, linelen - 1); // remove last char, i.e., '\n'
 //            std::cout << "seqs: " << seqs[i] << '\n';
+            if (alignment.seqs[current_species_id].size() > max_seq_len)
+                max_seq_len = alignment.seqs[current_species_id].size();
         }
 
         if (i == -1) // first line does not start with ">"
@@ -59,10 +76,14 @@ int read_alignment(const char * const file_path, alignment_t & alignment)
     fclose(fptr);
 
     // translate nucleotides
-    alignment.peptides.resize(alignment.seqs.size());
     for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
     {
-        assert(alignment.seqs[0].size() == alignment.seqs[i].size());
+        assert(alignment.seqs[i].size() == 0 || alignment.seqs[i].size() == max_seq_len);
+
+        if (alignment.seqs[i].size() == 0)
+        {
+            alignment.seqs[i] = std::string(max_seq_len, 'N');
+        }
 
         // alignment.peptides.push_back(translate(alignment.seqs[i]));
         alignment.peptides[i].resize(alignment.seqs[i].size() / 3);

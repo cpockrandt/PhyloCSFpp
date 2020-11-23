@@ -1,6 +1,6 @@
-#include <vector>
+#pragma once
 
-//#include "expr.hpp"
+#include <vector>
 
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_eigen.h>
@@ -20,6 +20,19 @@ enum domain : uint8_t { // this is a C++11 feature
     NonNeg,
     Probability
 };
+
+std::ostream& operator<<(std::ostream & os, const domain d)
+{
+    switch (d)
+    {
+        case domain::Pos:
+            std::cout << "Pos";
+            break;
+        default:
+            std::cout << "UNKNOWN!";
+    }
+    return os;
+}
 
 inline bool check_real(const gsl_complex& c, const double tol)
 {
@@ -99,10 +112,29 @@ struct instance_t
             double tol; // mutable
 
             q_diag_t() = default;
-            q_diag_t(const q_diag_t&) = default; // copy constructor
+            q_diag_t(const q_diag_t& other)// copy constructor
+            {
+//                std::cout << "copy constructor called!!!\n";
+                this->q = _deep_copy_matrix(other.q);
+
+                this->eig.r_l = _deep_copy_vector(other.eig.r_l);
+                this->eig.r_s = _deep_copy_matrix(other.eig.r_s);
+                this->eig.r_s2 = _deep_copy_matrix(other.eig.r_s2);
+
+                this->eig.nr_l = _deep_copy_vector_complex(other.eig.nr_l);
+                this->eig.nr_s = _deep_copy_matrix_complex(other.eig.nr_s);
+                this->eig.nr_s2 = _deep_copy_matrix_complex(other.eig.nr_s2);
+
+                this->pi = _deep_copy_vector(other.pi);
+
+                this->have_pi = other.have_pi;
+                // mutable memoized_to_Pt
+                this->tol = other.tol;
+            }
             q_diag_t(q_diag_t&&) = default; // move constructor
             q_diag_t& operator=(const q_diag_t& other) // copy assignment
             {
+//                std::cout << "copy assignment called!!!\n";
                 this->q = _deep_copy_matrix(other.q);
 
                 this->eig.r_l = _deep_copy_vector(other.eig.r_l);
@@ -223,6 +255,40 @@ struct instance_t
     }
 };
 
+std::ostream& operator<<(std::ostream & os, const instance_t::p14n_t & x)
+{
+    os << "q_p14ns\n" << x.q_p14ns << '\n';
+    char buf[10];
+    sprintf(buf, "%.3f", x.q_scale_p14ns);
+    os << "q_scale_p14ns: " << buf << '\n';
+    os << "q_domains: " << x.q_domains << '\n';
+    os << "tree_shape:\n" << x.tree_shape << '\n';
+    os << "tree_p14n:\n" << x.tree_p14n << '\n';
+    os << "tree_domains: " << x.tree_domains << '\n';
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, const instance_t::model_t & x)
+{
+    os << "tree\n" << x.tree << '\n';
+//    os << "qms\n" << x.qms << '\n';
+//    os << "pms\n" << x.pms << '\n';
+    os << "prior: " << *x.prior << '\n';
+//    char buf[10];
+//    sprintf(buf, "%.3f", x.q_scale_p14ns);
+
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, const instance_t & x)
+{
+    os << x.p14n << '\n';
+    os << x.model;
+    os << "tree_settings: " << x.tree_settings << '\n';
+    os << "q_settings: " << x.q_settings << '\n';
+    return os;
+}
+
 // TODO: let make ?prior t qms
 // the new tree and the new qms (created by instantiate_tree or instantiate_qs) are passed be reference in Ocaml
 // the results are stored (or computed) in copies.
@@ -242,10 +308,14 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
     // do this only in the initialization step (copy qms[0] to all other (uninitialized) members)
     if (instance.model.qms.size() == 1)
     {
-        instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
-        instance.model.qms.resize(instance.p14n.tree_p14n.size() - 1);
-        for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
-            instance.model.qms[i] = instance.model.qms[0]; // deep-copy
+        // NOTE: we cannot resize here, because resizing qms will call destructors of qms.model.eig
+        // which will delete the matrices (actually it should perform deep-copies of qms[0] members.
+        // TODO: figure out why it's not working. maybe a pointer existing to something in qms[0] that is stored outside qms[0]?
+        // for simplicity we moved this to the end of PhyloCSFModel_make()
+//        instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
+//        instance.model.qms.resize(instance.p14n.tree_p14n.size() - 1/*, instance.model.qms[0]*/);
+//        for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
+//            instance.model.qms[i] = instance.model.qms[0]; // deep-copy of object diag_t
     }
 
     // tree_p14n is the result of instantiate_tree that is passed to make() in PhyloModel.ml
@@ -441,7 +511,10 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
 
     instance.compute_q_p14ns_and_q_scale_p14ns(matrix, codon_freq);
 
-    instance.model.qms.resize(1);
+//    std::cout << "codon_freq: " << codon_freq << '\n';
+
+//    instance.model.qms.resize(1);
+    instance.model.qms.resize(instance.p14n.tree_p14n.size() - 1);
     instance.model.qms[0].q = gsl_matrix_alloc(64, 64);
     for (uint8_t i = 0; i < 64; ++i)
         for (uint8_t j = 0; j < 64; ++j)
@@ -516,11 +589,20 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
                 gsl_matrix_set(instance.model.qms[0].eig.r_s2, i, j, s2_elem.dat[0]);
             }
         }
+
+        gsl_matrix_complex_free(s);
+        gsl_matrix_complex_free(s2);
+        gsl_vector_complex_free(l);
     }
 
     instance.model.qms[0].tol = tol;
     instance.model.qms[0].have_pi = false;
     instance.model.qms[0].pi = gsl_vector_alloc(64); // TODO: unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
+
+    // NOTE: taken from the beginning of PhyloModel_make()
+    instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
+    for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
+        instance.model.qms[i] = instance.model.qms[0]; // deep-copy of object diag_t
 
     // -- make (remember: this is also called in each update (with new tree and old q))
     PhyloModel_make(instance, &codon_freq);

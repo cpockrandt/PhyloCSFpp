@@ -1,6 +1,9 @@
+#pragma once
+
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <unordered_set>
 
 #include <cassert>
 
@@ -123,23 +126,6 @@ uint16_t newick_count_leaves(const newick_node * const node)
     }
 }
 
-inline newick_node* newick_parse(std::string& str)
-{
-    // TODO: remove trailing semicolon
-    newick_node* root = new newick_node;
-    root->parent = NULL;
-
-    int16_t nbr_nodes = 1;
-    newick_parse(str, root, nbr_nodes);
-
-    int16_t leaf_id = 0;
-    int16_t inner_node_id = (nbr_nodes / 2) + 1;
-    // merge both traversals into one: during parsing remember how many nodes the tree has. then we now how many leaves. use two counters, one for leaves and for internal nodes
-    newick_annotate_nodes(root, leaf_id, inner_node_id);
-
-    return root;
-}
-
 inline newick_node* newick_open(const char * const file_path)
 {
     char * linebuf;
@@ -166,7 +152,20 @@ inline newick_node* newick_open(const char * const file_path)
     // remove any newlines, spaces, etc.
     str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
 //    std::cout << str << '\n';
-    return newick_parse(str);
+
+    // TODO: remove trailing semicolon
+    newick_node* root = new newick_node;
+    root->parent = NULL;
+
+    int16_t nbr_nodes = 1; // can remove this one!
+    newick_parse(str, root, nbr_nodes);
+
+//    int16_t leaf_id = 0;
+//    int16_t inner_node_id = (nbr_nodes / 2) + 1;
+//    // merge both traversals into one: during parsing remember how many nodes the tree has. then we now how many leaves. use two counters, one for leaves and for internal nodes
+//    newick_annotate_nodes(root, leaf_id, inner_node_id);
+
+    return root;
 }
 
 void newick_flatten_add_leaves(newick_node * node, std::vector<newick_elem> & newick_flattened)
@@ -187,7 +186,7 @@ void newick_flatten_add_leaves(newick_node * node, std::vector<newick_elem> & ne
         elem.child2_id = -1; // child1_id
         elem.sibling_id = node->sibling->id; // sibling_id
         elem.parent_id = node->parent->id; // parent_id
-        elem.branch_length = node->branch_length; // branch_lengt
+        elem.branch_length = node->branch_length; // branch_length
         elem.label = node->label; // label
 
         newick_flattened.push_back(std::move(elem));
@@ -248,4 +247,46 @@ inline void newick_free(newick_node* n)
     if (n->right != NULL)
         newick_free(n->right);
     delete n;
+}
+
+bool newick_is_leaf(newick_node* node)
+{
+    return node->left == NULL && node->right == NULL;
+}
+
+uint16_t newick_overlap_size(newick_node* node, const std::unordered_set<std::string> & subset)
+{
+    if (newick_is_leaf(node))
+        return subset.find(node->label) != subset.end();
+    else
+        return newick_overlap_size(node->left, subset) + newick_overlap_size(node->right, subset);
+}
+
+//root = newick_reduce(root, selected_species);
+newick_node* newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset)
+{
+    if (node->left == NULL)
+        return node;
+
+    const uint16_t overlap_left_child = newick_overlap_size(node->left, subset);
+    if (overlap_left_child == 0)
+    {
+        newick_free(node->left);
+        newick_node* right_node = node->right;
+        delete node;
+        return newick_reduce(right_node, subset);
+    }
+    else if (overlap_left_child == subset.size())
+    {
+        newick_free(node->right);
+        newick_node* left_node = node->left;
+        delete node;
+        return newick_reduce(left_node, subset);
+    }
+    else
+    {
+        node->parent = NULL;
+        node->sibling = NULL;
+        return node;
+    }
 }

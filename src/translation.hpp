@@ -37,11 +37,14 @@ uint8_t get_dna_id(const char n)
         case 'T': case 't':
             return 3;
         case '-':
+        case 'N': // TODO: some amino acids could be called even with a single N!
             return 4;
         default:
-            printf("AHHHH: #%c#\n", n);
-            assert(false);
             // TODO: error handling?
+            assert(false);
+            printf("AHHHH: #%c#\n", n);
+            exit(37);
+            return 99;
     }
 }
 

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 
 #include <gsl/gsl_matrix.h>
@@ -232,12 +234,15 @@ double lpr_leaves(instance_t & instance, const alignment_t & alignment, const do
                 tmp_prior[i] = gsl_vector_get(q.pi, i);
         }
 
+//        std::cout << "tmp_prior: " << tmp_prior << '\n';
+
         // now since (prior instance.model) is computed, we can evaluate the actual value:
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
         const uint16_t k = tmp_prior.size();
         const uint16_t n = instance.model.tree.size();
         const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
 
+//        std::cout << nl << ' ' << alignment.peptides.size() << '\n';
         assert(nl == alignment.peptides.size()); // if nl <> Array.length leaves then invalid_arg "CamlPaml.Infer.prepare: length(leaves) != leaves(t)"
         assert(instance.model.pms.size() >= n - 1); // if Array.length pms < n-1 then invalid_arg "CamlPaml.Infer.prepare: not enough P matrices"
 
