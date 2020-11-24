@@ -1,6 +1,6 @@
 CC = g++
 
-CFLAGS = -O0 -g -fsanitize=address -fno-omit-frame-pointer -Wall -pedantic # -static-libasan
+CFLAGS = -O0 -g -fsanitize=address -fno-omit-frame-pointer -Wall -pedantic
 
 TARGET = PhyloCSF++
 

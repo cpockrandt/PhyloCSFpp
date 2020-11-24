@@ -112,6 +112,7 @@ void ensure_alpha(const instance_t & instance, workspace_t & workspace, const al
 void ensure_beta(const instance_t & instance, workspace_t & workspace, const alignment_t & alignment, const uint32_t codon_pos)
 {
     ensure_alpha(instance, workspace, alignment, codon_pos);
+    std::cout << "zzzzz\n";
     if (!workspace.have_beta)
     {
         const uint16_t k = workspace.beta.matrix.size2;
@@ -119,18 +120,24 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
         gsl_vector * ps_colb = gsl_vector_alloc(k);
         for (int16_t i = ((instance.model.tree.size() + 1) / 2) - 1; i >= 0; --i) // for i = (T.root x.tree)-1 downto 0 do
         {
-//            let p = T.parent x.tree i
-//            assert (p > i)
-//            // TODO: update siblings on reduce!
-//            let s = T.sibling x.tree i
-//            let ps = x.pms.(i)
-//            let ss = x.pms.(s)
-//            let bp = Gsl.Matrix.row x.beta p
-//            let xas = alpha_get x s
+            std::cout << "XXXXXXXXX\n";
+            const int16_t p = instance.model.tree[i].parent_id;
+            assert(p > i);
+            // TODO: update siblings on reduce!
+            const int16_t s = instance.model.tree[i].sibling_id;
+            gsl_matrix * ps = instance.model.pms[i];
+            gsl_matrix * ss = instance.model.pms[s];
+            auto bp = gsl_matrix_row(&workspace.beta.matrix, p); // TODO: compare output
+            gsl_vector * xas = alpha_get(instance, workspace, s, alignment, codon_pos);
 
             for (uint16_t a = 0; a < k; ++a)
             {
-//                inter.{a} <- bp.{a} *. (Gsl.Blas.dot (Gsl.Matrix.row ss a) xas)
+                // inter.{a} <- bp.{a} *. (Gsl.Blas.dot (Gsl.Matrix.row ss a) xas)
+                double dot_result;
+                auto ss_row = gsl_matrix_row(ss, a);
+                gsl_blas_ddot(&ss_row.vector, xas, &dot_result);
+                dot_result *= gsl_vector_get(&bp.vector, a);
+                gsl_vector_set(inter, a, dot_result);
             }
 
             gsl_vector_free(inter);
@@ -139,9 +146,12 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
             {
                 for (uint16_t a = 0; a < k; ++a) // instead of this loop it'd probably be a little faster to transpose ps
                 {
+                    gsl_vector_set(ps_colb, a, gsl_matrix_get(ps, a, b));
 //                    Bigarray.Array1.unsafe_set ps_colb a (Bigarray.Array2.unsafe_get ps a b)
                 }
-//                x.beta.{i,b} <- Gsl.Blas.dot inter ps_colb
+                double dot_result;
+                gsl_blas_ddot(inter, ps_colb, &dot_result);
+                gsl_matrix_set(&workspace.beta.matrix, i, b, dot_result);
             }
         }
 
@@ -421,6 +431,11 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         lpr += log(workspace.z);
 
         gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
+        assert(pr_root->size == anc_lprior.size());
+        for (uint16_t xx = 0; xx < anc_lprior.size(); ++xx)
+        {
+            elpr_anc += anc_lprior[xx] * gsl_vector_get(pr_root, xx);
+        }
         gsl_vector_free(pr_root);
     }
 }

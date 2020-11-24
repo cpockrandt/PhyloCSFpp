@@ -306,7 +306,9 @@ void newick_reduce(newick_node* node, const std::unordered_set<std::string> & su
             assert(node->right == NULL);
             node->label = right_node_old->label;
         }
-        node->branch_length += right_node_old->branch_length;
+
+        if (node->parent != NULL) // parent node does not have branch length
+            node->branch_length += right_node_old->branch_length;
 
         // delete left subtree
         if (free_cutted_nodes)
@@ -339,7 +341,9 @@ void newick_reduce(newick_node* node, const std::unordered_set<std::string> & su
             assert(node->right == NULL);
             node->label = left_node_old->label;
         }
-        node->branch_length += left_node_old->branch_length;
+
+        if (node->parent != NULL) // parent node does not have branch length
+            node->branch_length += left_node_old->branch_length;
 
         // delete right subtree
         if (free_cutted_nodes)
