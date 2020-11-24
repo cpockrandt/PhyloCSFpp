@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "src/newick.hpp"
+#include "src/models.hpp"
 
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
 {
@@ -132,17 +133,43 @@ int main(int argc, char ** argv)
     // TODO: if we use Human,Mouse for 12flies, we get a segfault
 
     empirical_codon_model ecm_coding, ecm_noncoding;
-    ecm_coding.open(std::string(model_path + "_coding.ECM").c_str());
-    ecm_noncoding.open(std::string(model_path + "_noncoding.ECM").c_str());
+    if (false)
+    {
+        ecm_coding.open(std::string(model_path + "_coding.ECM").c_str());
+        ecm_noncoding.open(std::string(model_path + "_noncoding.ECM").c_str());
+    }
+    else
+    {
+        if (!ecm_coding.load("23flies", models, 1))
+        {
+            printf("ERROR: The model \"23flies\" does not exist. Please choose one from the following set or give a path to your model:\n");
+            for (const auto & m : models)
+                printf("\t- %s\n", m.first.c_str());
+            return -1;
+        }
+        ecm_noncoding.load("23flies", models, 0);
+    }
 
     // open newick (and ignore spaces)
     // TODO: make sure not to delete species, that are NOT in the alignment, but that are passed as "selected_species". relevant for branch length score
     newick_node* root = newick_open(std::string(model_path + ".nh").c_str());
-    std::cout << newick_print(root) << '\n';
+
+//    std::cout << newick_print(root) << '\n';
     if (selected_species.size() > 0)
     {
+        std::unordered_set<std::string> missing_species = selected_species; // merge into one set with bool
+        newick_check_missing_species(root, missing_species);
+        if (missing_species.size() > 0)
+        {
+            printf("ERROR: The following selected species are missing in the phylogenetic tree (TODO: output filename):\n");
+            for (const std::string & sp : selected_species)
+                printf("\t- %s\n", sp.c_str());
+            newick_free(root);
+            return -1;
+        }
+
         newick_reduce(root, selected_species, true);
-        std::cout << newick_print(root) << '\n';
+//        std::cout << newick_print(root) << '\n';
     }
 
     // annotate tree (ids, parents, siblings, etc)

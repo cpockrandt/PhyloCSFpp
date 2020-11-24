@@ -263,6 +263,20 @@ uint16_t newick_overlap_size(newick_node* node, const std::unordered_set<std::st
         return newick_overlap_size(node->left, subset) + newick_overlap_size(node->right, subset);
 }
 
+void newick_check_missing_species(newick_node* node, std::unordered_set<std::string> & selected_species)
+{
+    if (node->left == NULL)
+    {
+        // leaf
+        selected_species.erase(node->label);
+    }
+    else
+    {
+        newick_check_missing_species(node->left, selected_species);
+        newick_check_missing_species(node->right, selected_species);
+    }
+}
+
 void newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset, bool free_cutted_nodes)
 {
     if (node->left == NULL)
