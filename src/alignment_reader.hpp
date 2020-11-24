@@ -40,7 +40,7 @@ int read_alignment(const char * const file_path, alignment_t & alignment)
     uint64_t max_seq_len = 0;
 
     int16_t i = -1;
-    int16_t current_species_id = -1;
+    uint16_t current_species_id = 999;
     while ((linelen = getline(&linebuf, &linesiz, fptr)) > 0)
     {
         if (linebuf[0] == '>') // TODO: remove space after ">" and  suffix after first space after species name
@@ -59,6 +59,7 @@ int read_alignment(const char * const file_path, alignment_t & alignment)
                 exit(23);
             }
         } else {
+            assert(0 <= current_species_id && current_species_id < alignment.ids.size());
             alignment.seqs[current_species_id] += std::string(linebuf, linelen - 1); // remove last char, i.e., '\n'
 //            std::cout << "seqs: " << seqs[i] << '\n';
             if (alignment.seqs[current_species_id].size() > max_seq_len)

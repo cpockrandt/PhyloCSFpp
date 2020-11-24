@@ -157,7 +157,7 @@ gsl_vector * node_posterior(instance_t & instance, workspace_t & workspace, cons
     ensure_alpha(instance, workspace, alignment, codon_pos);
     const uint16_t k = workspace.alpha.matrix.size2;
 
-    if (workspace.z = 0.0) // the data were impossible by the model
+    if (workspace.z == 0.0) // the data were impossible by the model
     {
         gsl_vector * pr_root = gsl_vector_alloc(k);
         gsl_vector_set_zero(pr_root);
@@ -338,7 +338,7 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         // let info = PM.prepare_lik workspace instance.model lvs
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
         // prior is a function that either returns instance.model.prior or computes the equilibrium
-        auto & m = instance.model;
+//        auto & m = instance.model;
 
         std::vector<double> tmp_prior; // don't want to overwrite instance.model.prior (Ocaml code doesn't seem to do that either)
         get_prior(instance, tmp_prior);
@@ -353,14 +353,14 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 
 //        std::cout << nl << ' ' << alignment.peptides.size() << '\n';
         assert(nl == alignment.peptides.size()); // if nl <> Array.length leaves then invalid_arg "CamlPaml.Infer.prepare: length(leaves) != leaves(t)"
-        assert(instance.model.pms.size() >= n - 1); // if Array.length pms < n-1 then invalid_arg "CamlPaml.Infer.prepare: not enough P matrices"
+        assert(instance.model.pms.size() >= (size_t)(n - 1)); // if Array.length pms < n-1 then invalid_arg "CamlPaml.Infer.prepare: not enough P matrices"
 
         // NOTE: ignored, since until now, we always passed a workspace in Ocaml
         // let workspace = match workspace with Some x -> x | None -> new_workspace tree k
 
         workspace.workspace_generation = (workspace.workspace_generation == MY_MAX_INT) ? MY_MIN_INT : (workspace.workspace_generation + 1);
 
-        assert(workspace.workspace_data->size1 >= (2*n-nl)); // if rows < (2*n-nl) || cols <> k then invalid_arg "CamlPaml.Infer.prepare: inappropriate workspace dimensions"
+        assert(workspace.workspace_data->size1 >= (size_t)(2*n-nl)); // if rows < (2*n-nl) || cols <> k then invalid_arg "CamlPaml.Infer.prepare: inappropriate workspace dimensions"
         assert(workspace.workspace_data->size2 == k);
 
 //        for (uint16_t x = 0; x < 7; ++x)
