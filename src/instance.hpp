@@ -155,6 +155,7 @@ struct instance_t
             q_diag_t& operator=(q_diag_t&&) = default; // move assignment
             virtual ~q_diag_t()
             {
+                gsl_matrix_free(q);
                 gsl_vector_free(pi);
             }; // destructor
         };
@@ -321,6 +322,8 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
     // tree_p14n is the result of instantiate_tree that is passed to make() in PhyloModel.ml
     // it is then returned as a copy in the "model" struct: { tree = T.copy t; qms; pms; prior }
     instance.model.tree = instance.p14n.tree_p14n; // tree with evaluated expressions (i.e., multiplied)
+    if (instance.model.prior != NULL)
+        delete instance.model.prior;
     if (prior != NULL)
     {
         instance.model.prior = new std::vector<double>; // this is codon_freq on very first initialization
@@ -341,6 +344,9 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
         instance_t::model_t::q_diag_t &q = instance.model.qms[i]; // TODO: make sure whether tree[i] matches qms[i] (but should)
         gsl_matrix *&p = instance.model.pms[i];
         const double t = instance.p14n.tree_p14n[i].branch_length;
+
+        if (p != NULL)
+            gsl_matrix_free(p);
 
         p = gsl_matrix_alloc(64, 64); // p is the i-th matrix in pms, and will have first gemm_c (variable name from Ocaml), and afterwards sm (substitution matrix of gemm_c)
         // real part
@@ -374,6 +380,8 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
                            diagm_c /* B */,
                            0.0 /* beta */,
                            p /* C result */);
+
+            gsl_matrix_free(diagm_c);
 
             // results are equal with ocaml until here!!!! :)
 //            for (uint8_t tmp_i = 0; tmp_i < 64; ++tmp_i)
@@ -430,6 +438,8 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
                     gsl_matrix_set(p, diagm_i, diagm_j, GSL_REAL(gsl_matrix_complex_get(zgemm_c, diagm_i, diagm_j)));
                 }
             }
+            gsl_matrix_complex_free(zdiagm_c);
+            gsl_matrix_complex_free(zgemm_c);
         }
 
         // now doing something on gemm_c ... gemm_c is referred to as matrix "sm" (substitution matrix) in the ocaml code
@@ -541,6 +551,8 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     gsl_matrix_complex *s2 = gsl_matrix_complex_alloc(64, 64);
     gsl_linalg_complex_LU_decomp(lu, permut, &signum);
     gsl_linalg_complex_LU_invert(lu, permut, s2 /* inverse */);
+    gsl_permutation_free(permut);
+    gsl_matrix_complex_free(lu);
 
     // im = 0. || (abs_float im) *. 1000. < (Complex.norm z) || (abs_float re < tol && abs_float im < tol)
     // check whether l can be a real vector
