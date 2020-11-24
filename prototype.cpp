@@ -123,7 +123,7 @@ int main(int argc, char ** argv)
 
     aln_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
     model_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Parameters/23flies";
-    selected_species = {"dmel", "dsim", "dsec", "x1"};
+    selected_species = {"dmel", "dsim", "dsec"};
 
 //    aln_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa";
 //    model_path = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Parameters/100vertebrates";
@@ -181,13 +181,15 @@ int main(int argc, char ** argv)
 //    std::cout << "Coding instance:\n" << instance_coding;
 //    std::cout << "NonCoding instance:\n" << instance_noncoding;
 
-    const double lpr_c = lpr_leaves(instance_coding, alignment, 1.0, nbr_leaves_in_tree);
-    const double lpr_nc = lpr_leaves(instance_noncoding, alignment, 1.0, nbr_leaves_in_tree);
+    double lpr_c, lpr_nc;
+    double elpr_anc_c, elpr_anc_nc;
+    lpr_leaves(instance_coding, alignment, 1.0, nbr_leaves_in_tree, lpr_c, elpr_anc_c);
+    lpr_leaves(instance_noncoding, alignment, 1.0, nbr_leaves_in_tree, lpr_nc, elpr_anc_nc);
 
-    const double decibans_score = (10.0 * (lpr_c - lpr_nc) / log(10.0));
+    const double decibans_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
+    const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0); // TODO
     const double bls_score = compute_bls_score(root, alignment);
-    const double anchestral_score = 0.0; // TODO
-    printf("%f\t%f\t%f", decibans_score, bls_score, anchestral_score);
+    printf("%f\t%f\t%f", decibans_score, anchestral_score, bls_score);
 
     newick_free(root);
 
