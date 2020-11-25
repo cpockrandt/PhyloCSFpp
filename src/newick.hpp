@@ -29,7 +29,7 @@ struct newick_elem
     std::string label;
 };
 
-void newick_parse(std::string& str, newick_node* node, int16_t & nbr_nodes)
+void newick_parse(std::string& str, newick_node* node)
 {
     if (str[0] != '(' && str[0] != ',' && str[0] != ')' && str[0] != ':')
     {
@@ -52,19 +52,17 @@ void newick_parse(std::string& str, newick_node* node, int16_t & nbr_nodes)
 
     if (str[0] == '(')
     {
-        nbr_nodes += 2;
-
         newick_node* left = new newick_node;
         left->parent = node;
         node->left = left;
         //
         str = str.substr(1); // remove '('
-        newick_parse(str, left, nbr_nodes);
+        newick_parse(str, left);
 
         newick_node* right = new newick_node;
         right->parent = node;
         node->right = right;
-        newick_parse(str, right, nbr_nodes);
+        newick_parse(str, right);
     }
 
     if (str[0] == ',')
@@ -157,13 +155,7 @@ inline newick_node* newick_open(const char * const file_path)
     newick_node* root = new newick_node;
     root->parent = NULL;
 
-    int16_t nbr_nodes = 1; // can remove this one!
-    newick_parse(str, root, nbr_nodes);
-
-//    int16_t leaf_id = 0;
-//    int16_t inner_node_id = (nbr_nodes / 2) + 1;
-//    // merge both traversals into one: during parsing remember how many nodes the tree has. then we now how many leaves. use two counters, one for leaves and for internal nodes
-//    newick_annotate_nodes(root, leaf_id, inner_node_id);
+    newick_parse(str, root);
 
     return root;
 }
@@ -218,6 +210,12 @@ void newick_flatten_add_inner_nodes(newick_node * node, std::vector<newick_elem>
 
 inline void newick_flatten(newick_node * root, std::vector<newick_elem> & newick_flattened)
 {
+    // annotate tree (ids, parents, siblings, etc)
+    int16_t leaf_id = 0;
+    int16_t inner_node_id = newick_count_leaves(root); // (nbr_nodes / 2) + 1;
+    // merge both traversals into one: during parsing remember how many nodes the tree has. then we now how many leaves. use two counters, one for leaves and for internal nodes
+    newick_annotate_nodes(root, leaf_id, inner_node_id);
+
     // TODO: merge this into only one traversal
     newick_flatten_add_leaves(root, newick_flattened);
     newick_flatten_add_inner_nodes(root, newick_flattened);
@@ -251,7 +249,8 @@ inline void newick_free(newick_node* n)
 
 bool newick_is_leaf(newick_node* node)
 {
-    return node->left == NULL && node->right == NULL;
+    assert((node->left == NULL) == (node->right == NULL));
+    return node->left == NULL;
 }
 
 // cannot be called on NULL!
@@ -277,7 +276,7 @@ void newick_check_missing_species(newick_node* node, std::unordered_set<std::str
     }
 }
 
-void newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset, bool free_cutted_nodes)
+void newick_reduce(newick_node* node, const std::unordered_set<std::string> & subset)
 {
     if (node->left == NULL)
         return;
@@ -311,14 +310,11 @@ void newick_reduce(newick_node* node, const std::unordered_set<std::string> & su
             node->branch_length += right_node_old->branch_length;
 
         // delete left subtree
-        if (free_cutted_nodes)
-        {
-            delete right_node_old;
-            newick_free(left_node_old);
-        }
+        delete right_node_old;
+        newick_free(left_node_old);
 
         // continue on right subtree (which is now "node")
-        newick_reduce(node, subset, free_cutted_nodes);
+        newick_reduce(node, subset);
     }
     else if (overlap_right_child == 0)
     {
@@ -346,18 +342,15 @@ void newick_reduce(newick_node* node, const std::unordered_set<std::string> & su
             node->branch_length += left_node_old->branch_length;
 
         // delete right subtree
-        if (free_cutted_nodes)
-        {
-            delete left_node_old;
-            newick_free(right_node_old);
-        }
+        delete left_node_old;
+        newick_free(right_node_old);
 
         // continue on left subtree (which is now "node")
-        newick_reduce(node, subset, free_cutted_nodes);
+        newick_reduce(node, subset);
     }
     else
     {
-        newick_reduce(node->left, subset, free_cutted_nodes);
-        newick_reduce(node->right, subset, free_cutted_nodes);
+        newick_reduce(node->left, subset);
+        newick_reduce(node->right, subset);
     }
 }

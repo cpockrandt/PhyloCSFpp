@@ -83,16 +83,16 @@ struct instance_t
     struct model_t {
 
         struct q_diag_t {
-            gsl_matrix * q;
+            gsl_matrix * q = NULL;
 
             struct eig_t {
-                gsl_matrix * r_s;  // S = right eigenvectors (in the columns)
-                gsl_matrix * r_s2; // S' = left eigenvectors (in the rows)
-                gsl_vector * r_l;  // diag(L) = eigenvalues
+                gsl_matrix * r_s = NULL;  // S = right eigenvectors (in the columns)
+                gsl_matrix * r_s2 = NULL; // S' = left eigenvectors (in the rows)
+                gsl_vector * r_l = NULL;  // diag(L) = eigenvalues
 
-                gsl_matrix_complex * nr_s; // TODO: don't duplicate here! maybe templatize?
-                gsl_matrix_complex * nr_s2;
-                gsl_vector_complex * nr_l;
+                gsl_matrix_complex * nr_s = NULL; // TODO: don't duplicate here! maybe templatize?
+                gsl_matrix_complex * nr_s2 = NULL;
+                gsl_vector_complex * nr_l = NULL;
 
                 ~eig_t()
                 {
@@ -105,7 +105,7 @@ struct instance_t
                 }
             } eig;
 
-            gsl_vector * pi;
+            gsl_vector * pi = NULL;
 
             bool have_pi; // mutable
 //        mutable memoized_to_Pt : (float -> Gsl.Matrix.matrix) option; // TODO
@@ -163,7 +163,7 @@ struct instance_t
         std::vector<newick_elem> tree;
         std::vector<q_diag_t> qms; // size = numer of tree node without root (tree.size() - 1)
         std::vector<gsl_matrix*> pms; // size = numer of tree node without root (tree.size() - 1)
-        std::vector<double>* prior; // this used to be of type "float array option", i.e., float array or nothing
+        std::vector<double>* prior = NULL; // this used to be of type "float array option", i.e., float array or nothing
 
         model_t() = default;
         model_t(const model_t& other) = delete; // copy constructor: TODO: deep-copy of prior
@@ -189,7 +189,8 @@ struct instance_t
         model_t& operator=(model_t&&) = default; // move assignment
         virtual ~model_t()
         {
-            delete prior;
+            if (prior != NULL)
+                delete prior;
             for (auto p : pms)
             {
                 gsl_matrix_free(p);

@@ -54,21 +54,17 @@ struct empirical_codon_model
     }
 
     // makes matrix symmetric and set diagonal to 0
-    bool load(const char* name, const std::unordered_map<std::string, my_model> & models, const bool coding_mode)
+    void load(const my_model & model, const bool coding_mode)
     {
-        auto m = models.find(name);
-        if (m == models.end())
-            return false;
-
         double *m_matrix;
         double *m_codon_freq;
         if (coding_mode)
         {
-            m_matrix = m->second.coding_matrix;
-            m_codon_freq = m->second.coding_codon_freq;
+            m_matrix = model.coding_matrix;
+            m_codon_freq = model.coding_codon_freq;
         } else {
-            m_matrix = m->second.noncoding_matrix;
-            m_codon_freq = m->second.noncoding_codon_freq;
+            m_matrix = model.noncoding_matrix;
+            m_codon_freq = model.noncoding_codon_freq;
         }
 
         uint32_t i = 0, j = 1;
@@ -89,8 +85,6 @@ struct empirical_codon_model
         matrix[63][63] = 0.0;
 
         memcpy(codon_freq, m_codon_freq, 64 * sizeof(m_codon_freq));
-
-        return true;
     }
 
     void print_model() const noexcept
