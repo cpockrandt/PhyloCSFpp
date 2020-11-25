@@ -311,8 +311,7 @@ void get_prior(instance_t & instance, std::vector<double> & tmp_prior)
     }
 }
 
-void lpr_leaves(instance_t & instance, const alignment_t & alignment, const double t, const uint16_t nbr_leaves_in_tree,
-                double & lpr, double & elpr_anc)
+void lpr_leaves(instance_t & instance, const alignment_t & alignment, const double t, double & lpr, double & elpr_anc)
 {
     // don't think a deep-copy is necessary. there's a
     // 1.  copy instance (not sure whether it's necessary), but it doesn't seem that
@@ -326,7 +325,8 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 
     // let workspace = PhyloLik.new_workspace (PM.tree (PM.P14n.model inst)) Codon.dim
     workspace_t workspace;
-    const uint16_t rows = 2 * instance.p14n.tree_shape.size() - nbr_leaves_in_tree; // 7
+    const uint16_t nbr_leaves_in_tree = (instance.model.tree.size() + 1) / 2;
+    const uint16_t rows = 2 * instance.p14n.tree_shape.size() - nbr_leaves_in_tree;
     workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
@@ -439,3 +439,82 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         gsl_vector_free(pr_root);
     }
 }
+
+struct minimizer_params_t {
+    instance_t& instance;
+    const alignment_t& alignment;
+    double lpr;
+    double elpr_anc;
+};
+
+double minimizer_lpr_leaves(const double x, void * params)
+{
+    minimizer_params_t * min_params = (minimizer_params_t*) params;
+    lpr_leaves(min_params->instance, min_params->alignment, x, min_params->lpr, min_params->elpr_anc);
+    return (-1) * min_params->lpr;
+}
+
+void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, const double init, double &lpr, double &elpr_anc)
+{
+    double lo = 1e-2;
+    double hi = 10.0;
+    const double accuracy = 0.01;
+
+    auto f = [&instance, &alignment](const double x) {
+        double lpr, elpr_anc;
+        lpr_leaves(instance, alignment, x, lpr, elpr_anc);
+        return std::make_tuple(x, lpr, elpr_anc);
+    };
+
+    minimizer_params_t params {instance, alignment};
+    auto good_init = fit_find_init(250/*max_tries*/, init /*init*/, lo, hi, f);
+    std::cout << good_init << '\n';
+    if (lo < std::get<0>(good_init) && std::get<0>(good_init) < hi)
+    {
+        const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
+        gsl_min_fminimizer *s = gsl_min_fminimizer_alloc(T);
+        gsl_function F{&minimizer_lpr_leaves, &params};
+
+        gsl_min_fminimizer_set(s, &F, std::get<0>(good_init), lo, hi);
+
+        int64_t max_iter = 250;
+        do {
+            gsl_min_fminimizer_iterate(s); // int status =
+
+            const double x = gsl_min_fminimizer_x_minimum(s);
+            const double lb = gsl_min_fminimizer_x_lower(s);
+            const double ub = gsl_min_fminimizer_x_upper(s);
+
+            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
+
+            if (((ub - lb) / x) <= accuracy)
+                break;
+            --max_iter;
+        } while (max_iter > 0);
+
+        gsl_min_fminimizer_free(s);
+
+        lpr = params.lpr;
+        elpr_anc = params.elpr_anc;
+    }
+    else
+    {
+        lpr = std::get<1>(good_init);
+        elpr_anc = std::get<2>(good_init);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
