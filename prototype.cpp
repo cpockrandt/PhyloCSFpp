@@ -80,6 +80,19 @@ std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, dou
 #include "src/omega.hpp"
 #include "src/maf_parser.hpp"
 
+std::ostream& operator<<(std::ostream & os, const gsl_matrix& m)
+{
+    for (uint8_t i = 0; i < m.size1; ++i)
+    {
+        for (uint8_t j = 0; j < m.size2; ++j)
+        {
+            os << gsl_matrix_get(&m, i, j) << '\t';
+        }
+        os << '\n';
+    }
+    return os;
+}
+
 enum algorithm_t
 {
     MLE,
@@ -172,6 +185,11 @@ struct Data
         //        std::cout << elem << '\n';
     }
 
+//    Data() = default;
+//    Data(const Data&) = default;
+//    Data(Data&&) = default;
+//    Data& operator=(const Data&) = default;
+//    Data& operator=(Data&&) = default;
     ~Data()
     {
         if (phylo_tree != NULL)
@@ -179,28 +197,10 @@ struct Data
     }
 };
 
-int main(int argc, char ** argv)
+void run(char aln_path[], char model_str[], char selected_species_str[], algorithm_t algo)
 {
-//    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
-//    exit(1);
-
     Data data;
-    Options opt;
-
-//    char* aln_path = argv[1];
-//    char* model_str = argv[2];
-//    char* selected_species_str = argv[3];
     char delim[] = ",";
-
-    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
-    char model_str[] = "23flies";
-    char selected_species_str[] = "";
-
-//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa";
-//    char model_str[] = "100vertebrates";
-//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
-
-    opt.algorithm = algorithm_t::OMEGA;
 
     char *ptr = strtok(selected_species_str, delim);
     while(ptr != NULL)
@@ -209,40 +209,85 @@ int main(int argc, char ** argv)
         ptr = strtok(NULL, delim);
     }
 
-    data.load_model(model_str, opt.algorithm == algorithm_t::OMEGA); // TODO: check whether selected species exist!
+    data.load_model(model_str, algo == algorithm_t::OMEGA); // TODO: check whether selected species exist!
 
     // prepare alignment
     alignment_t alignment(data.phylo_array);
     // read alignment
     read_alignment(aln_path, alignment);
-    // for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
-    //    std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << print_peptide(alignment.peptides[i]) << '\n';
+//     for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
+//        std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << print_peptide(alignment.peptides[i]) << '\n';
 
-
-
-
-
-
-
-    if (opt.algorithm == algorithm_t::OMEGA)
+    if (algo == algorithm_t::OMEGA)
     {
         auto & inst = data.c_instance;
         // let new_instance ?(kappa:2.5):2.5 ?(omega=1.0) ?(sigma=1.0) ?(tree_scale=1.0) tree_shape =
         {
-            // let p14n = make_p14n tree_shape
-            inst.p14n.tree_shape = data.phylo_array;
-            inst.p14n.q_domains = std::vector<domain>(12, domain::NonNeg);
-            inst.p14n.tree_domains = std::vector<domain>(1, domain::Pos);
-            inst.p14n.q_p14ns = comp_q_p14n(); // TODO: PM.P14n.q_p14ns = [| q_p14n |];
-            inst.p14n.q_scale_p14ns = comp_q_scale(); // TODO: q_scale_p14ns = [| q_scale |];
-            inst.compute_tree_p14n(); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))
-
             // let q_settings = Array.concat [ [| kappa; omega; sigma |]; (Array.make 9 1.0) ]
             inst.q_settings = {2.5 /*kappa*/, 1.0 /*omega*/, 1.0/*sigma*/, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
             // let tree_settings = [| tree_scale |]
-            inst.tree_settings = {1.0};
+            inst.tree_settings = 1.0;
+
+            // let p14n = make_p14n tree_shape
+            {
+                inst.p14n.tree_shape = data.phylo_array;
+                inst.p14n.q_domains = std::vector<domain>(12, domain::NonNeg);
+                inst.p14n.tree_domains = std::vector<domain>(1, domain::Pos);
+                // skipped these, because they only build expressions. they are evaluated in instantiate_tree and instantiate_qs (in Ocaml). That's where we will start with them in PhyloCSF++
+                // q_p14ns = [| q_p14n |];
+                // q_scale_p14ns = [| q_scale |];
+                // tree_p14n = make_tree_p14n tree_shape;
+            }
+
+            // instantiate_tree
+            inst.compute_tree_p14n(inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
+
+            // instantiate_qms
+//            inst.p14n.q_p14ns = comp_q_p14n(); // TODO: PM.P14n.q_p14ns = [| q_p14n |];
+//            inst.p14n.q_scale_p14ns = comp_q_scale(); // TODO: q_scale_p14ns = [| q_scale |];
+            Omega_instantiate(inst, data.phylo_array);
             // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
-            // TODO
+
+            //let update_f3x4 inst leaves = // REVIEW: update_f3x4 seems to be correct!
+            gsl_matrix * counts = gsl_matrix_alloc(3, 4);
+            for (uint8_t i = 0; i < 12; ++i)
+                counts->data[i] = 1.0;
+
+            for (const auto peptide : alignment.peptides)
+            {
+                for (uint32_t i = 0; i < peptide.size(); ++i)
+                {
+                    if (peptide[i] != 64)
+                    {
+                        uint8_t i1, i2, i3;
+                        from_amino_acid_id(peptide[i], i1, i2, i3);
+//                        std::cout << "X: " << (unsigned)peptide[i]
+//                                << ' ' << (unsigned)i1
+//                                << ' ' << (unsigned)i2
+//                                << ' ' << (unsigned)i3
+//                        << '\n';
+
+                        gsl_matrix_set(counts, 0, i1, gsl_matrix_get(counts, 0, i1) + 1); // counts[0][i1]++
+                        gsl_matrix_set(counts, 1, i2, gsl_matrix_get(counts, 1, i2) + 1); // counts[1][i2]++
+                        gsl_matrix_set(counts, 2, i3, gsl_matrix_get(counts, 2, i3) + 1); // counts[2][i3]++
+                    }
+                }
+            }
+
+            std::cout << *counts << '\n';
+
+            for (uint8_t i = 0; i < 3; ++i)
+            {
+                for (uint8_t j = 0; j < 3; ++j)
+                {
+                    inst.q_settings[3 + (3 * i + j)] = gsl_matrix_get(counts, i, j) / gsl_matrix_get(counts, i, 3);
+                }
+            }
+
+            //    PM.P14n.update ~q_settings:qs inst
+            gsl_matrix_free(counts);
+
+            exit(1);
         }
 
         const double phylocsf_score = 0.0;
@@ -261,12 +306,12 @@ int main(int argc, char ** argv)
 
         double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
 
-        if (opt.algorithm == algorithm_t::MLE)
+        if (algo == algorithm_t::MLE)
         {
             max_lik_lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c);
             max_lik_lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc);
         }
-        else if (opt.algorithm == algorithm_t::FIXED)
+        else // if (algo == algorithm_t::FIXED)
         {
             lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c);
             lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc);
@@ -277,6 +322,40 @@ int main(int argc, char ** argv)
         const double bls_score = compute_bls_score(data.phylo_tree, alignment);
         printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
     }
+}
+
+int main(int argc, char ** argv)
+{
+//    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
+//    exit(1);
+
+//    Options opt;
+
+//    char* aln_path = argv[1];
+//    char* model_str = argv[2];
+//    char* selected_species_str = argv[3];
+
+//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
+//    char model_str[] = "23flies";
+//    char selected_species_str[] = "";
+
+//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa";
+//    char model_str[] = "100vertebrates";
+//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
+
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
+    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
+    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
+
+    // run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
+    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
+    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
+
+    printf("\nSOLL:\n"
+           "361.687566\t0.731391\t48.024101\n"
+           "297.623468\t0.731391\t48.257442\n"
+           "-176.807976\t0.058448\t-33.030802\n"
+           "-179.110842\t0.058448\t-32.878297\n");
 
     return 0;
 }

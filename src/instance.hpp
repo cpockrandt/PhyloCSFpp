@@ -13,12 +13,12 @@
 #include <gsl/gsl_blas.h>
 
 enum domain : uint8_t { // this is a C++11 feature
-    Real,
+//    Real,
     Pos,
-    Neg,
-    NonPos,
+//    Neg,
+//    NonPos,
     NonNeg,
-    Probability
+//    Probability
 };
 
 std::ostream& operator<<(std::ostream & os, const domain d)
@@ -212,7 +212,7 @@ struct instance_t
     } p14n;
 
     std::vector<double>  q_settings;
-    std::vector<double>  tree_settings; // this only stores the tree scale (a single float/double), no need for a vector!
+    double tree_settings; // this only stores the tree scale (a single float/double), no need for a vector!
 
     void compute_q_p14ns_and_q_scale_p14ns( // see instantiate_q and instantiate_qs,
                                             // memorization "from previous branches" is happening in Ocaml. Optimize here?
@@ -494,12 +494,12 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     instance.p14n.tree_domains = {domain::Pos};
 
     instance.q_settings.assign(ecm.codon_freq, ecm.codon_freq + 64);
-    instance.tree_settings = {1.0};
+    instance.tree_settings = 1.0;
 
     // computes instance.p14n.tree_p14n
     // (which is implemented with expressions in Ocaml)
     // instantiate_tree
-    instance.compute_tree_p14n(instance.tree_settings.back());
+    instance.compute_tree_p14n(instance.tree_settings);
 
     // instantiate_qs
 

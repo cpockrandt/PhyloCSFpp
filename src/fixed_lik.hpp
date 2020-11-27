@@ -112,7 +112,7 @@ void ensure_alpha(const instance_t & instance, workspace_t & workspace, const al
 void ensure_beta(const instance_t & instance, workspace_t & workspace, const alignment_t & alignment, const uint32_t codon_pos)
 {
     ensure_alpha(instance, workspace, alignment, codon_pos);
-    std::cout << "zzzzz\n";
+//    std::cout << "zzzzz\n";
     if (!workspace.have_beta)
     {
         const uint16_t k = workspace.beta.matrix.size2;
@@ -468,7 +468,7 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, cons
 
     minimizer_params_t params {instance, alignment};
     auto good_init = fit_find_init(250/*max_tries*/, init /*init*/, lo, hi, f);
-    std::cout << good_init << '\n';
+//    std::cout << good_init << '\n';
     if (lo < std::get<0>(good_init) && std::get<0>(good_init) < hi)
     {
         const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
@@ -485,7 +485,7 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, cons
             const double lb = gsl_min_fminimizer_x_lower(s);
             const double ub = gsl_min_fminimizer_x_upper(s);
 
-            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
+//            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
 
             if (((ub - lb) / x) <= accuracy)
                 break;

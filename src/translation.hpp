@@ -59,13 +59,20 @@ uint8_t get_amino_acid_id(const char n1, const char n2, const char n3)
     return 16 * id1 + 4 * id2 + id3;
 }
 
+uint8_t get_amino_acid_id2(const uint8_t i1, const uint8_t i2, const uint8_t i3)
+{
+    if (i1 == 4 || i2 == 4 || i3 == 4)
+        return 64; // Marginalize "code"
+    return 16 * i1 + 4 * i2 + i3;
+}
+
 void from_amino_acid_id(const uint8_t codon_id, uint8_t & i1, uint8_t & i2, uint8_t & i3)
 {
     assert(0 <= codon_id && codon_id < 64);
     i1 = codon_id / 16;
     i2 = (codon_id - 16 * i1) / 4;
     i3 = (codon_id - 16 * i1 - 4 * i2);
-    assert(codon_id == get_amino_acid_id(i1, i2, i3))
+    assert(codon_id == get_amino_acid_id2(i1, i2, i3));
 }
 
 char get_amino_acid(const uint8_t amino_acid_id)

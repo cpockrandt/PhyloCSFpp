@@ -1,6 +1,6 @@
 CC = g++
 
-CFLAGS = -O0 -g -fsanitize=address -fno-omit-frame-pointer -Wall -pedantic
+CFLAGS = -O0 -g -fsanitize=address -fno-omit-frame-pointer -Wall -pedantic -Wno-write-strings
 
 TARGET = PhyloCSFpp
 

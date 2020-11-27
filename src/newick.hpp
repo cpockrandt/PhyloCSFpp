@@ -29,7 +29,7 @@ struct newick_elem
     std::string label;
 };
 
-void newick_parse(std::string& str, newick_node* node)
+void _newick_parse(std::string& str, newick_node* node)
 {
     if (str[0] != '(' && str[0] != ',' && str[0] != ')' && str[0] != ':')
     {
@@ -57,12 +57,12 @@ void newick_parse(std::string& str, newick_node* node)
         node->left = left;
         //
         str = str.substr(1); // remove '('
-        newick_parse(str, left);
+        _newick_parse(str, left);
 
         newick_node* right = new newick_node;
         right->parent = node;
         node->right = right;
-        newick_parse(str, right);
+        _newick_parse(str, right);
     }
 
     if (str[0] == ',')
@@ -89,6 +89,12 @@ void newick_parse(std::string& str, newick_node* node)
         }
         node->parent->branch_length = std::stod(len);
     }
+}
+
+// temporary wrapper to make a copy of the string
+void newick_parse(std::string str, newick_node* node)
+{
+    _newick_parse(str, node);
 }
 
 inline void newick_annotate_nodes(newick_node * node, int16_t & leaf_id, int16_t & inner_node_id)

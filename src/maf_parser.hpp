@@ -27,7 +27,7 @@ int parse_maf(const char * const file_path, alignment_t & alignment)
         }
         else if (linebuf[0] == 'a')
         {
-            printf("\n", linebuf);
+            printf("\n");
         }
         else if (linebuf[0] == 's')
         {
