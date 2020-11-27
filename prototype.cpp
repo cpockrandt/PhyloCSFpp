@@ -77,6 +77,8 @@ std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, dou
 #include "src/instance.hpp"
 #include "src/fixed_lik.hpp"
 #include "src/additional_scores.hpp"
+#include "src/omega.hpp"
+#include "src/maf_parser.hpp"
 
 enum algorithm_t
 {
@@ -102,32 +104,38 @@ struct Data
     empirical_codon_model nc_model;
     instance_t c_instance;
     instance_t nc_instance;
-    newick_node * tree = NULL;
+    newick_node * phylo_tree = NULL;
 
-    std::vector<newick_elem> newick_flattened;
+    std::vector<newick_elem> phylo_array;
 
     std::unordered_set<std::string> selected_species;
 
-    void load_model(const char * dataset_or_path)
+    void load_model(const char * dataset_or_path, const bool only_phylo_tree)
     {
         auto dataset = models.find(dataset_or_path);
         // load model from included dataset
         if (dataset != models.end())
         {
-            c_model.load(dataset->second, 1);
-            nc_model.load(dataset->second, 0);
+            if (!only_phylo_tree)
+            {
+                c_model.load(dataset->second, 1);
+                nc_model.load(dataset->second, 0);
+            }
 
-            tree = new newick_node;
-            tree->parent = NULL;
+            phylo_tree = new newick_node;
+            phylo_tree->parent = NULL;
 
-            newick_parse(*dataset->second.tree, tree);
+            newick_parse(*dataset->second.tree, phylo_tree);
         }
         // load model from files
         else // TODO: check and validate files
         {
-            c_model.open((std::string(dataset_or_path) + "_coding.ECM").c_str());
-            nc_model.open((std::string(dataset_or_path) + "_noncoding.ECM").c_str());
-            tree = newick_open((std::string(dataset_or_path) + ".nh").c_str());
+            if (!only_phylo_tree)
+            {
+                c_model.open((std::string(dataset_or_path) + "_coding.ECM").c_str());
+                nc_model.open((std::string(dataset_or_path) + "_noncoding.ECM").c_str());
+            }
+            phylo_tree = newick_open((std::string(dataset_or_path) + ".nh").c_str());
         }
         // print error message
 //        else
@@ -137,47 +145,45 @@ struct Data
 //                printf("\t- %s\n", m.first.c_str());
 //            exit(-1);
 //        }
-        assert(tree->branch_length == 0.0);
+        assert(phylo_tree->branch_length == 0.0);
 
         // reduce tree when --species is passed
         // std::cout << newick_print(root) << '\n';
         if (selected_species.size() > 0)
         {
             std::unordered_set<std::string> missing_species = selected_species; // merge into one set with bool
-            newick_check_missing_species(tree, missing_species);
+            newick_check_missing_species(phylo_tree, missing_species);
             if (missing_species.size() > 0)
             {
                 printf("ERROR: The following selected species are missing in the phylogenetic tree (TODO: output filename):\n");
-                for (const std::string & sp : selected_species)
+                for (const std::string & sp : missing_species)
                     printf("\t- %s\n", sp.c_str());
                 exit(-1);
             }
 
-            newick_reduce(tree, selected_species);
+            newick_reduce(phylo_tree, selected_species);
             // std::cout << newick_print(tree) << '\n';
-            assert(tree->branch_length == 0.0);
+            assert(phylo_tree->branch_length == 0.0);
         }
 
         // get array representation of tree
-        newick_flatten(tree, newick_flattened);
+        newick_flatten(phylo_tree, phylo_array);
         //    for (const auto & elem : newick_flattened)
         //        std::cout << elem << '\n';
     }
 
     ~Data()
     {
-        if (tree != NULL)
-            newick_free(tree);
+        if (phylo_tree != NULL)
+            newick_free(phylo_tree);
     }
 };
 
-//void run(const Options & opt, Data & data)
-//{
-//
-//}
-
 int main(int argc, char ** argv)
 {
+//    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
+//    exit(1);
+
     Data data;
     Options opt;
 
@@ -186,15 +192,15 @@ int main(int argc, char ** argv)
 //    char* selected_species_str = argv[3];
     char delim[] = ",";
 
-    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa";
-    char model_str[] = "12flies";
+    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
+    char model_str[] = "23flies";
     char selected_species_str[] = "";
 
 //    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa";
 //    char model_str[] = "100vertebrates";
 //    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
 
-    opt.algorithm = algorithm_t::MLE;
+    opt.algorithm = algorithm_t::OMEGA;
 
     char *ptr = strtok(selected_species_str, delim);
     while(ptr != NULL)
@@ -203,34 +209,41 @@ int main(int argc, char ** argv)
         ptr = strtok(NULL, delim);
     }
 
-    data.load_model(model_str); // TODO: check whether selected species exist!
+    data.load_model(model_str, opt.algorithm == algorithm_t::OMEGA); // TODO: check whether selected species exist!
 
+    // prepare alignment
+    alignment_t alignment(data.phylo_array);
     // read alignment
-    alignment_t alignment;
-    const uint16_t nbr_leaves = (data.newick_flattened.size() + 1)/2;
-    alignment.ids.resize(nbr_leaves);
-    alignment.seqs.resize(nbr_leaves, "");
-    alignment.peptides.resize(nbr_leaves, {});
-    for (uint16_t i = 0; i < nbr_leaves; ++i)
-    {
-        alignment.ids[i] = data.newick_flattened[i].label;
-    }
-
     read_alignment(aln_path, alignment);
-//    for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
-//        std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << print_peptide(alignment.peptides[i]) << '\n';
+    // for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
+    //    std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << print_peptide(alignment.peptides[i]) << '\n';
 
-    // initialize model
-    PhyloCSFModel_make(data.c_instance, data.c_model, data.newick_flattened);
-    PhyloCSFModel_make(data.nc_instance, data.nc_model, data.newick_flattened);
 
-//    std::cout << "Coding instance:\n" << instance_coding;
-//    std::cout << "NonCoding instance:\n" << instance_noncoding;
+
+
+
 
 
     if (opt.algorithm == algorithm_t::OMEGA)
     {
-        printf("Omega mode is not implemented yet!\n");
+        auto & inst = data.c_instance;
+        // let new_instance ?(kappa:2.5):2.5 ?(omega=1.0) ?(sigma=1.0) ?(tree_scale=1.0) tree_shape =
+        {
+            // let p14n = make_p14n tree_shape
+            inst.p14n.tree_shape = data.phylo_array;
+            inst.p14n.q_domains = std::vector<domain>(12, domain::NonNeg);
+            inst.p14n.tree_domains = std::vector<domain>(1, domain::Pos);
+            inst.p14n.q_p14ns = comp_q_p14n(); // TODO: PM.P14n.q_p14ns = [| q_p14n |];
+            inst.p14n.q_scale_p14ns = comp_q_scale(); // TODO: q_scale_p14ns = [| q_scale |];
+            inst.compute_tree_p14n(); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))
+
+            // let q_settings = Array.concat [ [| kappa; omega; sigma |]; (Array.make 9 1.0) ]
+            inst.q_settings = {2.5 /*kappa*/, 1.0 /*omega*/, 1.0/*sigma*/, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+            // let tree_settings = [| tree_scale |]
+            inst.tree_settings = {1.0};
+            // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
+            // TODO
+        }
 
         const double phylocsf_score = 0.0;
         const double anchestral_score = NAN;
@@ -239,6 +252,13 @@ int main(int argc, char ** argv)
     }
     else
     {
+        // initialize model
+        PhyloCSFModel_make(data.c_instance, data.c_model, data.phylo_array);
+        PhyloCSFModel_make(data.nc_instance, data.nc_model, data.phylo_array);
+
+        // std::cout << "Coding instance:\n" << instance_coding;
+        // std::cout << "NonCoding instance:\n" << instance_noncoding;
+
         double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
 
         if (opt.algorithm == algorithm_t::MLE)
@@ -254,7 +274,7 @@ int main(int argc, char ** argv)
 
         const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
         const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
-        const double bls_score = compute_bls_score(data.tree, alignment);
+        const double bls_score = compute_bls_score(data.phylo_tree, alignment);
         printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
     }
 
