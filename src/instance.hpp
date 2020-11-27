@@ -12,13 +12,9 @@
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_blas.h>
 
-enum domain : uint8_t { // this is a C++11 feature
-//    Real,
+enum domain {
     Pos,
-//    Neg,
-//    NonPos,
-    NonNeg,
-//    Probability
+    NonNeg
 };
 
 std::ostream& operator<<(std::ostream & os, const domain d)
@@ -187,7 +183,7 @@ struct instance_t
 //            return *this;
 //        };
         model_t& operator=(model_t&&) = default; // move assignment
-        virtual ~model_t()
+        ~model_t()
         {
             if (prior != NULL)
                 delete prior;
@@ -199,16 +195,20 @@ struct instance_t
     } model;
 
     struct p14n_t {
-        std::vector<std::vector<double> > q_p14ns; // already evaluated
+        gsl_matrix * q_p14ns; // already evaluated
         double q_scale_p14ns; // already evaluated
 
-//        std::vector<std::vector<std::vector<expr_node *> > > q_p14ns; // one dim of vectors can be reduced. there is only one outer-most element in PhylocCSF
-//        std::vector<expr_node *> q_scale_p14ns; // one dim of vectors can be reduced. there is only one outer-most element in PhylocCSF
         std::vector<domain> q_domains;
 
         std::vector<newick_elem> tree_shape; // original tree
         std::vector<newick_elem> tree_p14n; // tree with evaluated branch lengths (already computed)
         std::vector<domain> tree_domains;
+
+        ~p14n_t()
+        {
+            if (q_p14ns != NULL)
+                gsl_matrix_free(q_p14ns);
+        };
     } p14n;
 
     std::vector<double>  q_settings;
@@ -230,9 +230,7 @@ struct instance_t
             this->model.qms.resize(1);
 
         this->model.qms[0].q = gsl_matrix_alloc(64, 64);
-        for (uint8_t i = 0; i < 64; ++i)
-            for (uint8_t j = 0; j < 64; ++j)
-                gsl_matrix_set(this->model.qms[0].q, i, j, this->p14n.q_p14ns[i][j]);
+        gsl_matrix_memcpy(this->model.qms[0].q, this->p14n.q_p14ns);
 
         // -- of_Q
         // ---- Gsl.Eigen.nonsymmv
@@ -319,7 +317,7 @@ struct instance_t
 
 std::ostream& operator<<(std::ostream & os, const instance_t::p14n_t & x)
 {
-    os << "q_p14ns\n" << x.q_p14ns << '\n';
+//    os << "q_p14ns\n" << x.q_p14ns << '\n';
     char buf[10];
     sprintf(buf, "%.3f", x.q_scale_p14ns);
     os << "q_scale_p14ns: " << buf << '\n';
@@ -556,7 +554,7 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
 void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and instantiate_qs,
         // memorization "from previous branches" is happening in Ocaml. Optimize here?
         instance_t & instance,
-        const std::vector<std::vector<double> > & _q, // original from ECM model!!!
+        gsl_matrix * _q, // original from ECM model!!!
         const std::vector<double> & variables) noexcept
 {
     // - multiply every element q[i][j] with a variable j
@@ -566,22 +564,25 @@ void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and insta
 
     for (uint8_t i = 0; i < 64; ++i)
     {
-        assert(_q[i][i] == 0.0); // otherwise we need an IF before multiplying and summing up below
+        assert(gsl_matrix_get(_q, i, i) == 0.0); // otherwise we need an IF before multiplying and summing up below
         double sum = .0;
         for (uint8_t j = 0; j < 64; ++j)
         {
-            instance.p14n.q_p14ns[i][j] *= variables[j];
-            sum -= instance.p14n.q_p14ns[i][j];
+            const double val_ij = gsl_matrix_get(instance.p14n.q_p14ns, i, j) * variables[j];
+            gsl_matrix_set(instance.p14n.q_p14ns, i, j, val_ij);
+            sum -= val_ij;
         }
-        instance.p14n.q_p14ns[i][i] = sum; // set diagonal such that all rows and cols sum up to 0
-        instance.p14n.q_scale_p14ns -= instance.p14n.q_p14ns[i][i] * variables[i];
+        gsl_matrix_set(instance.p14n.q_p14ns, i, i, sum); // set diagonal such that all rows and cols sum up to 0
+        instance.p14n.q_scale_p14ns -= sum * variables[i];
     }
 
+//    gsl_matrix_scale(instance.p14n.q_p14ns, 1/instance.p14n.q_scale_p14ns);
     for (uint8_t i = 0; i < 64; ++i)
     {
         for (uint8_t j = 0; j < 64; ++j)
         {
-            instance.p14n.q_p14ns[i][j] /= instance.p14n.q_scale_p14ns;
+            gsl_matrix_set(instance.p14n.q_p14ns, i, j, gsl_matrix_get(instance.p14n.q_p14ns, i, j) / instance.p14n.q_scale_p14ns);
+//            instance.p14n.q_p14ns[i][j] /= instance.p14n.q_scale_p14ns;
         }
     }
 }
@@ -599,21 +600,19 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     instance.instantiate_tree(instance.tree_settings);
 
     // instantiate_qs
-    std::vector<std::vector<double> > matrix;
+    gsl_matrix * substitution_matrix = gsl_matrix_alloc(64, 64);
     std::vector<double> codon_freq;
     codon_freq.resize(64);
-    matrix.resize(64);
     for (int i = 0; i < 64; ++i)
     {
         codon_freq[i] = ecm.codon_freq[i];
-        matrix[i].resize(64);
         for (int j = 0; j < 64; ++j)
-            matrix[i][j] = ecm.matrix[i][j];
+            gsl_matrix_set(substitution_matrix, i, j, ecm.matrix[i][j]);
     }
     assert(instance.q_settings == codon_freq);
 
     instance.model.qms.reserve(instance.p14n.tree_p14n.size() - 1);
-    compute_q_p14ns_and_q_scale_p14ns_fixed_mle(instance, matrix, codon_freq);
+    compute_q_p14ns_and_q_scale_p14ns_fixed_mle(instance, substitution_matrix, codon_freq);
 
     instance.instantiate_qs();
 

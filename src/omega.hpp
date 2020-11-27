@@ -122,13 +122,12 @@ void compute_q_p14ns_and_q_scale_p14ns_omega( // see instantiate_q and instantia
     gsl_vector * pi_evaluated = pi_expr(q_settings_gsl);
 
     auto q_p14n_tmp = comp_q_p14n(q_settings_gsl, pi_evaluated);
-    instance.p14n.q_p14ns.resize(64);
+    instance.p14n.q_p14ns = gsl_matrix_alloc(64, 64);
     for (uint8_t i = 0; i < 64; ++i)
     {
-        instance.p14n.q_p14ns[i].resize(64);
         for (uint8_t j = 0; j < 64; ++j)
         {
-            instance.p14n.q_p14ns[i][j] = gsl_matrix_get(q_p14n_tmp, i, j);
+            gsl_matrix_set(instance.p14n.q_p14ns, i, j, gsl_matrix_get(q_p14n_tmp, i, j));
         }
     }
     instance.p14n.q_scale_p14ns = comp_q_scale(pi_evaluated, q_p14n_tmp);
