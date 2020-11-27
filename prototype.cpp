@@ -240,12 +240,11 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             }
 
             // instantiate_tree
-            inst.compute_tree_p14n(inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
+            inst.instantiate_tree(inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
 
-            // instantiate_qms
-//            inst.p14n.q_p14ns = comp_q_p14n(); // TODO: PM.P14n.q_p14ns = [| q_p14n |];
-//            inst.p14n.q_scale_p14ns = comp_q_scale(); // TODO: q_scale_p14ns = [| q_scale |];
-            Omega_instantiate(inst, data.phylo_array);
+            // instantiate_qs
+            compute_q_p14ns_and_q_scale_p14ns_omega(inst);
+            inst.instantiate_qs();
             // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
 
             //let update_f3x4 inst leaves = // REVIEW: update_f3x4 seems to be correct!

@@ -319,7 +319,7 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 
     // 2.  let inst = PM.P14n.update ~tree_settings:[t] inst
     // 2a. instantiate_tree inst.p14n.tree_shape inst.p14n.tree_p14n t:double // updates instance_new.tree_settings
-    instance.compute_tree_p14n(t);
+    instance.instantiate_tree(t);
     // 2b. make ?prior:NULL newtree newq // updates instance_new.model
     PhyloModel_make(instance, NULL);
 

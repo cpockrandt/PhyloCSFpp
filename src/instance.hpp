@@ -214,39 +214,7 @@ struct instance_t
     std::vector<double>  q_settings;
     double tree_settings; // this only stores the tree scale (a single float/double), no need for a vector!
 
-    void compute_q_p14ns_and_q_scale_p14ns( // see instantiate_q and instantiate_qs,
-                                            // memorization "from previous branches" is happening in Ocaml. Optimize here?
-            const std::vector<std::vector<double> > & _q, // original from ECM model!!!
-            const std::vector<double> & variables) noexcept
-    {
-        // - multiply every element q[i][j] with a variable j
-        // - then set diagonal to: q[i][i] = sum_(i <> j) (-q[i][j])
-        this->p14n.q_p14ns = _q;
-        this->p14n.q_scale_p14ns = 0.0;
-
-        for (uint8_t i = 0; i < 64; ++i)
-        {
-            assert(_q[i][i] == 0.0); // otherwise we need an IF before multiplying and summing up below
-            double sum = .0;
-            for (uint8_t j = 0; j < 64; ++j)
-            {
-                this->p14n.q_p14ns[i][j] *= variables[j];
-                sum -= this->p14n.q_p14ns[i][j];
-            }
-            this->p14n.q_p14ns[i][i] = sum; // set diagonal such that all rows and cols sum up to 0
-            this->p14n.q_scale_p14ns -= this->p14n.q_p14ns[i][i] * variables[i];
-        }
-
-        for (uint8_t i = 0; i < 64; ++i)
-        {
-            for (uint8_t j = 0; j < 64; ++j)
-            {
-                this->p14n.q_p14ns[i][j] /= this->p14n.q_scale_p14ns;
-            }
-        }
-    }
-
-    void compute_tree_p14n(const double factor) noexcept // see instantiate_tree
+    void instantiate_tree(const double factor) noexcept // see instantiate_tree
     {
         // multiply all branch lengths with "factor"
         this->p14n.tree_p14n = this->p14n.tree_shape;
@@ -254,6 +222,98 @@ struct instance_t
         {
             elem.branch_length *= factor;
         }
+    }
+
+    void instantiate_qs() noexcept
+    {
+        if (this->model.qms.size() == 0)
+            this->model.qms.resize(1);
+
+        this->model.qms[0].q = gsl_matrix_alloc(64, 64);
+        for (uint8_t i = 0; i < 64; ++i)
+            for (uint8_t j = 0; j < 64; ++j)
+                gsl_matrix_set(this->model.qms[0].q, i, j, this->p14n.q_p14ns[i][j]);
+
+        // -- of_Q
+        // ---- Gsl.Eigen.nonsymmv
+        gsl_vector_complex *l = gsl_vector_complex_alloc(64);
+        gsl_matrix_complex *s = gsl_matrix_complex_alloc(64, 64);
+        gsl_eigen_nonsymmv_workspace *w = gsl_eigen_nonsymmv_alloc(64);
+
+        gsl_eigen_nonsymmv(this->model.qms[0].q, l, s, w);
+        gsl_eigen_nonsymmv_free(w);
+        // NOTE: it seems that order does not seem to matter! can sort in Ocaml and does not change the result
+        // NOTE: even though we sort, some values are neg. instead of pos and vice versa
+        // TODO: not necessary, just for comparing results with ocaml helpful
+        gsl_eigen_nonsymmv_sort (l, s, GSL_EIGEN_SORT_ABS_ASC);
+
+        // ---- zinvm
+        int signum;
+        gsl_permutation * permut = gsl_permutation_alloc(64);
+        gsl_matrix_complex *lu = gsl_matrix_complex_alloc(64, 64);
+        gsl_matrix_complex_memcpy(lu, s);
+        gsl_matrix_complex *s2 = gsl_matrix_complex_alloc(64, 64);
+        gsl_linalg_complex_LU_decomp(lu, permut, &signum);
+        gsl_linalg_complex_LU_invert(lu, permut, s2 /* inverse */);
+        gsl_permutation_free(permut);
+        gsl_matrix_complex_free(lu);
+
+        // im = 0. || (abs_float im) *. 1000. < (Complex.norm z) || (abs_float re < tol && abs_float im < tol)
+        // check whether l can be a real vector
+        bool is_l_complex = false;
+        constexpr double tol = 1e-6;
+        for (uint8_t i = 0; i < 64 && !is_l_complex; ++i)
+        {
+            const gsl_complex &x = gsl_vector_complex_get(l, i);
+            if (!check_real(x, tol)) // NOTE: fabs() is for doubles, fabsf() is for floats
+            {
+                is_l_complex = true;
+            }
+        }
+
+        // -- still in of_Q
+        if (is_l_complex)
+        {
+            this->model.qms[0].eig.nr_s = s;
+            this->model.qms[0].eig.nr_l = l;
+            this->model.qms[0].eig.nr_s2 = s2;
+
+            this->model.qms[0].eig.r_s = NULL;
+            this->model.qms[0].eig.r_l = NULL;
+            this->model.qms[0].eig.r_s2 = NULL;
+        }
+        else
+        {
+            // transform complex matrices and vector into real ones
+            this->model.qms[0].eig.r_s = gsl_matrix_alloc(64, 64);
+            this->model.qms[0].eig.r_l = gsl_vector_alloc(64);
+            this->model.qms[0].eig.r_s2 = gsl_matrix_alloc(64, 64);
+
+            this->model.qms[0].eig.nr_s = NULL;
+            this->model.qms[0].eig.nr_l = NULL;
+            this->model.qms[0].eig.nr_s2 = NULL;
+
+            for (uint8_t i = 0; i < 64; ++i)
+            {
+                const gsl_complex &l_elem = gsl_vector_complex_get(l, i);
+                gsl_vector_set(this->model.qms[0].eig.r_l, i, l_elem.dat[0]);
+                for (uint8_t j = 0; j < 64; ++j)
+                {
+                    const gsl_complex &s_elem = gsl_matrix_complex_get(s, i, j);
+                    const gsl_complex &s2_elem = gsl_matrix_complex_get(s2, i, j);
+                    gsl_matrix_set(this->model.qms[0].eig.r_s, i, j, s_elem.dat[0]);
+                    gsl_matrix_set(this->model.qms[0].eig.r_s2, i, j, s2_elem.dat[0]);
+                }
+            }
+
+            gsl_matrix_complex_free(s);
+            gsl_matrix_complex_free(s2);
+            gsl_vector_complex_free(l);
+        }
+
+        this->model.qms[0].tol = tol;
+        this->model.qms[0].have_pi = false;
+        this->model.qms[0].pi = gsl_vector_alloc(64); // TODO: unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
     }
 };
 
@@ -307,9 +367,17 @@ std::ostream& operator<<(std::ostream & os, const instance_t & x)
 // I would expect them in each iteration to work on the latest "instance" but I don't see it in the code yet.
 void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
 {
+
+    // NOTE: taken from the beginning of PhyloModel_make()
+    instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
+
+
     // do this only in the initialization step (copy qms[0] to all other (uninitialized) members)
     if (instance.model.qms.size() == 1)
     {
+        instance.model.qms.resize(instance.p14n.tree_p14n.size() - 1);
+        for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
+            instance.model.qms[i] = instance.model.qms[0]; // deep-copy of object diag_t
         // NOTE: we cannot resize here, because resizing qms will call destructors of qms.model.eig
         // which will delete the matrices (actually it should perform deep-copies of qms[0] members.
         // TODO: figure out why it's not working. maybe a pointer existing to something in qms[0] that is stored outside qms[0]?
@@ -485,28 +553,52 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
     }
 }
 
+void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and instantiate_qs,
+        // memorization "from previous branches" is happening in Ocaml. Optimize here?
+        instance_t & instance,
+        const std::vector<std::vector<double> > & _q, // original from ECM model!!!
+        const std::vector<double> & variables) noexcept
+{
+    // - multiply every element q[i][j] with a variable j
+    // - then set diagonal to: q[i][i] = sum_(i <> j) (-q[i][j])
+    instance.p14n.q_p14ns = _q;
+    instance.p14n.q_scale_p14ns = 0.0;
+
+    for (uint8_t i = 0; i < 64; ++i)
+    {
+        assert(_q[i][i] == 0.0); // otherwise we need an IF before multiplying and summing up below
+        double sum = .0;
+        for (uint8_t j = 0; j < 64; ++j)
+        {
+            instance.p14n.q_p14ns[i][j] *= variables[j];
+            sum -= instance.p14n.q_p14ns[i][j];
+        }
+        instance.p14n.q_p14ns[i][i] = sum; // set diagonal such that all rows and cols sum up to 0
+        instance.p14n.q_scale_p14ns -= instance.p14n.q_p14ns[i][i] * variables[i];
+    }
+
+    for (uint8_t i = 0; i < 64; ++i)
+    {
+        for (uint8_t j = 0; j < 64; ++j)
+        {
+            instance.p14n.q_p14ns[i][j] /= instance.p14n.q_scale_p14ns;
+        }
+    }
+}
+
 void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm, std::vector<newick_elem> & tree_array)
 {
     instance.p14n.q_domains = {};
-
     instance.p14n.tree_shape = tree_array;
 //    instance.p14n.tree_p14n = tree_array; // redundant work
     instance.p14n.tree_domains = {domain::Pos};
-
     instance.q_settings.assign(ecm.codon_freq, ecm.codon_freq + 64);
     instance.tree_settings = 1.0;
 
-    // computes instance.p14n.tree_p14n
-    // (which is implemented with expressions in Ocaml)
     // instantiate_tree
-    instance.compute_tree_p14n(instance.tree_settings);
+    instance.instantiate_tree(instance.tree_settings);
 
     // instantiate_qs
-
-    // -- computes instance.p14n.q_p14ns and instance.p14n.q_scale_p14ns
-    // -- (which are implemented with expressions in Ocaml)
-
-    // this is just because ecm stores raw arrays, and instance.compute_q_p14ns_and_q_scale_p14ns() wants a vector
     std::vector<std::vector<double> > matrix;
     std::vector<double> codon_freq;
     codon_freq.resize(64);
@@ -520,118 +612,11 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     }
     assert(instance.q_settings == codon_freq);
 
-    instance.compute_q_p14ns_and_q_scale_p14ns(matrix, codon_freq);
+    instance.model.qms.reserve(instance.p14n.tree_p14n.size() - 1);
+    compute_q_p14ns_and_q_scale_p14ns_fixed_mle(instance, matrix, codon_freq);
 
-//    std::cout << "codon_freq: " << codon_freq << '\n';
-
-//    instance.model.qms.resize(1);
-    instance.model.qms.resize(instance.p14n.tree_p14n.size() - 1);
-    instance.model.qms[0].q = gsl_matrix_alloc(64, 64);
-    for (uint8_t i = 0; i < 64; ++i)
-        for (uint8_t j = 0; j < 64; ++j)
-            gsl_matrix_set(instance.model.qms[0].q, i, j, instance.p14n.q_p14ns[i][j]);
-
-    // -- of_Q
-    // ---- Gsl.Eigen.nonsymmv
-    gsl_vector_complex *l = gsl_vector_complex_alloc(64);
-    gsl_matrix_complex *s = gsl_matrix_complex_alloc(64, 64);
-    gsl_eigen_nonsymmv_workspace *w = gsl_eigen_nonsymmv_alloc(64);
-
-    gsl_eigen_nonsymmv(instance.model.qms[0].q, l, s, w);
-    gsl_eigen_nonsymmv_free(w);
-    // NOTE: it seems that order does not seem to matter! can sort in Ocaml and does not change the result
-    // NOTE: even though we sort, some values are neg. instead of pos and vice versa
-    // TODO: not necessary, just for comparing results with ocaml helpful
-    gsl_eigen_nonsymmv_sort (l, s, GSL_EIGEN_SORT_ABS_ASC);
-
-    // ---- zinvm
-    int signum;
-    gsl_permutation * permut = gsl_permutation_alloc(64);
-    gsl_matrix_complex *lu = gsl_matrix_complex_alloc(64, 64);
-    gsl_matrix_complex_memcpy(lu, s);
-    gsl_matrix_complex *s2 = gsl_matrix_complex_alloc(64, 64);
-    gsl_linalg_complex_LU_decomp(lu, permut, &signum);
-    gsl_linalg_complex_LU_invert(lu, permut, s2 /* inverse */);
-    gsl_permutation_free(permut);
-    gsl_matrix_complex_free(lu);
-
-    // im = 0. || (abs_float im) *. 1000. < (Complex.norm z) || (abs_float re < tol && abs_float im < tol)
-    // check whether l can be a real vector
-    bool is_l_complex = false;
-    constexpr double tol = 1e-6;
-    for (uint8_t i = 0; i < 64 && !is_l_complex; ++i)
-    {
-        const gsl_complex &x = gsl_vector_complex_get(l, i);
-        if (!check_real(x, tol)) // NOTE: fabs() is for doubles, fabsf() is for floats
-        {
-            is_l_complex = true;
-        }
-    }
-
-    // -- still in of_Q
-    if (is_l_complex)
-    {
-        instance.model.qms[0].eig.nr_s = s;
-        instance.model.qms[0].eig.nr_l = l;
-        instance.model.qms[0].eig.nr_s2 = s2;
-
-        instance.model.qms[0].eig.r_s = NULL;
-        instance.model.qms[0].eig.r_l = NULL;
-        instance.model.qms[0].eig.r_s2 = NULL;
-    }
-    else
-    {
-        // transform complex matrices and vector into real ones
-        instance.model.qms[0].eig.r_s = gsl_matrix_alloc(64, 64);
-        instance.model.qms[0].eig.r_l = gsl_vector_alloc(64);
-        instance.model.qms[0].eig.r_s2 = gsl_matrix_alloc(64, 64);
-
-        instance.model.qms[0].eig.nr_s = NULL;
-        instance.model.qms[0].eig.nr_l = NULL;
-        instance.model.qms[0].eig.nr_s2 = NULL;
-
-        for (uint8_t i = 0; i < 64; ++i)
-        {
-            const gsl_complex &l_elem = gsl_vector_complex_get(l, i);
-            gsl_vector_set(instance.model.qms[0].eig.r_l, i, l_elem.dat[0]);
-            for (uint8_t j = 0; j < 64; ++j)
-            {
-                const gsl_complex &s_elem = gsl_matrix_complex_get(s, i, j);
-                const gsl_complex &s2_elem = gsl_matrix_complex_get(s2, i, j);
-                gsl_matrix_set(instance.model.qms[0].eig.r_s, i, j, s_elem.dat[0]);
-                gsl_matrix_set(instance.model.qms[0].eig.r_s2, i, j, s2_elem.dat[0]);
-            }
-        }
-
-        gsl_matrix_complex_free(s);
-        gsl_matrix_complex_free(s2);
-        gsl_vector_complex_free(l);
-    }
-
-    instance.model.qms[0].tol = tol;
-    instance.model.qms[0].have_pi = false;
-    instance.model.qms[0].pi = gsl_vector_alloc(64); // TODO: unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
-
-    // NOTE: taken from the beginning of PhyloModel_make()
-    instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
-    for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
-        instance.model.qms[i] = instance.model.qms[0]; // deep-copy of object diag_t
+    instance.instantiate_qs();
 
     // -- make (remember: this is also called in each update (with new tree and old q))
     PhyloModel_make(instance, &codon_freq);
-
-    // results are equal with ocaml until here!!!! :) (except complex case - didn't occur yet!)
-    // TODO: but only tested for the tiny example with 23flies. with 100vertebrates
-//    for (auto & p : instance.model.pms)
-//    {
-//        for (uint8_t tmp_i = 0; tmp_i < 64; ++tmp_i)
-//        {
-//            for (uint8_t tmp_j = 0; tmp_j < 64; ++tmp_j)
-//            {
-//                printf("%.3f\t", gsl_matrix_get(p, tmp_i, tmp_j));
-//            }
-//            printf("\n");
-//        }
-//        printf("---\n");
-//    }
 }
