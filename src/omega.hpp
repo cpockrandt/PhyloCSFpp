@@ -114,14 +114,13 @@ gsl_vector * vector2gsl(const std::vector<double> & v)
     return gv;
 }
 
-void compute_q_p14ns_and_q_scale_p14ns_omega( // see instantiate_q and instantiate_qs,
-        // memorization "from previous branches" is happening in Ocaml. Optimize here?
-        instance_t & instance)
+// see instantiate_q and instantiate_qs,
+// memorization "from previous branches" is happening in Ocaml. Optimize here?
+void compute_q_p14ns_and_q_scale_p14ns_omega(instance_t & instance)
 {
-    gsl_vector * q_settings_gsl = vector2gsl(instance.q_settings);
-    gsl_vector * pi_evaluated = pi_expr(q_settings_gsl);
+    gsl_vector * pi_evaluated = pi_expr(instance.q_settings);
 
-    auto q_p14n_tmp = comp_q_p14n(q_settings_gsl, pi_evaluated);
+    auto q_p14n_tmp = comp_q_p14n(instance.q_settings, pi_evaluated);
     instance.p14n.q_p14ns = gsl_matrix_alloc(64, 64);
     for (uint8_t i = 0; i < 64; ++i)
     {
@@ -134,5 +133,4 @@ void compute_q_p14ns_and_q_scale_p14ns_omega( // see instantiate_q and instantia
     gsl_matrix_free(q_p14n_tmp);
 
     gsl_vector_free(pi_evaluated);
-    gsl_vector_free(q_settings_gsl);
 }

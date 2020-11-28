@@ -227,11 +227,11 @@ gsl_matrix * complex_to_real(const gsl_matrix_complex * const cm, const double t
     return m;
 }
 
-void get_prior(instance_t & instance, std::vector<double> & tmp_prior)
+gsl_vector * get_prior(instance_t & instance)
 {
     if (instance.model.prior != NULL)
     {
-        tmp_prior = *instance.model.prior; // deep copy
+        return instance.model.prior;
     }
     else
     {
@@ -305,9 +305,7 @@ void get_prior(instance_t & instance, std::vector<double> & tmp_prior)
             }
         }
 
-        tmp_prior.resize(q.pi->size);
-        for (uint16_t i = 0; i < q.pi->size; ++i)
-            tmp_prior[i] = gsl_vector_get(q.pi, i);
+        return q.pi;
     }
 }
 
@@ -330,16 +328,18 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
     workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
-    std::vector<double> anc_lprior;
-    get_prior(instance, anc_lprior);
-    for (auto & a : anc_lprior)
-        a = log(a);
+    gsl_vector * anc_lprior = gsl_vector_alloc(64);
+    gsl_vector_memcpy(anc_lprior, get_prior(instance));
+    for (uint8_t i = 0; i < 64; ++i)
+        gsl_vector_set(anc_lprior, i, log(gsl_vector_get(anc_lprior, i)));
 //    for (const auto a : anc_lprior)
 //        printf("%f ", a);
 //    std::cout << '\n';
 
     const uint16_t root_node_id = instance.model.tree.size() - 1;
 //    std::cout << root_node_id << '\n';
+
+    gsl_vector * tmp_prior = get_prior(instance); // TODO: move this out of the for loop below!
 
     lpr = 0.0;
     elpr_anc = 0.0;
@@ -350,14 +350,9 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         // prior is a function that either returns instance.model.prior or computes the equilibrium
 //        auto & m = instance.model;
 
-        std::vector<double> tmp_prior; // don't want to overwrite instance.model.prior (Ocaml code doesn't seem to do that either)
-        get_prior(instance, tmp_prior);
-
-//        std::cout << "tmp_prior: " << tmp_prior << '\n';
-
         // now since (prior instance.model) is computed, we can evaluate the actual value:
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
-        const uint16_t k = tmp_prior.size();
+        const uint16_t k = tmp_prior->size;
         const uint16_t n = instance.model.tree.size();
         const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
 
@@ -393,7 +388,7 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 
         for (uint8_t a = 0; a < k; ++a)
         {
-            gsl_matrix_set(&workspace.beta.matrix, n - 1, a, tmp_prior[a]); // TODO: check whether submatrix works and setting values here!
+            gsl_matrix_set(&workspace.beta.matrix, n - 1, a, gsl_vector_get(tmp_prior, a)); // TODO: check whether submatrix works and setting values here!
         }
 
 //        for (uint16_t x = 0; x < 7; ++x)
@@ -431,13 +426,14 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         lpr += log(workspace.z);
 
         gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
-        assert(pr_root->size == anc_lprior.size());
-        for (uint16_t xx = 0; xx < anc_lprior.size(); ++xx)
+        assert(pr_root->size == anc_lprior->size);
+        for (uint16_t xx = 0; xx < anc_lprior->size; ++xx)
         {
-            elpr_anc += anc_lprior[xx] * gsl_vector_get(pr_root, xx);
+            elpr_anc += gsl_vector_get(anc_lprior, xx) * gsl_vector_get(pr_root, xx);
         }
         gsl_vector_free(pr_root);
     }
+    gsl_vector_free(anc_lprior);
 }
 
 struct minimizer_params_t {

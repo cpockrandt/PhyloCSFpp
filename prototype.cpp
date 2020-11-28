@@ -224,7 +224,13 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
         // let new_instance ?(kappa:2.5):2.5 ?(omega=1.0) ?(sigma=1.0) ?(tree_scale=1.0) tree_shape =
         {
             // let q_settings = Array.concat [ [| kappa; omega; sigma |]; (Array.make 9 1.0) ]
-            inst.q_settings = {2.5 /*kappa*/, 1.0 /*omega*/, 1.0/*sigma*/, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+            inst.q_settings = gsl_vector_alloc(12);
+            gsl_vector_set(inst.q_settings, 0, 2.5); // kappa
+            gsl_vector_set(inst.q_settings, 1, 1.0); // omega
+            gsl_vector_set(inst.q_settings, 2, 1.0); // sigma
+            for (uint8_t i = 3; i < 12; ++i)
+                gsl_vector_set(inst.q_settings, i, 1.0);
+
             // let tree_settings = [| tree_scale |]
             inst.tree_settings = 1.0;
 
@@ -279,7 +285,7 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             {
                 for (uint8_t j = 0; j < 3; ++j)
                 {
-                    inst.q_settings[3 + (3 * i + j)] = gsl_matrix_get(counts, i, j) / gsl_matrix_get(counts, i, 3);
+                    gsl_vector_set(inst.q_settings, 3 + (3 * i + j), gsl_matrix_get(counts, i, j) / gsl_matrix_get(counts, i, 3));
                 }
             }
 

@@ -159,7 +159,7 @@ struct instance_t
         std::vector<newick_elem> tree;
         std::vector<q_diag_t> qms; // size = numer of tree node without root (tree.size() - 1)
         std::vector<gsl_matrix*> pms; // size = numer of tree node without root (tree.size() - 1)
-        std::vector<double>* prior = NULL; // this used to be of type "float array option", i.e., float array or nothing
+        gsl_vector * prior = NULL; // this used to be of type "float array option", i.e., float array or nothing
 
         model_t() = default;
         model_t(const model_t& other) = delete; // copy constructor: TODO: deep-copy of prior
@@ -186,12 +186,10 @@ struct instance_t
         ~model_t()
         {
             if (prior != NULL)
-                delete prior;
+                gsl_vector_free(prior);
             for (auto p : pms)
-            {
                 gsl_matrix_free(p);
-            }
-        }; // destructor
+        };
     } model;
 
     struct p14n_t {
@@ -211,8 +209,13 @@ struct instance_t
         };
     } p14n;
 
-    std::vector<double>  q_settings;
+    gsl_vector * q_settings;
     double tree_settings; // this only stores the tree scale (a single float/double), no need for a vector!
+
+    ~instance_t()
+    {
+        gsl_vector_free(q_settings);
+    }
 
     void instantiate_tree(const double factor) noexcept // see instantiate_tree
     {
@@ -318,22 +321,22 @@ struct instance_t
 std::ostream& operator<<(std::ostream & os, const instance_t::p14n_t & x)
 {
 //    os << "q_p14ns\n" << x.q_p14ns << '\n';
-    char buf[10];
-    sprintf(buf, "%.3f", x.q_scale_p14ns);
-    os << "q_scale_p14ns: " << buf << '\n';
-    os << "q_domains: " << x.q_domains << '\n';
-    os << "tree_shape:\n" << x.tree_shape << '\n';
-    os << "tree_p14n:\n" << x.tree_p14n << '\n';
-    os << "tree_domains: " << x.tree_domains << '\n';
+//    char buf[10];
+//    sprintf(buf, "%.3f", x.q_scale_p14ns);
+//    os << "q_scale_p14ns: " << buf << '\n';
+//    os << "q_domains: " << x.q_domains << '\n';
+//    os << "tree_shape:\n" << x.tree_shape << '\n';
+//    os << "tree_p14n:\n" << x.tree_p14n << '\n';
+//    os << "tree_domains: " << x.tree_domains << '\n';
     return os;
 }
 
 std::ostream& operator<<(std::ostream & os, const instance_t::model_t & x)
 {
-    os << "tree\n" << x.tree << '\n';
+//    os << "tree\n" << x.tree << '\n';
 //    os << "qms\n" << x.qms << '\n';
 //    os << "pms\n" << x.pms << '\n';
-    os << "prior: " << *x.prior << '\n';
+//    os << "prior: " << *x.prior << '\n';
 //    char buf[10];
 //    sprintf(buf, "%.3f", x.q_scale_p14ns);
 
@@ -342,10 +345,10 @@ std::ostream& operator<<(std::ostream & os, const instance_t::model_t & x)
 
 std::ostream& operator<<(std::ostream & os, const instance_t & x)
 {
-    os << x.p14n << '\n';
-    os << x.model;
-    os << "tree_settings: " << x.tree_settings << '\n';
-    os << "q_settings: " << x.q_settings << '\n';
+//    os << x.p14n << '\n';
+//    os << x.model;
+//    os << "tree_settings: " << x.tree_settings << '\n';
+//    os << "q_settings: " << x.q_settings << '\n';
     return os;
 }
 
@@ -363,7 +366,7 @@ std::ostream& operator<<(std::ostream & os, const instance_t & x)
 //  also named qms, we cannot access old values while computing in qms anyway.
 // So I think there is (for now) no need to copy "instance". not sure though how it works for MLE mode where lpr_leaves performs multiple iterations.
 // I would expect them in each iteration to work on the latest "instance" but I don't see it in the code yet.
-void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
+void PhyloModel_make(instance_t & instance, gsl_vector * prior)
 {
 
     // NOTE: taken from the beginning of PhyloModel_make()
@@ -390,18 +393,16 @@ void PhyloModel_make(instance_t & instance, std::vector<double> * prior)
     // it is then returned as a copy in the "model" struct: { tree = T.copy t; qms; pms; prior }
     instance.model.tree = instance.p14n.tree_p14n; // tree with evaluated expressions (i.e., multiplied)
     if (instance.model.prior != NULL)
-        delete instance.model.prior;
+    {
+        gsl_vector_free(instance.model.prior);
+        instance.model.prior = NULL;
+    }
     if (prior != NULL)
     {
-        instance.model.prior = new std::vector<double>; // this is codon_freq on very first initialization
-        *instance.model.prior = *prior; // TODO: this makes a deep-copy
+        // this is codon_freq on very first initialization
+        instance.model.prior = _deep_copy_vector(prior); // NOTE: this makes a deep-copy
     }
-    else
-    {
-        instance.model.prior = NULL;
-        // (not really necessary)
-        // if not (Q.Diag.reversible qms.(snd (T.children t (T.root t)))) then invalid_arg "PhyloModel.make"
-    }
+
     // pms = Array.init (T.size t - 1) (fun br -> Q.Diag.to_Pt qms.(br) (T.branch t br))
     for (uint16_t i = 0; i < instance.p14n.tree_shape.size() - 1; ++i)
     {
@@ -555,7 +556,7 @@ void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and insta
         // memorization "from previous branches" is happening in Ocaml. Optimize here?
         instance_t & instance,
         gsl_matrix * _q, // original from ECM model!!!
-        const std::vector<double> & variables) noexcept
+        const gsl_vector * const & variables) noexcept
 {
     // - multiply every element q[i][j] with a variable j
     // - then set diagonal to: q[i][i] = sum_(i <> j) (-q[i][j])
@@ -568,12 +569,12 @@ void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and insta
         double sum = .0;
         for (uint8_t j = 0; j < 64; ++j)
         {
-            const double val_ij = gsl_matrix_get(instance.p14n.q_p14ns, i, j) * variables[j];
+            const double val_ij = gsl_matrix_get(instance.p14n.q_p14ns, i, j) * gsl_vector_get(variables, j);
             gsl_matrix_set(instance.p14n.q_p14ns, i, j, val_ij);
             sum -= val_ij;
         }
         gsl_matrix_set(instance.p14n.q_p14ns, i, i, sum); // set diagonal such that all rows and cols sum up to 0
-        instance.p14n.q_scale_p14ns -= sum * variables[i];
+        instance.p14n.q_scale_p14ns -= sum * gsl_vector_get(variables, i);
     }
 
 //    gsl_matrix_scale(instance.p14n.q_p14ns, 1/instance.p14n.q_scale_p14ns);
@@ -593,7 +594,9 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     instance.p14n.tree_shape = tree_array;
 //    instance.p14n.tree_p14n = tree_array; // redundant work
     instance.p14n.tree_domains = {domain::Pos};
-    instance.q_settings.assign(ecm.codon_freq, ecm.codon_freq + 64);
+    instance.q_settings = gsl_vector_alloc(64);
+    for (uint8_t i = 0; i < 64; ++i)
+        gsl_vector_set(instance.q_settings, i, ecm.codon_freq[i]);
     instance.tree_settings = 1.0;
 
     // instantiate_tree
@@ -601,21 +604,15 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
 
     // instantiate_qs
     gsl_matrix * substitution_matrix = gsl_matrix_alloc(64, 64);
-    std::vector<double> codon_freq;
-    codon_freq.resize(64);
     for (int i = 0; i < 64; ++i)
-    {
-        codon_freq[i] = ecm.codon_freq[i];
         for (int j = 0; j < 64; ++j)
             gsl_matrix_set(substitution_matrix, i, j, ecm.matrix[i][j]);
-    }
-    assert(instance.q_settings == codon_freq);
 
     instance.model.qms.reserve(instance.p14n.tree_p14n.size() - 1);
-    compute_q_p14ns_and_q_scale_p14ns_fixed_mle(instance, substitution_matrix, codon_freq);
+    compute_q_p14ns_and_q_scale_p14ns_fixed_mle(instance, substitution_matrix, instance.q_settings /*codon_freq*/);
 
     instance.instantiate_qs();
 
     // -- make (remember: this is also called in each update (with new tree and old q))
-    PhyloModel_make(instance, &codon_freq);
+    PhyloModel_make(instance, instance.q_settings/*&codon_freq*/);
 }
