@@ -450,10 +450,8 @@ double minimizer_lpr_leaves(const double x, void * params)
     return (-1) * min_params->lpr;
 }
 
-void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, const double init, double &lpr, double &elpr_anc)
+void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, const double init, double &lpr, double &elpr_anc, double lo, double hi)
 {
-    double lo = 1e-2;
-    double hi = 10.0;
     const double accuracy = 0.01;
 
     auto f = [&instance, &alignment](const double x) {

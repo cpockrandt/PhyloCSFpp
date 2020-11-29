@@ -4,6 +4,7 @@
 
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_blas.h>
+#include <gsl/gsl_randist.h>
 
 // this is used in q_p14n and q_scale, but the expressions seem to be evaluated with the same input (I think).
 double pi_expr_sc(const gsl_vector * const variables, const uint8_t codon_id) noexcept
@@ -134,3 +135,100 @@ void compute_q_p14ns_and_q_scale_p14ns_omega(instance_t & instance)
 
     gsl_vector_free(pi_evaluated);
 }
+
+double get_lpr_rho(const double rho) noexcept
+{
+    constexpr double mode = 1.0;
+    constexpr double scale = 0.5;
+    // half_cauchy_lpdf
+    assert(!(rho < 0.0 || scale <= 0.0 || mode < 0.0));
+    const double numer = 1.0 / (M_PI * scale * (1.0 + pow(((rho - mode) / scale), 2.0)));
+    const double cauchy_cdf = atan ((0.0 - mode) / scale) / M_PI + 0.5;
+    const double denom = 1.0 - cauchy_cdf;
+    assert(denom > 0.0);
+    return log(numer) - log(denom);
+}
+
+double get_lpr_kappa(const double kappa) noexcept
+{
+    const double epsilon_float = DBL_EPSILON;
+//    printf("%f\n", epsilon_float);
+    const double k = kappa - 1.0 + epsilon_float;
+    const double gamma = gsl_ran_gamma_pdf(k, 7.0, 0.25);
+    return log(gamma);
+}
+
+
+
+
+// f shall return std::pair<double, double>(x, f(x))
+//template <typename function_t>
+//auto new_fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t f, minimizer_params_t & params)
+//{
+//    assert(lo < hi && lo > 0.0);
+//
+//    srand(0);
+//
+//    const double width = log(hi) - log(lo);
+//    const auto flo = f(lo);
+//    const auto fhi = f(hi);
+//    double x = init;
+//    auto fx = f(init);
+////    std::cout << "xxx: " << x << " ||| " << fx << '\n';
+//
+//    uint32_t i = 0;
+//    while (i < max_tries && (std::get<1>(fx) <= std::get<1>(flo) || std::get<1>(fx) <= std::get<1>(fhi)))
+//    {
+//        const double r = width * ((float) rand()/RAND_MAX);
+//        x = exp(log(lo) + r);
+//        fx = f(x);
+////        std::cout << "xxx: " << x << " ||| " << fx << '\n';
+//        ++i;
+//    }
+////    std::cout << "------------------------------------------------\n";
+//    if (i == max_tries)
+//        return (flo > fhi) ? flo : fhi;
+//    return fx;
+//}
+//
+//void new_maximize_lpr(instance_t &instance, const alignment_t &alignment, const double init, double &lpr, double &elpr_anc, double lo, double hi)
+//{
+//    constexpr double accuracy = 0.01;
+//
+//    minimizer_params_t params {instance, alignment};
+//    auto good_init = new_fit_find_init(250/*max_tries*/, init /*init*/, lo, hi, f, params);
+////    std::cout << good_init << '\n';
+//    if (lo < std::get<0>(good_init) && std::get<0>(good_init) < hi)
+//    {
+//        const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
+//        gsl_min_fminimizer *s = gsl_min_fminimizer_alloc(T);
+//        gsl_function F{&minimizer_lpr_leaves, &params};
+//
+//        gsl_min_fminimizer_set(s, &F, std::get<0>(good_init), lo, hi);
+//
+//        int64_t max_iter = 250;
+//        do {
+//            gsl_min_fminimizer_iterate(s); // int status =
+//
+//            const double x = gsl_min_fminimizer_x_minimum(s);
+//            const double lb = gsl_min_fminimizer_x_lower(s);
+//            const double ub = gsl_min_fminimizer_x_upper(s);
+//
+////            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
+//
+//            if (((ub - lb) / x) <= accuracy)
+//                break;
+//            --max_iter;
+//        } while (max_iter > 0);
+//
+//        gsl_min_fminimizer_free(s);
+//
+//        lpr = params.lpr;
+//        elpr_anc = params.elpr_anc;
+//    }
+//    else
+//    {
+//        lpr = std::get<1>(good_init);
+//        elpr_anc = std::get<2>(good_init);
+//    }
+//}

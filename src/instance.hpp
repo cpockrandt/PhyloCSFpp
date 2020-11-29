@@ -110,7 +110,6 @@ struct instance_t
             q_diag_t() = default;
             q_diag_t(const q_diag_t& other)// copy constructor
             {
-//                std::cout << "copy constructor called!!!\n";
                 this->q = _deep_copy_matrix(other.q);
 
                 this->eig.r_l = _deep_copy_vector(other.eig.r_l);
@@ -130,7 +129,6 @@ struct instance_t
             q_diag_t(q_diag_t&&) = default; // move constructor
             q_diag_t& operator=(const q_diag_t& other) // copy assignment
             {
-//                std::cout << "copy assignment called!!!\n";
                 this->q = _deep_copy_matrix(other.q);
 
                 this->eig.r_l = _deep_copy_vector(other.eig.r_l);
@@ -193,7 +191,7 @@ struct instance_t
     } model;
 
     struct p14n_t {
-        gsl_matrix * q_p14ns; // already evaluated
+        gsl_matrix * q_p14ns = NULL; // already evaluated
         double q_scale_p14ns; // already evaluated
 
         std::vector<domain> q_domains;
@@ -209,12 +207,13 @@ struct instance_t
         };
     } p14n;
 
-    gsl_vector * q_settings;
+    gsl_vector * q_settings = NULL;
     double tree_settings; // this only stores the tree scale (a single float/double), no need for a vector!
 
     ~instance_t()
     {
-        gsl_vector_free(q_settings);
+        if (q_settings != NULL)
+            gsl_vector_free(q_settings);
     }
 
     void instantiate_tree(const double factor) noexcept // see instantiate_tree

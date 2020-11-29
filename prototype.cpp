@@ -246,13 +246,17 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             }
 
             // instantiate_tree
-            inst.instantiate_tree(inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
+            inst.instantiate_tree(
+                    inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
 
             // instantiate_qs
+            inst.model.qms.reserve(inst.p14n.tree_p14n.size() - 1);
             compute_q_p14ns_and_q_scale_p14ns_omega(inst);
             inst.instantiate_qs();
             // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
-
+            PhyloModel_make(inst, inst.q_settings);
+        }
+        {
             //let update_f3x4 inst leaves = // REVIEW: update_f3x4 seems to be correct!
             gsl_matrix * counts = gsl_matrix_alloc(3, 4);
             for (uint8_t i = 0; i < 12; ++i)
@@ -279,7 +283,7 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
                 }
             }
 
-            std::cout << *counts << '\n';
+//            std::cout << *counts << '\n';
 
             for (uint8_t i = 0; i < 3; ++i)
             {
@@ -288,12 +292,28 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
                     gsl_vector_set(inst.q_settings, 3 + (3 * i + j), gsl_matrix_get(counts, i, j) / gsl_matrix_get(counts, i, 3));
                 }
             }
-
-            //    PM.P14n.update ~q_settings:qs inst
             gsl_matrix_free(counts);
 
-            exit(1);
+            //    PM.P14n.update ~q_settings:qs inst
+            compute_q_p14ns_and_q_scale_p14ns_omega(inst);
+            inst.instantiate_qs();
+            PhyloModel_make(inst, NULL);
         }
+
+        // kr_map leaves inst
+        {
+            // PM.P14n.update ~tree_settings:ts inst
+            double x = inst.tree_settings;
+//            std::cout << x << " => " << get_lpr_rho(x) << '\n';
+//            std::cout << 1.0 << " => " << get_lpr_kappa(1.0) << '\n';
+            inst.instantiate_tree(x); // x is a variable that is used for maximization in maximize_lpr
+            PhyloModel_make(inst, NULL);
+            //
+//            f_roh = (lpr_rho rho +. lpr_leaves inst_rho leaves);
+//            max_lik_lpr_leaves(inst, alignment, inst.tree_settings, lpr, elpr_, 0.001, 10.0, f_rho, fst);
+        }
+
+         exit(1);
 
         const double phylocsf_score = 0.0;
         const double anchestral_score = NAN;
@@ -313,8 +333,8 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
         if (algo == algorithm_t::MLE)
         {
-            max_lik_lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c);
-            max_lik_lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc);
+            max_lik_lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, 1e-2, 10.0);
+            max_lik_lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, 1e-2, 10.0);
         }
         else // if (algo == algorithm_t::FIXED)
         {
@@ -334,25 +354,19 @@ int main(int argc, char ** argv)
 //    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
 //    exit(1);
 
-//    Options opt;
-
 //    char* aln_path = argv[1];
 //    char* model_str = argv[2];
 //    char* selected_species_str = argv[3];
 
 //    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
 //    char model_str[] = "23flies";
-//    char selected_species_str[] = "";
+//    "Dog,Cow,Horse,Human,Mouse,Rat";
 
-//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa";
-//    char model_str[] = "100vertebrates";
-//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
-
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::OMEGA);
     run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
     run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
 
-    // run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::OMEGA);
     run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
     run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
 
