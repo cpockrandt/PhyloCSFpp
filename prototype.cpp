@@ -302,6 +302,7 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
         // kr_map leaves inst
         {
+            double lpr = 0.0, elpr_anc = 0.0;
             // PM.P14n.update ~tree_settings:ts inst
             double x = inst.tree_settings;
 //            std::cout << x << " => " << get_lpr_rho(x) << '\n';
@@ -310,7 +311,7 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             PhyloModel_make(inst, NULL);
             //
 //            f_roh = (lpr_rho rho +. lpr_leaves inst_rho leaves);
-//            max_lik_lpr_leaves(inst, alignment, inst.tree_settings, lpr, elpr_, 0.001, 10.0, f_rho, fst);
+//            max_lik_lpr_leaves(inst, alignment, lpr, elpr_anc, init, 0.001, 10.0, &minimizer_lpr_leaves);
         }
 
          exit(1);
@@ -333,8 +334,8 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
         if (algo == algorithm_t::MLE)
         {
-            max_lik_lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, 1e-2, 10.0);
-            max_lik_lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, 1e-2, 10.0);
+            max_lik_lpr_leaves(data.c_instance, alignment, lpr_c, elpr_anc_c, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves);
+            max_lik_lpr_leaves(data.nc_instance, alignment, lpr_nc, elpr_anc_nc, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves);
         }
         else // if (algo == algorithm_t::FIXED)
         {

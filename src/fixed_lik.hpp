@@ -439,6 +439,7 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 struct minimizer_params_t {
     instance_t& instance;
     const alignment_t& alignment;
+    double x;
     double lpr;
     double elpr_anc;
 };
@@ -446,30 +447,58 @@ struct minimizer_params_t {
 double minimizer_lpr_leaves(const double x, void * params)
 {
     minimizer_params_t * min_params = (minimizer_params_t*) params;
+    min_params->x = x;
     lpr_leaves(min_params->instance, min_params->alignment, x, min_params->lpr, min_params->elpr_anc);
     return (-1) * min_params->lpr;
 }
 
-void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, const double init, double &lpr, double &elpr_anc, double lo, double hi)
+// return std::pair(x, f(x))
+template <typename function_t>
+auto fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t * f, minimizer_params_t * params)
+{
+    assert(lo < hi && lo > 0.0);
+
+    srand(0);
+
+    const double width = log(hi) - log(lo);
+    // because the function f is also used for the MLE step (using the GSL minimizer), it negates the results.
+    // So we have to "un-negate" it in the init-step
+    const auto flo = (-1) * f(lo, params);
+    const auto fhi = (-1) * f(hi, params);
+    double x = init;
+    auto fx = (-1) * f(init, params);
+//    std::cout << "xxx: " << x << " ||| " << fx << '\n';
+
+    uint32_t i = 0;
+    while (i < max_tries && (fx <= flo || fx <= fhi))
+    {
+        const double r = width * ((float) rand()/RAND_MAX);
+        x = exp(log(lo) + r);
+        fx = (-1) * f(x, params);
+//        std::cout << "xxx: " << x << " ||| " << fx << '\n';
+        ++i;
+    }
+//    std::cout << "------------------------------------------------\n";
+    if (i == max_tries)
+        return (flo > fhi) ? flo : fhi;
+    return fx;
+}
+
+template <typename function_t>
+void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, double &lpr, double &elpr_anc, const double init, double lo, double hi, function_t * min_func)
 {
     const double accuracy = 0.01;
 
-    auto f = [&instance, &alignment](const double x) {
-        double lpr, elpr_anc;
-        lpr_leaves(instance, alignment, x, lpr, elpr_anc);
-        return std::make_tuple(x, lpr, elpr_anc);
-    };
-
     minimizer_params_t params {instance, alignment};
-    auto good_init = fit_find_init(250/*max_tries*/, init /*init*/, lo, hi, f);
+    auto good_init = fit_find_init(250/*max_tries*/, init, lo, hi, &minimizer_lpr_leaves, &params);
 //    std::cout << good_init << '\n';
-    if (lo < std::get<0>(good_init) && std::get<0>(good_init) < hi)
+    if (lo < params.x && params.x < hi)
     {
         const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
         gsl_min_fminimizer *s = gsl_min_fminimizer_alloc(T);
-        gsl_function F{&minimizer_lpr_leaves, &params};
+        gsl_function F{min_func, &params};
 
-        gsl_min_fminimizer_set(s, &F, std::get<0>(good_init), lo, hi);
+        gsl_min_fminimizer_set(s, &F, params.x, lo, hi);
 
         int64_t max_iter = 250;
         do {
@@ -478,7 +507,6 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, cons
             const double x = gsl_min_fminimizer_x_minimum(s);
             const double lb = gsl_min_fminimizer_x_lower(s);
             const double ub = gsl_min_fminimizer_x_upper(s);
-
 //            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
 
             if (((ub - lb) / x) <= accuracy)
@@ -487,15 +515,10 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, cons
         } while (max_iter > 0);
 
         gsl_min_fminimizer_free(s);
+    }
 
-        lpr = params.lpr;
-        elpr_anc = params.elpr_anc;
-    }
-    else
-    {
-        lpr = std::get<1>(good_init);
-        elpr_anc = std::get<2>(good_init);
-    }
+    lpr = params.lpr;
+    elpr_anc = params.elpr_anc;
 }
 
 
