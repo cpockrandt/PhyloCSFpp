@@ -17,15 +17,74 @@ enum domain {
     NonNeg
 };
 
+std::ostream& operator<<(std::ostream & os, const gsl_vector v)
+{
+    os << '[';
+    for (uint32_t i = 0; i < v.size; ++i)
+    {
+        os << gsl_vector_get(&v, i) << ' ';
+    }
+    os << ']';
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, const gsl_vector_complex v)
+{
+    os << '[';
+    for (uint32_t i = 0; i < v.size; ++i)
+    {
+        auto c = gsl_vector_complex_get(&v, i);
+        os << c.dat[0] << ',' << c.dat[1] << ' ';
+    }
+    os << ']';
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, const gsl_matrix m)
+{
+    for (uint32_t i = 0; i < m.size1; ++i)
+    {
+        for (uint32_t j = 0; j < m.size2; ++j)
+        {
+//            os << gsl_matrix_get(&m, i, j) << ' ';
+            char buf[10];
+            sprintf(buf, "%f ", gsl_matrix_get(&m, i, j));
+            os << buf;
+        }
+        os << '\n';
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, const gsl_matrix_complex m)
+{
+    for (uint32_t i = 0; i < m.size1; ++i)
+    {
+        for (uint32_t j = 0; j < m.size2; ++j)
+        {
+            auto c = gsl_matrix_complex_get(&m, i, j);
+//            os << gsl_matrix_get(&m, i, j) << ' ';
+            char buf[20];
+            sprintf(buf, "%f,%f ", c.dat[0], c.dat[1]);
+            os << buf;
+        }
+        os << '\n';
+    }
+    return os;
+}
+
 std::ostream& operator<<(std::ostream & os, const domain d)
 {
     switch (d)
     {
         case domain::Pos:
-            std::cout << "Pos";
+            os << "Pos";
+            break;
+        case domain::NonNeg:
+            os << "NonNeg";
             break;
         default:
-            std::cout << "UNKNOWN!";
+            os << "UNKNOWN!";
     }
     return os;
 }
@@ -233,6 +292,7 @@ struct instance_t
 
         this->model.qms[0].q = gsl_matrix_alloc(64, 64);
         gsl_matrix_memcpy(this->model.qms[0].q, this->p14n.q_p14ns);
+//        std::cout << *this->model.qms[0].q << '\n';
 
         // -- of_Q
         // ---- Gsl.Eigen.nonsymmv
@@ -245,7 +305,7 @@ struct instance_t
         // NOTE: it seems that order does not seem to matter! can sort in Ocaml and does not change the result
         // NOTE: even though we sort, some values are neg. instead of pos and vice versa
         // TODO: not necessary, just for comparing results with ocaml helpful
-        gsl_eigen_nonsymmv_sort (l, s, GSL_EIGEN_SORT_ABS_ASC);
+        gsl_eigen_nonsymmv_sort(l, s, GSL_EIGEN_SORT_ABS_ASC);
 
         // ---- zinvm
         int signum;
@@ -463,6 +523,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior)
             // non-real-part
         else
         {
+            std::cout << "NON_REAL!!!\n";
             // NOTE: we just create all q's (exept the very first one). the arrays should all have 0s!
             //assert(q.eig.r_l == NULL && q.eig.r_s == NULL && q.eig.r_s2 == NULL);
             //assert(q.eig.nr_l != NULL && q.eig.nr_s != NULL && q.eig.nr_s2 != NULL);

@@ -122,15 +122,18 @@ void compute_q_p14ns_and_q_scale_p14ns_omega(instance_t & instance)
     gsl_vector * pi_evaluated = pi_expr(instance.q_settings);
 
     auto q_p14n_tmp = comp_q_p14n(instance.q_settings, pi_evaluated);
+
+    instance.p14n.q_scale_p14ns = comp_q_scale(pi_evaluated, q_p14n_tmp);
+
     instance.p14n.q_p14ns = gsl_matrix_alloc(64, 64);
     for (uint8_t i = 0; i < 64; ++i)
     {
         for (uint8_t j = 0; j < 64; ++j)
         {
-            gsl_matrix_set(instance.p14n.q_p14ns, i, j, gsl_matrix_get(q_p14n_tmp, i, j));
+            gsl_matrix_set(instance.p14n.q_p14ns, i, j, gsl_matrix_get(q_p14n_tmp, i, j) / instance.p14n.q_scale_p14ns);
         }
     }
-    instance.p14n.q_scale_p14ns = comp_q_scale(pi_evaluated, q_p14n_tmp);
+//    std::cout << "q_scale_p14ns: " << instance.p14n.q_scale_p14ns << '\n';
     gsl_matrix_free(q_p14n_tmp);
 
     gsl_vector_free(pi_evaluated);
@@ -160,75 +163,156 @@ double get_lpr_kappa(const double kappa) noexcept
 
 
 
+void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, const double t, double & lpr)
+{
+    // let workspace = PhyloLik.new_workspace (PM.tree (PM.P14n.model inst)) Codon.dim
+    workspace_t workspace;
+    const uint16_t nbr_leaves_in_tree = (instance.model.tree.size() + 1) / 2;
+    const uint16_t rows = 2 * instance.p14n.tree_shape.size() - nbr_leaves_in_tree;
+    workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
+    workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
-// f shall return std::pair<double, double>(x, f(x))
-//template <typename function_t>
-//auto new_fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t f, minimizer_params_t & params)
-//{
-//    assert(lo < hi && lo > 0.0);
-//
-//    srand(0);
-//
-//    const double width = log(hi) - log(lo);
-//    const auto flo = f(lo);
-//    const auto fhi = f(hi);
-//    double x = init;
-//    auto fx = f(init);
-////    std::cout << "xxx: " << x << " ||| " << fx << '\n';
-//
-//    uint32_t i = 0;
-//    while (i < max_tries && (std::get<1>(fx) <= std::get<1>(flo) || std::get<1>(fx) <= std::get<1>(fhi)))
-//    {
-//        const double r = width * ((float) rand()/RAND_MAX);
-//        x = exp(log(lo) + r);
-//        fx = f(x);
-////        std::cout << "xxx: " << x << " ||| " << fx << '\n';
-//        ++i;
-//    }
-////    std::cout << "------------------------------------------------\n";
-//    if (i == max_tries)
-//        return (flo > fhi) ? flo : fhi;
-//    return fx;
-//}
-//
-//void new_maximize_lpr(instance_t &instance, const alignment_t &alignment, const double init, double &lpr, double &elpr_anc, double lo, double hi)
-//{
-//    constexpr double accuracy = 0.01;
-//
-//    minimizer_params_t params {instance, alignment};
-//    auto good_init = new_fit_find_init(250/*max_tries*/, init /*init*/, lo, hi, f, params);
-////    std::cout << good_init << '\n';
-//    if (lo < std::get<0>(good_init) && std::get<0>(good_init) < hi)
-//    {
-//        const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
-//        gsl_min_fminimizer *s = gsl_min_fminimizer_alloc(T);
-//        gsl_function F{&minimizer_lpr_leaves, &params};
-//
-//        gsl_min_fminimizer_set(s, &F, std::get<0>(good_init), lo, hi);
-//
-//        int64_t max_iter = 250;
-//        do {
-//            gsl_min_fminimizer_iterate(s); // int status =
-//
-//            const double x = gsl_min_fminimizer_x_minimum(s);
-//            const double lb = gsl_min_fminimizer_x_lower(s);
-//            const double ub = gsl_min_fminimizer_x_upper(s);
-//
-////            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
-//
-//            if (((ub - lb) / x) <= accuracy)
-//                break;
-//            --max_iter;
-//        } while (max_iter > 0);
-//
-//        gsl_min_fminimizer_free(s);
-//
-//        lpr = params.lpr;
-//        elpr_anc = params.elpr_anc;
-//    }
+    const uint16_t root_node_id = instance.model.tree.size() - 1;
+//    std::cout << root_node_id << '\n';
+
+    gsl_vector * tmp_prior = get_prior(instance); // TODO: move this out of the for loop below!
+
+    lpr = 0.0;
+    for (uint32_t aa_pos = 0; aa_pos < alignment.peptides[0].size(); ++aa_pos) // lvs = peptides.(...)(pos)
+    {
+        // let info = PM.prepare_lik workspace instance.model lvs
+        // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
+        // prior is a function that either returns instance.model.prior or computes the equilibrium
+//        auto & m = instance.model;
+
+        // now since (prior instance.model) is computed, we can evaluate the actual value:
+        // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
+        const uint16_t k = tmp_prior->size;
+        const uint16_t n = instance.model.tree.size();
+        const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
+
+//        std::cout << nl << ' ' << alignment.peptides.size() << '\n';
+        assert(nl == alignment.peptides.size()); // if nl <> Array.length leaves then invalid_arg "CamlPaml.Infer.prepare: length(leaves) != leaves(t)"
+        assert(instance.model.pms.size() >= (size_t)(n - 1)); // if Array.length pms < n-1 then invalid_arg "CamlPaml.Infer.prepare: not enough P matrices"
+
+        // NOTE: ignored, since until now, we always passed a workspace in Ocaml
+        // let workspace = match workspace with Some x -> x | None -> new_workspace tree k
+
+        workspace.workspace_generation = (workspace.workspace_generation == MY_MAX_INT) ? MY_MIN_INT : (workspace.workspace_generation + 1);
+
+        assert(workspace.workspace_data->size1 >= (size_t)(2*n-nl)); // if rows < (2*n-nl) || cols <> k then invalid_arg "CamlPaml.Infer.prepare: inappropriate workspace dimensions"
+        assert(workspace.workspace_data->size2 == k);
+
+//        for (uint16_t x = 0; x < 7; ++x)
+//        {
+//            double test = 100 * (x + 1);
+//            for (uint16_t y = 0; y < 64; ++y)
+//            {
+//                gsl_matrix_set(workspace_data, x, y, test);
+//                ++test;
+//            }
+//        }
+
+        // let alpha = Bigarray.Array2.sub_left workspace.data 0 (n-nl)
+        // let beta = Bigarray.Array2.sub_left workspace.data (n-nl) n
+        // I don't think submatrices are really necessary here. we can do the calculations ourselves
+        workspace.have_alpha = false;
+        workspace.have_beta = false;
+        workspace.alpha = gsl_matrix_submatrix(workspace.workspace_data, 0, 0, n - nl, 64); // upper "half"
+        workspace.beta  = gsl_matrix_submatrix(workspace.workspace_data, n - nl, 0, n, 64); // lower "half"
+
+        for (uint8_t a = 0; a < k; ++a)
+        {
+            gsl_matrix_set(&workspace.beta.matrix, n - 1, a, gsl_vector_get(tmp_prior, a)); // TODO: check whether submatrix works and setting values here!
+        }
+
+//        for (uint16_t x = 0; x < 7; ++x)
+//        {
+//            for (uint16_t y = 0; y < 64; ++y)
+//                std::cout << gsl_matrix_get(workspace.workspace_data, x, y) << ' ';
+//            std::cout << '\n';
+//        }
+//        std::cout << "--------------------------\n";
+//        for (uint16_t x = 0; x < workspace.alpha.matrix.size1; ++x)
+//        {
+//            for (uint16_t y = 0; y < workspace.alpha.matrix.size2; ++y)
+//                std::cout << gsl_matrix_get(&workspace.alpha.matrix, x, y) << ' ';
+//            std::cout << '\n';
+//        }
+//        std::cout << "--------------------------\n";
+//        for (uint16_t x = 0; x < workspace.beta.matrix.size1; ++x)
+//        {
+//            for (uint16_t y = 0; y < workspace.beta.matrix.size2; ++y)
+//                std::cout << gsl_matrix_get(&workspace.beta.matrix, x, y) << ' ';
+//            std::cout << '\n';
+//        }
+//        exit(10);
+
+        ensure_alpha(instance, workspace, alignment, aa_pos); // eventually return more than just the info.z score, because it might be used for the ancestor computation
+        lpr += log(workspace.z);
+        std::cout << "log summand: " << log(workspace.z) << '\n';
+    }
+}
+
+
+double minimizer_lpr_leaves_rho(const double x, void * params)
+{
+    minimizer_params_t * min_params = (minimizer_params_t*) params;
+
+    // PM.P14n.update ~tree_settings:ts inst
+    min_params->x = x;
+    min_params->instance.tree_settings = x;
+    min_params->instance.instantiate_tree(x); // x is a variable that is used for maximization in maximize_lpr
+    PhyloModel_make(min_params->instance, NULL);
+
+    lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
+//    std::cout << "get_lpr_rho(" << x << "): " << get_lpr_rho(x) << '\n';
+    std::cout << "lpr_leaves result (rho, without get_rho): " << x << " => " << min_params->lpr << '\n';
+    exit(55);
+    min_params->lpr += get_lpr_rho(x);
+    std::cout << "lpr_leaves result (rho, with    get_rho): " << x << " => " << min_params->lpr << '\n';
+    return (-1) * min_params->lpr;
+}
+
+double minimizer_lpr_leaves_kappa(const double x, void * params)
+{
+    minimizer_params_t * min_params = (minimizer_params_t*) params;
+
+    // PM.P14n.update ~tree_settings:ts inst
+    min_params->x = x;
+    gsl_vector_set(min_params->instance.q_settings, 0, x);
+    compute_q_p14ns_and_q_scale_p14ns_omega(min_params->instance);
+    min_params->instance.instantiate_qs(); // x is a variable that is used for maximization in maximize_lpr
+    PhyloModel_make(min_params->instance, NULL);
+
+    lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
+    min_params->lpr += get_lpr_kappa(x);
+    return (-1) * min_params->lpr;
+}
+
+void print(instance_t & i)
+{
+
+    std::cout << *i.model.qms[0].q << '\n'; // TODO: not identical!!!
+//    std::cout << *i.model.pms[0] << '\n'; // TODO: not identical!!!
+   // qms[0].pi // not identical, but thats okay, because it is not initialized!
+
+//    // identical
+//    std::cout << i.model.tree << '\n';
+//    if (i.model.prior != NULL)
+//        std::cout << *i.model.prior << '\n';
 //    else
-//    {
-//        lpr = std::get<1>(good_init);
-//        elpr_anc = std::get<2>(good_init);
-//    }
-//}
+//        std::cout << "No inst.model.prior" << '\n';
+
+//    // identical
+//    std::cout << *i.p14n.q_p14ns << '\n'; // is correct (after new_instance and after initial update)
+//    std::cout << i.p14n.q_scale_p14ns << '\n'; // is correct (after new_instance and after initial update)
+//    std::cout << i.p14n.q_domains << '\n';
+//    std::cout << i.p14n.tree_shape << '\n';
+//    std::cout << i.p14n.tree_p14n << '\n';
+//    std::cout << i.p14n.tree_domains << '\n';
+//
+//    // identical
+//    std::cout << *i.q_settings << '\n';
+//    std::cout << i.tree_settings << '\n';
+}

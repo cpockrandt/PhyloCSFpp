@@ -39,20 +39,20 @@ std::ostream& operator<<(std::ostream & os, const std::vector<double> & v)
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, const std::vector<std::vector<double> > & v)
-{
-    for (uint32_t i = 0; i < v.size(); ++i)
-    {
-        for (uint32_t j = 0; j < v[i].size(); ++j)
-        {
-            char buf[10];
-            sprintf (buf, "%.3f ", v[i][j]);
-            os << buf << ' ';
-        }
-        std::cout << '\n';
-    }
-    return os;
-}
+//std::ostream& operator<<(std::ostream & os, const std::vector<std::vector<double> > & v)
+//{
+//    for (uint32_t i = 0; i < v.size(); ++i)
+//    {
+//        for (uint32_t j = 0; j < v[i].size(); ++j)
+//        {
+//            char buf[10];
+//            sprintf (buf, "%.3f ", v[i][j]);
+//            os << buf << ' ';
+//        }
+//        std::cout << '\n';
+//    }
+//    return os;
+//}
 
 template <typename T>
 std::ostream& operator<<(std::ostream & os, const std::vector<T> & v)
@@ -62,7 +62,7 @@ std::ostream& operator<<(std::ostream & os, const std::vector<T> & v)
     {
         os << v[i] << ' ';
     }
-    std::cout << ']' << '\n';
+    std::cout << ']';
     return os;
 }
 
@@ -80,18 +80,18 @@ std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, dou
 #include "src/omega.hpp"
 #include "src/maf_parser.hpp"
 
-std::ostream& operator<<(std::ostream & os, const gsl_matrix& m)
-{
-    for (uint8_t i = 0; i < m.size1; ++i)
-    {
-        for (uint8_t j = 0; j < m.size2; ++j)
-        {
-            os << gsl_matrix_get(&m, i, j) << '\t';
-        }
-        os << '\n';
-    }
-    return os;
-}
+//std::ostream& operator<<(std::ostream & os, const gsl_matrix& m)
+//{
+//    for (uint8_t i = 0; i < m.size1; ++i)
+//    {
+//        for (uint8_t j = 0; j < m.size2; ++j)
+//        {
+//            os << gsl_matrix_get(&m, i, j) << '\t';
+//        }
+//        os << '\n';
+//    }
+//    return os;
+//}
 
 enum algorithm_t
 {
@@ -246,8 +246,7 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             }
 
             // instantiate_tree
-            inst.instantiate_tree(
-                    inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
+            inst.instantiate_tree(inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
 
             // instantiate_qs
             inst.model.qms.reserve(inst.p14n.tree_p14n.size() - 1);
@@ -256,6 +255,9 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
             PhyloModel_make(inst, inst.q_settings);
         }
+//        std::cout << *inst.model.qms[0].q << '\n';
+//        std::cout << *inst.model.qms[0].eig.r_l << '\n';
+//        exit(17);
         {
             //let update_f3x4 inst leaves = // REVIEW: update_f3x4 seems to be correct!
             gsl_matrix * counts = gsl_matrix_alloc(3, 4);
@@ -300,18 +302,22 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             PhyloModel_make(inst, NULL);
         }
 
+//        print(inst);
+//        exit(1);
+
         // kr_map leaves inst
         {
             double lpr = 0.0, elpr_anc = 0.0;
-            // PM.P14n.update ~tree_settings:ts inst
-            double x = inst.tree_settings;
-//            std::cout << x << " => " << get_lpr_rho(x) << '\n';
-//            std::cout << 1.0 << " => " << get_lpr_kappa(1.0) << '\n';
-            inst.instantiate_tree(x); // x is a variable that is used for maximization in maximize_lpr
-            PhyloModel_make(inst, NULL);
-            //
 //            f_roh = (lpr_rho rho +. lpr_leaves inst_rho leaves);
-//            max_lik_lpr_leaves(inst, alignment, lpr, elpr_anc, init, 0.001, 10.0, &minimizer_lpr_leaves);
+
+            const double init_rho = inst.tree_settings;
+            std::cout << "init rho: " << init_rho << '\n';
+            max_lik_lpr_leaves(inst, alignment, lpr, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
+            std::cout << "lpr after min_rho: " << lpr << " ---\n";
+
+            const double init_kappa = gsl_vector_get(inst.q_settings, 0);
+            max_lik_lpr_leaves(inst, alignment, lpr, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
+            std::cout << "lpr after min_kappa: " << lpr << " ---\n";
         }
 
          exit(1);
@@ -363,7 +369,7 @@ int main(int argc, char ** argv)
 //    char model_str[] = "23flies";
 //    "Dog,Cow,Horse,Human,Mouse,Rat";
 
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::OMEGA);
+    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
     run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
     run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
 
