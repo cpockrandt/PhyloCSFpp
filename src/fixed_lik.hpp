@@ -319,7 +319,7 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
     // 2a. instantiate_tree inst.p14n.tree_shape inst.p14n.tree_p14n t:double // updates instance_new.tree_settings
     instance.instantiate_tree(t);
     // 2b. make ?prior:NULL newtree newq // updates instance_new.model
-    PhyloModel_make(instance, NULL);
+    PhyloModel_make(instance, NULL, false);
 
     // let workspace = PhyloLik.new_workspace (PM.tree (PM.P14n.model inst)) Codon.dim
     workspace_t workspace;
@@ -466,7 +466,7 @@ auto fit_find_init(const uint32_t max_tries, const double init, const double lo,
     const double fhi = (-1) * (*f)(hi, params);
     double x = init;
     double fx = (-1) * (*f)(init, params);
-    std::cout << "xxx: " << x << " ||| " << fx << '\n';
+//    std::cout << "xxx: " << x << " ||| " << fx << '\n';
 
     uint32_t i = 0;
     while (i < max_tries && (fx <= flo || fx <= fhi))
@@ -474,10 +474,10 @@ auto fit_find_init(const uint32_t max_tries, const double init, const double lo,
         const double r = width * ((float) rand()/RAND_MAX);
         x = exp(log(lo) + r);
         fx = (-1) * (*f)(x, params);
-        std::cout << "xxx: " << x << " ||| " << fx << '\n';
+//        std::cout << "xxx: " << x << " ||| " << fx << '\n';
         ++i;
     }
-    std::cout << "------------------------------------------------\n";
+//    std::cout << "------------------------------------------------\n";
     if (i == max_tries)
         return (flo > fhi) ? flo : fhi;
     return fx;
@@ -490,8 +490,8 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
 
     minimizer_params_t params {instance, alignment};
     /*auto good_init =*/ fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params);
-    std::cout << "good init: " << params.x << " => " << params.lpr << '\n';
-    exit(44);
+//    std::cout << "good init: " << params.x << " => " << params.lpr << '\n';
+//    exit(44);
     if (lo < params.x && params.x < hi)
     {
         const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
@@ -507,7 +507,7 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
             const double x = gsl_min_fminimizer_x_minimum(s);
             const double lb = gsl_min_fminimizer_x_lower(s);
             const double ub = gsl_min_fminimizer_x_upper(s);
-            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
+//            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
 
             if (((ub - lb) / x) <= accuracy)
                 break;

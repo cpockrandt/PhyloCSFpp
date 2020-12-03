@@ -35,7 +35,7 @@ std::ostream& operator<<(std::ostream & os, const std::vector<double> & v)
         sprintf (buf, "%f\t", v[i]);
         os << buf;
     }
-    std::cout << '\n';
+    os << '\n';
     return os;
 }
 
@@ -57,18 +57,18 @@ std::ostream& operator<<(std::ostream & os, const std::vector<double> & v)
 template <typename T>
 std::ostream& operator<<(std::ostream & os, const std::vector<T> & v)
 {
-    std::cout << '[';
+    os << '[';
     for (uint32_t i = 0; i < v.size(); ++i)
     {
         os << v[i] << ' ';
     }
-    std::cout << ']';
+    os << ']';
     return os;
 }
 
 std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, double> & t)
 {
-    std::cout << '(' << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ')';
+    os << '(' << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ')';
     return os;
 }
 
@@ -251,10 +251,16 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             // instantiate_qs
             inst.model.qms.reserve(inst.p14n.tree_p14n.size() - 1);
             compute_q_p14ns_and_q_scale_p14ns_omega(inst);
+//            std::cout << "instance.p14n.q_p14ns:\n" << *inst.p14n.q_p14ns << '\n';
             inst.instantiate_qs();
             // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
-            PhyloModel_make(inst, inst.q_settings);
+            PhyloModel_make(inst, inst.q_settings, true);
+//            print(inst);
+//            exit(13);
         }
+
+        // until here the model.pms is identical!
+
 //        std::cout << *inst.model.qms[0].q << '\n';
 //        std::cout << *inst.model.qms[0].eig.r_l << '\n';
 //        exit(17);
@@ -298,12 +304,17 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
             //    PM.P14n.update ~q_settings:qs inst
             compute_q_p14ns_and_q_scale_p14ns_omega(inst);
+
+//            std::cout << *inst.q_settings << '\n';
+
             inst.instantiate_qs();
-            PhyloModel_make(inst, NULL);
+            PhyloModel_make(inst, NULL, true);
+
+//            print(inst);
+//            exit(19);
         }
 
-//        print(inst);
-//        exit(1);
+        // STATUS 2020-12-03 02:40 pms and qms are identical here with Ocaml version!!!! :)
 
         // kr_map leaves inst
         {
@@ -320,7 +331,7 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
             std::cout << "lpr after min_kappa: " << lpr << " ---\n";
         }
 
-         exit(1);
+//         exit(1);
 
         const double phylocsf_score = 0.0;
         const double anchestral_score = NAN;

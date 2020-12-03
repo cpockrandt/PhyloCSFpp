@@ -96,6 +96,40 @@ gsl_matrix * comp_q_p14n(const gsl_vector * const variables, const gsl_vector * 
     return sq;
 }
 
+void print(instance_t & i)
+{
+    for (uint16_t k = 0; k < i.model.pms.size(); ++k)
+        std::cout << *i.model.pms[k] << '\n' << '\n' << '\n'; // TODO: not identical!!!
+//    for (uint16_t k = 0; k < i.model.qms.size(); ++k)
+//    {
+//        std::cout << "q[" << k << "]:\n" << *i.model.qms[k].q << '\n'; // TODO: not identical!!!
+////        std::cout << "q[" << k << "]:\n" << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
+////        std::cout << "eig r_s: " << *i.model.qms[k].eig.r_s << '\n';
+////        std::cout << "eig r_s': " << *i.model.qms[k].eig.r_s2 << '\n';
+////        std::cout << "eig r_l: " << *i.model.qms[k].eig.r_l << '\n';
+//    }
+    // qms[0].pi // not identical, but thats okay, because it is not initialized!
+
+//    // identical
+//    std::cout << i.model.tree << '\n';
+//    if (i.model.prior != NULL)
+//        std::cout << *i.model.prior << '\n';
+//    else
+//        std::cout << "No inst.model.prior" << '\n';
+
+//    // identical
+//    std::cout << *i.p14n.q_p14ns << '\n'; // is correct (after new_instance and after initial update)
+//    std::cout << i.p14n.q_scale_p14ns << '\n'; // is correct (after new_instance and after initial update)
+//    std::cout << i.p14n.q_domains << '\n';
+//    std::cout << i.p14n.tree_shape << '\n';
+//    std::cout << i.p14n.tree_p14n << '\n';
+//    std::cout << i.p14n.tree_domains << '\n';
+//
+//    // identical
+//    std::cout << *i.q_settings << '\n';
+//    std::cout << i.tree_settings << '\n';
+}
+
 double comp_q_scale(const gsl_vector * const pi, const gsl_matrix * const q_p14n) noexcept
 {
     double factor = 0.0;
@@ -208,7 +242,7 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
 //            double test = 100 * (x + 1);
 //            for (uint16_t y = 0; y < 64; ++y)
 //            {
-//                gsl_matrix_set(workspace_data, x, y, test);
+//                gsl_matrix_set(workspace.workspace_data, x, y, test);
 //                ++test;
 //            }
 //        }
@@ -220,6 +254,10 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
         workspace.have_beta = false;
         workspace.alpha = gsl_matrix_submatrix(workspace.workspace_data, 0, 0, n - nl, 64); // upper "half"
         workspace.beta  = gsl_matrix_submatrix(workspace.workspace_data, n - nl, 0, n, 64); // lower "half"
+
+        gsl_matrix_set_zero(&workspace.alpha.matrix);
+
+//        std::cout << workspace.alpha.matrix << '\n';
 
         for (uint8_t a = 0; a < k; ++a)
         {
@@ -249,8 +287,12 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
 //        exit(10);
 
         ensure_alpha(instance, workspace, alignment, aa_pos); // eventually return more than just the info.z score, because it might be used for the ancestor computation
+//        std::cout << workspace.alpha.matrix << '\n';
+//        print(instance);
         lpr += log(workspace.z);
-        std::cout << "log summand: " << log(workspace.z) << '\n';
+//        std::cout << "log summand: " << log(workspace.z) << '\n';
+        printf("log summand: %f\n", log(workspace.z));
+//        exit(54);
     }
 }
 
@@ -263,7 +305,7 @@ double minimizer_lpr_leaves_rho(const double x, void * params)
     min_params->x = x;
     min_params->instance.tree_settings = x;
     min_params->instance.instantiate_tree(x); // x is a variable that is used for maximization in maximize_lpr
-    PhyloModel_make(min_params->instance, NULL);
+    PhyloModel_make(min_params->instance, NULL, false);
 
     lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
 //    std::cout << "get_lpr_rho(" << x << "): " << get_lpr_rho(x) << '\n';
@@ -283,36 +325,9 @@ double minimizer_lpr_leaves_kappa(const double x, void * params)
     gsl_vector_set(min_params->instance.q_settings, 0, x);
     compute_q_p14ns_and_q_scale_p14ns_omega(min_params->instance);
     min_params->instance.instantiate_qs(); // x is a variable that is used for maximization in maximize_lpr
-    PhyloModel_make(min_params->instance, NULL);
+    PhyloModel_make(min_params->instance, NULL, true);
 
     lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
     min_params->lpr += get_lpr_kappa(x);
     return (-1) * min_params->lpr;
-}
-
-void print(instance_t & i)
-{
-
-    std::cout << *i.model.qms[0].q << '\n'; // TODO: not identical!!!
-//    std::cout << *i.model.pms[0] << '\n'; // TODO: not identical!!!
-   // qms[0].pi // not identical, but thats okay, because it is not initialized!
-
-//    // identical
-//    std::cout << i.model.tree << '\n';
-//    if (i.model.prior != NULL)
-//        std::cout << *i.model.prior << '\n';
-//    else
-//        std::cout << "No inst.model.prior" << '\n';
-
-//    // identical
-//    std::cout << *i.p14n.q_p14ns << '\n'; // is correct (after new_instance and after initial update)
-//    std::cout << i.p14n.q_scale_p14ns << '\n'; // is correct (after new_instance and after initial update)
-//    std::cout << i.p14n.q_domains << '\n';
-//    std::cout << i.p14n.tree_shape << '\n';
-//    std::cout << i.p14n.tree_p14n << '\n';
-//    std::cout << i.p14n.tree_domains << '\n';
-//
-//    // identical
-//    std::cout << *i.q_settings << '\n';
-//    std::cout << i.tree_settings << '\n';
 }

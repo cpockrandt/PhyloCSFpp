@@ -285,7 +285,7 @@ struct instance_t
         }
     }
 
-    void instantiate_qs() noexcept
+    void instantiate_qs(bool cpy = true) noexcept
     {
         if (this->model.qms.size() == 0)
             this->model.qms.resize(1);
@@ -300,8 +300,14 @@ struct instance_t
         gsl_matrix_complex *s = gsl_matrix_complex_alloc(64, 64);
         gsl_eigen_nonsymmv_workspace *w = gsl_eigen_nonsymmv_alloc(64);
 
-        gsl_eigen_nonsymmv(this->model.qms[0].q, l, s, w);
+        gsl_matrix * q_cpy = gsl_matrix_alloc(64, 64);
+        gsl_matrix_memcpy(q_cpy, this->model.qms[0].q);
+
+        gsl_eigen_nonsymmv(q_cpy, l, s, w);
+//        std::cout << *this->model.qms[0].q << '\n';
         gsl_eigen_nonsymmv_free(w);
+        if (!cpy)
+            gsl_matrix_memcpy(this->model.qms[0].q, q_cpy);
         // NOTE: it seems that order does not seem to matter! can sort in Ocaml and does not change the result
         // NOTE: even though we sort, some values are neg. instead of pos and vice versa
         // TODO: not necessary, just for comparing results with ocaml helpful
@@ -374,6 +380,8 @@ struct instance_t
         this->model.qms[0].tol = tol;
         this->model.qms[0].have_pi = false;
         this->model.qms[0].pi = gsl_vector_alloc(64); // TODO: unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
+
+        gsl_matrix_free(q_cpy);
     }
 };
 
@@ -425,16 +433,29 @@ std::ostream& operator<<(std::ostream & os, const instance_t & x)
 //  also named qms, we cannot access old values while computing in qms anyway.
 // So I think there is (for now) no need to copy "instance". not sure though how it works for MLE mode where lpr_leaves performs multiple iterations.
 // I would expect them in each iteration to work on the latest "instance" but I don't see it in the code yet.
-void PhyloModel_make(instance_t & instance, gsl_vector * prior)
+void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool instantiate_qs_run_before)
 {
 
     // NOTE: taken from the beginning of PhyloModel_make()
-    instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
-
-
-    // do this only in the initialization step (copy qms[0] to all other (uninitialized) members)
-    if (instance.model.qms.size() == 1)
+    if (instance.model.pms.size() != instance.p14n.tree_p14n.size() - 1)
     {
+//        std::cout << "LOOOOOOOOL\n";
+        instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
+    }
+
+//    std::cout << "QMS size: " << instance.model.qms.size() << '\n';
+    // do this only in the initialization step (copy qms[0] to all other (uninitialized) members)
+    // TODO: Here's what's happening in Ocaml (at least when called by update())
+    // qms is the the size of the array that is returned by instantiate_qs. If instantiate_qs was not called, because only instantiate_tree was called,
+    // it is the size of instance.model.qms
+
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // NEW TODO: if tree is updated, the IF is checking the size of inst.model.qms, if also instatiate_qs is called,
+    // it checks the size of the result of instantiate_qs, often refered to as qms
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if (instantiate_qs_run_before) // TODO: ERRORRRRR!!!!! It's not the size of qms but the size of q_p14ns (which should actually be an array of matrices! we wrongly optimized the array out!!!!)
+    {
+//        assert(instance.model.qms.size() != 1);
         instance.model.qms.resize(instance.p14n.tree_p14n.size() - 1);
         for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
             instance.model.qms[i] = instance.model.qms[0]; // deep-copy of object diag_t
@@ -471,6 +492,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior)
         instance_t::model_t::q_diag_t &q = instance.model.qms[i]; // TODO: make sure whether tree[i] matches qms[i] (but should)
         gsl_matrix *&p = instance.model.pms[i];
         const double t = instance.p14n.tree_p14n[i].branch_length;
+        assert(t >= 0.0);
 
         if (p != NULL)
             gsl_matrix_free(p);
@@ -674,5 +696,5 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     instance.instantiate_qs();
 
     // -- make (remember: this is also called in each update (with new tree and old q))
-    PhyloModel_make(instance, instance.q_settings/*&codon_freq*/);
+    PhyloModel_make(instance, instance.q_settings/*&codon_freq*/, true);
 }
