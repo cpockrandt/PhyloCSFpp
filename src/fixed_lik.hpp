@@ -239,11 +239,13 @@ gsl_vector * get_prior(instance_t & instance)
         // qms is instance.model.qms
         const uint16_t root = instance.model.tree.size() - 1;
         const uint16_t child2 = instance.model.tree[root].child2_id;
+//        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!! equilibrium " << child2 << "\n";
         auto & q = instance.model.qms[child2];
 
         // equilibrium
         if (!q.have_pi)
         {
+//            std::cout << "Has no PI!\n";
             gsl_vector * real_eig_l;
             gsl_matrix * real_eig_s2;
             assert((
@@ -304,6 +306,8 @@ gsl_vector * get_prior(instance_t & instance)
                 gsl_matrix_free(real_eig_s2);
             }
         }
+//        else
+//            std::cout << "Has PI already!\n";
 
         return q.pi;
     }
@@ -452,8 +456,16 @@ double minimizer_lpr_leaves(const double x, void * params)
     return (-1) * min_params->lpr;
 }
 
+static size_t rand_id = 0;
+
+double my_ocaml_rand()
+{
+    static std::vector<double> r = {7.822293,5.798030,3.989764,1.063207,7.482271,3.649649,7.579218,8.293643,8.523592,1.206956,7.282246,6.466290,7.484271,7.682103,1.596537,0.096310,7.516328,5.537377,6.502269,3.281553,7.537951,2.965443,7.916212,5.738046,6.264473,6.752350,0.721391,1.842304,8.722071,3.473594,3.147176,7.485667,7.230315,5.263190,1.426113,5.758685,3.995294,3.889733,5.984792,1.424801,1.125528,1.457110,1.403364,0.995787,2.035756,5.209547,6.550507,7.332020,3.486653,7.001480,3.795608,5.089984,1.844483,8.669368,3.934994,6.944483,5.152360,0.013000,4.518018,6.008967,2.224518,2.423278,5.651355,1.834266,6.497965,2.748319,9.175865,4.997588,3.257924,3.930131,4.350889,3.074516,6.199744,5.137806,8.659628,1.674099,2.633948,5.021263,2.960110,7.187632,6.283709,3.795092,8.775025,1.028682,2.599440,7.846708,3.859253,7.798536,3.020941,3.120367,2.393945,8.650188,1.898054,6.251291,0.036876,5.909511,6.828188,7.889084,2.448866,8.290341,5.576253,2.819084,9.111765,7.796012,2.002562,7.485182,2.942386,2.505075,5.119834,0.060475,1.227442,3.477496,9.045787,2.327140,8.632030,4.078893,0.282804,3.812583,3.577886,0.917564,5.036360,8.611727,3.335440,2.435461,2.733632,6.425171,7.890829,4.100519,6.142246,7.774043,2.159690,3.282000,4.082643,5.339580,0.845743,0.992296,7.467267,7.825164,8.303643,2.511173,7.487288,4.901596,6.340900,1.717617,5.518605,8.779051,8.273968,6.638098,0.281870,7.001361,3.806238,8.168235,9.096416,3.666193,2.846685,6.097120,2.442748,3.787557,6.661030,4.339549,2.024124,4.163124,6.909457,9.041447,8.482296,8.848310,1.103360,3.997171,4.047571,5.790041,5.321769,0.587898,7.167071,8.497480,8.703287,5.331802,8.926357,6.158044,8.032398,0.883934,7.308699,5.625973,1.977815,8.144576,5.990840,8.687504,9.195913,2.201845,7.994647,1.106824,7.358382,7.284752,3.272319,2.523356,3.706573,5.722759,0.064958,2.004703,6.396779,6.086434,1.215683,6.022801,6.589996,3.382713,7.354740,8.171676,1.668836,8.606837,2.842373,1.521058,8.238068,1.437507,6.188858,1.217426,3.629684,0.885047,2.643184,0.905827,6.448448,4.642211,6.273793,3.663685,5.659357,6.019781,6.798340,5.451232,6.357655,7.090366,3.069555,6.267293,2.444180,1.090158,8.972063,7.278150,0.409440,2.000894,4.711551,8.070772,1.602930,3.876541,8.216012,2.271986,3.324750,8.811580,5.222365,7.553890,6.197910,8.879333,7.640081,8.587510};
+    return r[rand_id++];
+}
+
 template <typename function_t>
-auto fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t * f, minimizer_params_t * params)
+void fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t * f, minimizer_params_t * params)
 {
     assert(lo < hi && lo > 0.0);
 
@@ -472,6 +484,8 @@ auto fit_find_init(const uint32_t max_tries, const double init, const double lo,
     while (i < max_tries && (fx <= flo || fx <= fhi))
     {
         const double r = width * ((float) rand()/RAND_MAX);
+//        const double r = my_ocaml_rand();
+//        std::cout << "RANDOM: " << r << '\n';
         x = exp(log(lo) + r);
         fx = (-1) * (*f)(x, params);
 //        std::cout << "xxx: " << x << " ||| " << fx << '\n';
@@ -479,8 +493,24 @@ auto fit_find_init(const uint32_t max_tries, const double init, const double lo,
     }
 //    std::cout << "------------------------------------------------\n";
     if (i == max_tries)
-        return (flo > fhi) ? flo : fhi;
-    return fx;
+    {
+        if (flo > fhi)
+        {
+            params->x = lo;
+            params->lpr = flo;
+        }
+        else
+        {
+            params->x = hi;
+            params->lpr = fhi;
+        }
+//        return (flo > fhi) ? flo : fhi;
+    }
+    else
+    {
+//        return fx; // NOTE: x and lpr in params already set by call to (*f)(x, params)
+    }
+    (*f)(params->x, params); // NOTE: this is suuuuper improtant! (maybe!) we need to set stuff like tree_settings and pms to the values for the x that we eventually chose!
 }
 
 template <typename function_t>
@@ -489,7 +519,7 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
     const double accuracy = 0.01;
 
     minimizer_params_t params {instance, alignment};
-    /*auto good_init =*/ fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params);
+    fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params);
 //    std::cout << "good init: " << params.x << " => " << params.lpr << '\n';
 //    exit(44);
     if (lo < params.x && params.x < hi)

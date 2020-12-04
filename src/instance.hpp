@@ -22,7 +22,10 @@ std::ostream& operator<<(std::ostream & os, const gsl_vector v)
     os << '[';
     for (uint32_t i = 0; i < v.size; ++i)
     {
-        os << gsl_vector_get(&v, i) << ' ';
+//        os << gsl_vector_get(&v, i) << ' ';
+        char buf[10];
+        sprintf(buf, "%f ", gsl_vector_get(&v, i));
+        os << buf;
     }
     os << ']';
     return os;
@@ -179,9 +182,10 @@ struct instance_t
                 this->eig.nr_s = _deep_copy_matrix_complex(other.eig.nr_s);
                 this->eig.nr_s2 = _deep_copy_matrix_complex(other.eig.nr_s2);
 
-                this->pi = _deep_copy_vector(other.pi);
+//                this->pi = _deep_copy_vector(other.pi); // NOTE: this might be important!!!!
+                this->pi = other.pi; // NOTE: this might be important!!!!
 
-                this->have_pi = other.have_pi;
+                this->have_pi = other.have_pi; // TODO: THIS MIGHT ALSO BE A POINTER!!!!
                 // mutable memoized_to_Pt
                 this->tol = other.tol;
             }
@@ -198,9 +202,10 @@ struct instance_t
                 this->eig.nr_s = _deep_copy_matrix_complex(other.eig.nr_s);
                 this->eig.nr_s2 = _deep_copy_matrix_complex(other.eig.nr_s2);
 
-                this->pi = _deep_copy_vector(other.pi);
+//                this->pi = _deep_copy_vector(other.pi); // NOTE: this might be important!!!!
+                this->pi = other.pi; // NOTE: this might be important!!!!
 
-                this->have_pi = other.have_pi;
+                this->have_pi = other.have_pi; // TODO: THIS MIGHT ALSO BE A POINTER!!!!
                 // mutable memoized_to_Pt
                 this->tol = other.tol;
                 return *this;
@@ -209,7 +214,13 @@ struct instance_t
             virtual ~q_diag_t()
             {
                 gsl_matrix_free(q);
-                gsl_vector_free(pi);
+                q = NULL;
+                if (have_pi)
+                {
+                    assert(pi != NULL);
+                    gsl_vector_free(pi);
+                    pi = NULL;
+                }
             }; // destructor
         };
 
@@ -290,6 +301,11 @@ struct instance_t
         if (this->model.qms.size() == 0)
             this->model.qms.resize(1);
 
+        if (this->model.qms[0].q != NULL)
+        {
+            gsl_matrix_free(this->model.qms[0].q);
+            this->model.qms[0].q = NULL;
+        }
         this->model.qms[0].q = gsl_matrix_alloc(64, 64);
         gsl_matrix_memcpy(this->model.qms[0].q, this->p14n.q_p14ns);
 //        std::cout << *this->model.qms[0].q << '\n';
@@ -380,8 +396,14 @@ struct instance_t
         this->model.qms[0].tol = tol;
         this->model.qms[0].have_pi = false;
         this->model.qms[0].pi = gsl_vector_alloc(64); // TODO: unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
+        gsl_vector_set_zero(this->model.qms[0].pi); // TODO: only for debugging
 
         gsl_matrix_free(q_cpy);
+
+//        std::cout << *this->model.qms[0].q << '\n';
+//        std::cout << *this->model.qms[0].eig.r_l << '\n';
+//        std::cout << *this->model.qms[0].eig.r_s << '\n';
+//        exit(13);
     }
 };
 
@@ -435,14 +457,6 @@ std::ostream& operator<<(std::ostream & os, const instance_t & x)
 // I would expect them in each iteration to work on the latest "instance" but I don't see it in the code yet.
 void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool instantiate_qs_run_before)
 {
-
-    // NOTE: taken from the beginning of PhyloModel_make()
-    if (instance.model.pms.size() != instance.p14n.tree_p14n.size() - 1)
-    {
-//        std::cout << "LOOOOOOOOL\n";
-        instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
-    }
-
 //    std::cout << "QMS size: " << instance.model.qms.size() << '\n';
     // do this only in the initialization step (copy qms[0] to all other (uninitialized) members)
     // TODO: Here's what's happening in Ocaml (at least when called by update())
@@ -483,9 +497,16 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
         instance.model.prior = _deep_copy_vector(prior); // NOTE: this makes a deep-copy
     }
 
+    if (instance.model.pms.size() != instance.p14n.tree_p14n.size() - 1)
+    {
+//        std::cout << "LOOOOOOOOL\n";
+        instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
+    }
+
     // pms = Array.init (T.size t - 1) (fun br -> Q.Diag.to_Pt qms.(br) (T.branch t br))
     for (uint16_t i = 0; i < instance.p14n.tree_shape.size() - 1; ++i)
     {
+//        std::cout << "make.t = " << instance.p14n.tree_p14n[i].branch_length << '\n';
         // to_Pt:
         // TODO: here is memoization happening with q.memoized_to_Pt
         // especially inefficient since for initialization all qms[i] are identical!
@@ -546,6 +567,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
         else
         {
             std::cout << "NON_REAL!!!\n";
+            exit(77);
             // NOTE: we just create all q's (exept the very first one). the arrays should all have 0s!
             //assert(q.eig.r_l == NULL && q.eig.r_s == NULL && q.eig.r_s2 == NULL);
             //assert(q.eig.nr_l != NULL && q.eig.nr_s != NULL && q.eig.nr_s2 != NULL);

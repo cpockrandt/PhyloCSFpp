@@ -259,8 +259,6 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 //            exit(13);
         }
 
-        // until here the model.pms is identical!
-
 //        std::cout << *inst.model.qms[0].q << '\n';
 //        std::cout << *inst.model.qms[0].eig.r_l << '\n';
 //        exit(17);
@@ -307,6 +305,7 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
 //            std::cout << *inst.q_settings << '\n';
 
+//            std::cout << "----------------------------------\n";
             inst.instantiate_qs();
             PhyloModel_make(inst, NULL, true);
 
@@ -315,27 +314,66 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
         }
 
         // STATUS 2020-12-03 02:40 pms and qms are identical here with Ocaml version!!!! :)
-
+//        std::cout.precision(6);
         // kr_map leaves inst
+        double lpr_H0 = 0.0, lpr_H1 = 0.0;
         {
-            double lpr = 0.0, elpr_anc = 0.0;
+            double elpr_anc = 0.0;
 //            f_roh = (lpr_rho rho +. lpr_leaves inst_rho leaves);
 
-            const double init_rho = inst.tree_settings;
-            std::cout << "init rho: " << init_rho << '\n';
-            max_lik_lpr_leaves(inst, alignment, lpr, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
-            std::cout << "lpr after min_rho: " << lpr << " ---\n";
+            {
+                for (uint8_t i = 0; i < 3; ++i) // TODO: 3 iterations
+                {
+                    const double init_rho = inst.tree_settings;
+                    std::cout << "init rho: " << init_rho << '\n';
+                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
+                    std::cout << "lpr after min_rho: " << lpr_H0 << " ---\n";
+//            print(inst);
+//            exit(24);
 
-            const double init_kappa = gsl_vector_get(inst.q_settings, 0);
-            max_lik_lpr_leaves(inst, alignment, lpr, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
-            std::cout << "lpr after min_kappa: " << lpr << " ---\n";
+                    const double init_kappa = gsl_vector_get(inst.q_settings, 0);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
+                    std::cout << "lpr after min_kappa: " << lpr_H0 << " ---\n";
+//                print(inst);
+//                exit(106);
+                }
+                printf("lpr_H0: %f\n", lpr_H0);
+            }
+//            exit(19);
+
+
+            {
+                gsl_vector_set(inst.q_settings, 1, 0.2); // omega_H1
+                gsl_vector_set(inst.q_settings, 2, 0.01); // sigma_H1
+                compute_q_p14ns_and_q_scale_p14ns_omega(inst);
+                // std::cout << *inst.q_settings << '\n';
+                inst.instantiate_qs();
+                PhyloModel_make(inst, NULL, true);
+
+                for (uint8_t i = 0; i < 3; ++i)
+                {
+                    const double init_rho = inst.tree_settings;
+                    std::cout << "init rho: " << init_rho << '\n';
+                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
+                    std::cout << "lpr after min_rho: " << lpr_H1 << " ---\n";
+//            print(inst);
+//            exit(24);
+
+                    const double init_kappa = gsl_vector_get(inst.q_settings, 0);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
+                    std::cout << "lpr after min_kappa: " << lpr_H1 << " ---\n";
+//                print(inst);
+//                exit(106);
+                }
+                std::cout << "lpr_H1: " << lpr_H1 << '\n';
+            }
         }
 
 //         exit(1);
 
-        const double phylocsf_score = 0.0;
+        const double phylocsf_score = (10.0 * (lpr_H1 - lpr_H0) / log(10.0));
         const double anchestral_score = NAN;
-        const double bls_score = 0.0;
+        const double bls_score = compute_bls_score(data.phylo_tree, alignment);
         printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
     }
     else
@@ -380,19 +418,27 @@ int main(int argc, char ** argv)
 //    char model_str[] = "23flies";
 //    "Dog,Cow,Horse,Human,Mouse,Rat";
 
-    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
-    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
-    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
+//    srand(0);
+//    for (uint16_t i = 0; i < 10; ++i)
+//    {
+//        printf("%f\n", (rand()/(double)RAND_MAX));
+//    }
+//    exit(13);
 
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::OMEGA);
-    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
-    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
+//    exit(0);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
 
-    printf("\nSOLL:\n"
-           "361.687566\t0.731391\t48.024101\n"
-           "297.623468\t0.731391\t48.257442\n"
-           "-176.807976\t0.058448\t-33.030802\n"
-           "-179.110842\t0.058448\t-32.878297\n");
+    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::OMEGA);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
+//
+//    printf("\nSOLL:\n"
+//           "361.687566\t0.731391\t48.024101\n"
+//           "297.623468\t0.731391\t48.257442\n"
+//           "-176.807976\t0.058448\t-33.030802\n"
+//           "-179.110842\t0.058448\t-32.878297\n");
 
     return 0;
 }

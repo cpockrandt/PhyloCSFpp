@@ -98,24 +98,26 @@ gsl_matrix * comp_q_p14n(const gsl_vector * const variables, const gsl_vector * 
 
 void print(instance_t & i)
 {
+
+    for (uint16_t k = 0; k < i.model.qms.size(); ++k)
+    {
+        std::cout << "q[" << k << "]: " << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
+//        std::cout << "q[" << k << "]:\n" << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
+        std::cout << "eig[" << k << "] r_s: " << (gsl_matrix_row(i.model.qms[k].eig.r_s, 0)).vector << '\n';
+        std::cout << "eig[" << k << "] r_s': " << (gsl_matrix_row(i.model.qms[k].eig.r_s2, 0)).vector << '\n';
+        std::cout << "eig[" << k << "] r_l: " << *i.model.qms[k].eig.r_l << '\n';
+        std::cout << "pi[" << k << "]: " << *i.model.qms[k].pi << '\n';
+    }
+
     for (uint16_t k = 0; k < i.model.pms.size(); ++k)
-        std::cout << *i.model.pms[k] << '\n' << '\n' << '\n'; // TODO: not identical!!!
-//    for (uint16_t k = 0; k < i.model.qms.size(); ++k)
-//    {
-//        std::cout << "q[" << k << "]:\n" << *i.model.qms[k].q << '\n'; // TODO: not identical!!!
-////        std::cout << "q[" << k << "]:\n" << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
-////        std::cout << "eig r_s: " << *i.model.qms[k].eig.r_s << '\n';
-////        std::cout << "eig r_s': " << *i.model.qms[k].eig.r_s2 << '\n';
-////        std::cout << "eig r_l: " << *i.model.qms[k].eig.r_l << '\n';
-//    }
-    // qms[0].pi // not identical, but thats okay, because it is not initialized!
+        std::cout << "pms[" << k << "]: " << (gsl_matrix_row(i.model.pms[k], 0)).vector << '\n'; // TODO: not identical!!!
 
 //    // identical
 //    std::cout << i.model.tree << '\n';
-//    if (i.model.prior != NULL)
-//        std::cout << *i.model.prior << '\n';
-//    else
-//        std::cout << "No inst.model.prior" << '\n';
+    if (i.model.prior != NULL)
+        std::cout << "PRIOR: " << *i.model.prior << '\n';
+    else
+        std::cout << "PRIOR: No inst.model.prior" << '\n';
 
 //    // identical
 //    std::cout << *i.p14n.q_p14ns << '\n'; // is correct (after new_instance and after initial update)
@@ -126,8 +128,10 @@ void print(instance_t & i)
 //    std::cout << i.p14n.tree_domains << '\n';
 //
 //    // identical
-//    std::cout << *i.q_settings << '\n';
-//    std::cout << i.tree_settings << '\n';
+    std::cout << "q_settings: " << *i.q_settings << '\n';
+    char buf[10];
+    sprintf(buf, "%f ", i.tree_settings);
+    std::cout << "tree_settings: [" << buf << ']' << '\n';
 }
 
 double comp_q_scale(const gsl_vector * const pi, const gsl_matrix * const q_p14n) noexcept
@@ -206,10 +210,8 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
     workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
-    const uint16_t root_node_id = instance.model.tree.size() - 1;
+//    const uint16_t root_node_id = instance.model.tree.size() - 1; // TODO: why did we remove this???
 //    std::cout << root_node_id << '\n';
-
-    gsl_vector * tmp_prior = get_prior(instance); // TODO: move this out of the for loop below!
 
     lpr = 0.0;
     for (uint32_t aa_pos = 0; aa_pos < alignment.peptides[0].size(); ++aa_pos) // lvs = peptides.(...)(pos)
@@ -221,6 +223,8 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
 
         // now since (prior instance.model) is computed, we can evaluate the actual value:
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
+
+        gsl_vector * tmp_prior = get_prior(instance); // TODO: move this out of the for loop?
         const uint16_t k = tmp_prior->size;
         const uint16_t n = instance.model.tree.size();
         const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
@@ -288,11 +292,9 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
 
         ensure_alpha(instance, workspace, alignment, aa_pos); // eventually return more than just the info.z score, because it might be used for the ancestor computation
 //        std::cout << workspace.alpha.matrix << '\n';
-//        print(instance);
         lpr += log(workspace.z);
 //        std::cout << "log summand: " << log(workspace.z) << '\n';
-        printf("log summand: %f\n", log(workspace.z));
-//        exit(54);
+//        printf("log summand: %f\n", log(workspace.z));
     }
 }
 
@@ -308,17 +310,24 @@ double minimizer_lpr_leaves_rho(const double x, void * params)
     PhyloModel_make(min_params->instance, NULL, false);
 
     lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
+
+//    print(min_params->instance);
+//    exit(19);
 //    std::cout << "get_lpr_rho(" << x << "): " << get_lpr_rho(x) << '\n';
-    std::cout << "lpr_leaves result (rho, without get_rho): " << x << " => " << min_params->lpr << '\n';
-    exit(55);
+//    printf("lpr_leaves result (rho, without get_rho): %f => %f\n", x, min_params->lpr);
+//    std::cout << "lpr_leaves result (rho, without get_rho): " << x << " => " << min_params->lpr << '\n';
+//    exit(55);
     min_params->lpr += get_lpr_rho(x);
-    std::cout << "lpr_leaves result (rho, with    get_rho): " << x << " => " << min_params->lpr << '\n';
+//    printf("lpr_leaves result (rho, with    get_rho): %f => %f\n", x, min_params->lpr);
+//    std::cout << "lpr_leaves result (rho, with    get_rho): " << x << " => " << min_params->lpr << '\n';
     return (-1) * min_params->lpr;
 }
 
 double minimizer_lpr_leaves_kappa(const double x, void * params)
 {
     minimizer_params_t * min_params = (minimizer_params_t*) params;
+
+    // qms identical, pms is not! how can that be? pms is computed based on qms???
 
     // PM.P14n.update ~tree_settings:ts inst
     min_params->x = x;
@@ -328,6 +337,12 @@ double minimizer_lpr_leaves_kappa(const double x, void * params)
     PhyloModel_make(min_params->instance, NULL, true);
 
     lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
+    double lpr_old = min_params->lpr;
     min_params->lpr += get_lpr_kappa(x);
+    printf("lpr_leaves result (kap, with    get_kap): %f => %f %f\n", x, min_params->lpr, lpr_old);
+//    print(min_params->instance);
+//    exit(107);
+//    printf("lpr_leaves result (kap, with    get_kap): %f => %f\n", x, min_params->lpr);
+//    printf("get_kappa(%f): %f\n", x, get_lpr_kappa(x));
     return (-1) * min_params->lpr;
 }
