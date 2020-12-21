@@ -74,7 +74,7 @@ simplex_type simplex_one_step(const std::vector<uint32_t> &points, const double 
             simplex[n] = std::make_pair(contraction, fcontraction);
         }else{
             stepType = Reduction;
-            for(int i = 1; i < n + 1; i++){
+            for(size_t i = 1; i < n + 1; i++){
                 double newx = simplex[0].first + 0.5 * (simplex[i].first- simplex[0].first);
                 simplex[i].first  = newx;
                 simplex[i].second = fjj(points, class_probs, newx);

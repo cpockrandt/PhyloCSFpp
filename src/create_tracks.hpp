@@ -280,7 +280,6 @@ std::vector<scored_region> create_track(hmm_parameter & hmm_params, std::string 
         std::string chrom = region.substr(0, region.find(":"));
         std::string coords = region.substr(region.find(":"), region.length());
         uint32_t pos = atoi(coords.substr(1, coords.find("-")).c_str());
-        int frame = pos % 3;
 
         if(scores.size() > 0 && (rel_branch_length <= min_rel_branch_length ||
                                  chrom != prev_chrom || pos != prev_pos + 3)){
