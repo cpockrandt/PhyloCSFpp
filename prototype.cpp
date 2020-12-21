@@ -6,6 +6,8 @@
 #include "src/newick.hpp"
 #include "src/fit.hpp"
 #include "src/models.hpp"
+#include "src/estimate_hmm_parameter.hpp"
+#include "src/create_tracks.hpp"
 
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
 {
@@ -407,6 +409,23 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
 int main(int argc, char ** argv)
 {
+    uint32_t human_genome_length = 3252208893;
+
+    hmm_parameter hmm_param = estimate_hmm_params_for_genome("/Users/mad/Downloads/HumanCodingExonsV29.txt", human_genome_length);
+
+
+    std::string phyloCSFregionDir = "/Users/mad/Downloads/chr4_GL000008v2_random.Strand-.Frame1.fixed.out";
+    //std::string phyloCSFregionDir = "/Users/mad/tmp/chr4_GL000008v2_random.Strand-.Frame1.fixed.out";
+    std::string chrom = "chr4_GL000008v2_random";
+    std::string strand = "-";
+    std::string frame = "1";
+
+    std::vector<scored_region> region = create_track(hmm_param, phyloCSFregionDir);
+    for(size_t i = 0; i < region.size(); i++){
+        std::cout << "chr4_GL000008v2_random" << "\t" << "-" << "\t" << "1" << "\t"
+                  << region[i].region_start <<"\t" << region[i].region_end << "\t"
+                  << region[i].log_odds_prob << std::endl;
+    }
 //    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
 //    exit(1);
 

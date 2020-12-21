@@ -24,17 +24,9 @@ struct hmm{
     }
 
     static std::vector<uint32_t> get_best_path_by_viterbi(const hmm & hmm, const std::vector<double> &observation_seq) {
-        /*"Return the most likely sequence of hidden states given the observation,
-        using the Viterbi algorithm.*/
         double init_obs = observation_seq[0];
-
-        // best_states[j][k] is the hidden state at position j that maximized the
-        // probability of the observation, given hidden state k at position j + 1
         std::vector<std::vector<uint32_t>> best_states;
 
-        // prev_best_probs[k] is the probability of the best path from the start to the
-        // previous position with state k at the previous position,
-        // times a constant factor independent of k
         double prev_best_probs[4];
         for(size_t state = 0; state < hmm.num_states; state++ ){
             prev_best_probs[state] = hmm.init_probs[state] * emit_prob(state, init_obs);
@@ -215,15 +207,11 @@ struct scored_region{
                       log_odds_prob(log_odds_prob){}
 };
 
-std::vector<scored_region> process_scores(hmm & hmm, std::vector<double> &scores,
-                                          uint32_t blockStartPos, std::string & chrom,
-                                          std::string & strand){
-    // Process and write one block of scores.
-    std::vector<scored_region> result;
-    if(scores.size() == 0){
-        return result;
-    }
-
+/*
+ * Processes a set of contiguous scores and returns coding regions with its respective maximal log-odds score
+ */
+void process_scores(hmm & hmm, std::vector<double> &scores,
+                    uint32_t blockStartPos, std::vector<scored_region> & result){
     double ** coding_probabilities = hmm::state_posterior_probabilities(hmm, scores);
     std::vector<uint32_t> path = hmm::get_best_path_by_viterbi(hmm, scores);
 
@@ -256,15 +244,14 @@ std::vector<scored_region> process_scores(hmm & hmm, std::vector<double> &scores
     }
     delete [] coding_probabilities[0];
     delete coding_probabilities;
-    return result;
 }
 
-void create_PhyloCSF_Regions(hmm_parameter & hmm_params, std::string & input_file, std::string & outfile){
+std::vector<scored_region> create_track(hmm_parameter & hmm_params, std::string & input_file){
     std::vector<double> scores;
     std::string strand = "";
     std::string frame = "";
     hmm hmm = get_coding_hmm(hmm_params);
-
+    std::vector<scored_region> result;
     FILE* score_file = fopen(input_file.c_str(), "r"); /* should check the result */
     if(score_file == NULL){
         //TODO error
@@ -297,7 +284,7 @@ void create_PhyloCSF_Regions(hmm_parameter & hmm_params, std::string & input_fil
 
         if(scores.size() > 0 && (rel_branch_length <= min_rel_branch_length ||
                                  chrom != prev_chrom || pos != prev_pos + 3)){
-            process_scores(hmm, scores, block_start_pos, prev_chrom, strand);
+            process_scores(hmm, scores, block_start_pos, result);
             scores.clear();
         }
 
@@ -310,7 +297,8 @@ void create_PhyloCSF_Regions(hmm_parameter & hmm_params, std::string & input_fil
             prev_pos = pos;
         }
     }
-    if(scores.size()){
-        process_scores(hmm, scores, block_start_pos, prev_chrom, strand);
+    if(scores.size() > 0){
+        process_scores(hmm, scores, block_start_pos, result);
     }
+    return result;
 }

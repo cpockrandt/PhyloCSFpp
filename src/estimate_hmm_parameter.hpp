@@ -44,17 +44,12 @@ double fjj(const std::vector<uint32_t> &points, const double * class_probs, cons
 }
 
 simplex_type simplex_one_step(const std::vector<uint32_t> &points, const double * class_probs, std::vector<std::pair<double, double> > & simplex){
-    // Perform one step of Nelder-Mead minimization on the simplex [(x, f(x)), ...]
-    //    (changing it in place).
-    // Return string stating which kind of step was taken.
-    // simplex is assumed to be sorted by increasing f(x) on input, and will be on return.
     size_t n = simplex.size() - 1;
     double centroid = 0.0;
     for(size_t i = 0; i < n; i ++){
         centroid += simplex[i].first;
     }
     centroid /= n;
-    //centroid = sum([x for x, fx in simplex[:-1]], numpy.zeros(n)) / n
     double reflection = centroid + (centroid - simplex[n].first);
     simplex_type stepType;
     double freflection = fjj(points, class_probs, reflection);
@@ -89,7 +84,6 @@ simplex_type simplex_one_step(const std::vector<uint32_t> &points, const double 
     std::sort(simplex.begin(), simplex.end(), [](const std::pair<double,double> &left, const std::pair<double,double> &right) {
         return left.second < right.second;
     });
-    //simplex.sort(key = lambda pair : pair[1]) # Could improve by inserting at right place...
     return stepType;
 }
 
@@ -107,9 +101,6 @@ std::pair<double, double> nelder_mead(const std::vector<uint32_t> &points, const
     });
     bool prev_step_expansion_or_reduction = true;
     for(size_t i = 0; i <= max_steps; i++){
-        if(i >= max_steps){
-            //TODO did not converge
-        }
         if (prev_step_expansion_or_reduction == false){
             double min_x = DBL_MAX;
             double max_x = DBL_MIN;
@@ -124,6 +115,9 @@ std::pair<double, double> nelder_mead(const std::vector<uint32_t> &points, const
         simplex_type step_type = simplex_one_step(points, class_probs, simplex);
         prev_step_expansion_or_reduction = (step_type == Expansion || step_type == Reduction);
     }
+
+    printf("ERROR: nelder_mead did not converged in %d steps.\n", max_steps);
+    exit(-1);
 }
 
 
@@ -131,7 +125,7 @@ double minimize(const std::vector<uint32_t> &points, double * class_probs, doubl
     const size_t max_num_steps = 30;
     std::vector<double> initial_simplex;
     initial_simplex.push_back(guess);
-    double vertex = guess + xscales; // Copy, and make sure it is mutable.
+    double vertex = guess + xscales;
     initial_simplex.push_back(vertex);
     return nelder_mead(points, class_probs, initial_simplex, relxtol * xscales, max_num_steps).first;
 }
@@ -150,10 +144,7 @@ struct mixture{
     }
 };
 
-/*
- * Use Expectation Maximization to find the parameter values and priors for a set of
- * distributions to define a mixture model that maximizes the expectation of sampling the points.
-*/
+
 mixture infer_mixture(const std::vector<uint32_t> & points, const double param_guess[3],
                       const double guess_prior[3], const uint32_t num_steps,
                       const double relxtol){
@@ -219,8 +210,7 @@ struct gap_mixture{
 gap_mixture estimate_gap_mixture_model(std::vector<uint32_t> &gaps_nt,
                                        const uint32_t num_steps,
                                        const double relxtol){
-// Return the mean lengths (in NT) and priors for a mixture model of the distribution of gaps
-// between same-frame exons.
+
     const uint32_t MAX_NUM_GAPS = 20000;
     if(gaps_nt.size() > MAX_NUM_GAPS){
         std::default_random_engine rng(0);
@@ -233,7 +223,6 @@ gap_mixture estimate_gap_mixture_model(std::vector<uint32_t> &gaps_nt,
 //        gaps_nt.push_back(tmp[i]);
 //    }
 
-    // Starting guesses found by eyeballing mouse gap distribution.
     uint32_t guess_lengths[3] = {3000, 80000, 100};
     double guess_priors[3] = {30, 10, 1};
     double guess_priors_sum = guess_priors[0] + guess_priors[1] + guess_priors[2];
@@ -273,13 +262,13 @@ hmm_parameter estimate_hmm_params_for_genome(const char * path_exon_list, const 
         }
     };
 
-    FILE* exon_file = fopen(path_exon_list, "r"); /* should check the result */
+    FILE* exon_file = fopen(path_exon_list, "r");
     if(exon_file == NULL){
-        //TODO error
+        printf("ERROR: could not open %s.\n", path_exon_list);
+        exit(-1);
     }
 
     char line[1024];
-    // (chrom, strand, frame, start, end)
     std::map<std::string, std::list<range> > exons_by_chr_map;
     while (fgets(line, sizeof(line), exon_file)) {
         const char * delim = " \t";
@@ -346,7 +335,7 @@ hmm_parameter estimate_hmm_params_for_genome(const char * path_exon_list, const 
             total_coding_length_nt += it->end - it->start + 1;
         }
     }
-    // Estimate distribution of gaps between coding regions as a mixture of exponential distributions
+
     gap_mixture gap_mix = estimate_gap_mixture_model(gaps_nt, 20, 0.001);
 
     double codingPrior = static_cast<double>(total_coding_length_nt) / static_cast<double>(genome_length) / 6.0; // Prior for being coding in a particular frame
