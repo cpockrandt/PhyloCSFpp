@@ -292,30 +292,29 @@ hmm_parameter estimate_hmm_params_for_genome(const char * path_exon_list, const 
     uint64_t num_exons = 0;
     size_t total_coding_length_nt = 0;
     std::vector<uint32_t> gaps_nt;
-    for(auto it = exons_by_chr_map.begin(); it != exons_by_chr_map.end(); it++){
-        std::list<range> & pair_list = it->second;
+    for(auto map_it = exons_by_chr_map.begin(); map_it != exons_by_chr_map.end(); map_it++){
+        std::list<range> & pair_list = map_it->second;
         size_t i = 0;
+        auto tail = pair_list.begin();
+        auto head = pair_list.begin();
+        head++;
         while( i < pair_list.size() - 1){
-            //TODO advance is very slow because we always need to iterate over all elements
-            auto it = pair_list.begin();
-            std::advance(it, i);
-            uint32_t start1 = it->start;
-            uint32_t end1 = it->end;
-            it++;
-            uint32_t start2 = it->start;
-            uint32_t end2 = it->end;
+            uint32_t start1 = tail->start;
+            uint32_t end1 = tail->end;
+            uint32_t start2 = head->start;
+            uint32_t end2 = head->end;
             if(start2 <= end1){
                 if(end1 - start1 >= end2 - start2){
-                    auto it = pair_list.begin();
-                    std::advance(it, i + 1);
-                    pair_list.erase(it);
+                    head=pair_list.erase(head);
                 } else{
-                    auto it = pair_list.begin();
-                    std::advance(it, i);
-                    pair_list.erase(it);
+                    tail=pair_list.erase(tail);
+                    head=tail;
+                    head++;
                 }
             }else{
                 // non overlapping gap
+                head++;
+                tail++;
                 i++;
             }
         }
@@ -335,7 +334,6 @@ hmm_parameter estimate_hmm_params_for_genome(const char * path_exon_list, const 
             total_coding_length_nt += it->end - it->start + 1;
         }
     }
-
     gap_mixture gap_mix = estimate_gap_mixture_model(gaps_nt, 20, 0.001);
 
     double codingPrior = static_cast<double>(total_coding_length_nt) / static_cast<double>(genome_length) / 6.0; // Prior for being coding in a particular frame
