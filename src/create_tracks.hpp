@@ -207,44 +207,59 @@ struct scored_region{
                       log_odds_prob(log_odds_prob){}
 };
 
+double compute_log_odds(double prob) {
+    const double MAX_LOG_ODDS = 15.0;
+    if (prob < pow(10, -MAX_LOG_ODDS)) {
+        return -MAX_LOG_ODDS;
+    } else if (prob > 1 - pow(10, -MAX_LOG_ODDS)) {
+        return MAX_LOG_ODDS;
+    } else {
+        return log10(prob / (1 - prob));
+    }
+}
+
+enum score_mode{
+    SCORE_REGION,
+    SCORE_CODON
+};
 /*
  * Processes a set of contiguous scores and returns coding regions with its respective maximal log-odds score
  */
 void process_scores(hmm & hmm, std::vector<double> &scores,
-                    uint32_t blockStartPos, std::vector<scored_region> & result){
-    double ** coding_probabilities = hmm::state_posterior_probabilities(hmm, scores);
-    std::vector<uint32_t> path = hmm::get_best_path_by_viterbi(hmm, scores);
-
-    for(size_t cur_codon_count = 0; cur_codon_count < path.size() - 1; cur_codon_count++){
-        if(path[cur_codon_count] == 0 && path[cur_codon_count + 1] == 0) {
-            size_t cur_codon_start_pos = cur_codon_count;
-            double max_coding_prob = 0.0;
-            while (cur_codon_count < path.size() && path[cur_codon_count] == 0) {
-                for (uint32_t state = 0; state < hmm.num_states; state++) {
-                    max_coding_prob = std::max(coding_probabilities[cur_codon_count][state], max_coding_prob);
+                    uint32_t blockStartPos, std::vector<scored_region> & result,
+                    score_mode mode){
+    double ** state_probabilities = hmm::state_posterior_probabilities(hmm, scores);
+    if(mode == SCORE_REGION){
+        std::vector<uint32_t> path = hmm::get_best_path_by_viterbi(hmm, scores);
+        for(size_t cur_codon_count = 0; cur_codon_count < path.size() - 1; cur_codon_count++){
+            if(path[cur_codon_count] == 0 && path[cur_codon_count + 1] == 0) {
+                size_t cur_codon_start_pos = cur_codon_count;
+                double max_coding_prob = 0.0;
+                while (cur_codon_count < path.size() && path[cur_codon_count] == 0) {
+                    // max only over coding probability
+                    max_coding_prob = std::max(state_probabilities[cur_codon_count][0], max_coding_prob);
+                    cur_codon_count++;
                 }
-                cur_codon_count++;
+                uint32_t region_len = cur_codon_count - cur_codon_start_pos;
+                double log_odds = compute_log_odds(max_coding_prob);
+                uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_start_pos;
+                uint32_t chunk_end_pos = chunk_start_pos + 3 * region_len - 1;
+                result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
             }
-            uint32_t region_len = cur_codon_count - cur_codon_start_pos;
-            const double MAX_LOG_ODDS = 15.0;
-            double log_odds;
-
-            if(max_coding_prob < pow(10, -MAX_LOG_ODDS)) {
-                log_odds = -MAX_LOG_ODDS;
-            }else if(max_coding_prob > 1 - pow(10, -MAX_LOG_ODDS)) {
-                log_odds = MAX_LOG_ODDS;
-            }else {
-                log_odds = log10(max_coding_prob / (1 - max_coding_prob));
-            }
-
-            uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_start_pos;
-            uint32_t chunk_end_pos = chunk_start_pos + 3 * region_len - 1;
+        }
+    }else if(mode == SCORE_CODON) {
+        for (size_t cur_codon_count = 0; cur_codon_count < scores.size(); cur_codon_count++) {
+            uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_count;
+            uint32_t chunk_end_pos = chunk_start_pos + 2;
+            double log_odds = compute_log_odds(state_probabilities[cur_codon_count][0]);
             result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
         }
     }
-    delete [] coding_probabilities[0];
-    delete coding_probabilities;
+    delete [] state_probabilities[0];
+    delete state_probabilities;
 }
+
+
 
 std::vector<scored_region> create_track(hmm_parameter & hmm_params, std::string & input_file){
     std::vector<double> scores;
@@ -283,7 +298,7 @@ std::vector<scored_region> create_track(hmm_parameter & hmm_params, std::string 
 
         if(scores.size() > 0 && (rel_branch_length <= min_rel_branch_length ||
                                  chrom != prev_chrom || pos != prev_pos + 3)){
-            process_scores(hmm, scores, block_start_pos, result);
+            process_scores(hmm, scores, block_start_pos, result, SCORE_CODON);
             scores.clear();
         }
 
@@ -297,7 +312,7 @@ std::vector<scored_region> create_track(hmm_parameter & hmm_params, std::string 
         }
     }
     if(scores.size() > 0){
-        process_scores(hmm, scores, block_start_pos, result);
+        process_scores(hmm, scores, block_start_pos, result, SCORE_CODON);
     }
     return result;
 }
