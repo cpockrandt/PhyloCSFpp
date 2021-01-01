@@ -197,7 +197,7 @@ struct Data
     }
 };
 
-void run(char aln_path[], char model_str[], char selected_species_str[], algorithm_t algo)
+auto run(char aln_path[], char model_str[], char selected_species_str[], algorithm_t algo)
 {
     Data data;
     char delim[] = ",";
@@ -325,19 +325,19 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
                 for (uint8_t i = 0; i < 3; ++i) // TODO: 3 iterations
                 {
                     const double init_rho = inst.tree_settings;
-                    std::cout << "init rho: " << init_rho << '\n';
+//                    std::cout << "init rho: " << init_rho << '\n';
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
-                    std::cout << "lpr after min_rho: " << lpr_H0 << " ---\n";
+//                    std::cout << "lpr after min_rho: " << lpr_H0 << " ---\n";
 //            print(inst);
 //            exit(24);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
-                    std::cout << "lpr after min_kappa: " << lpr_H0 << " ---\n";
+//                    std::cout << "lpr after min_kappa: " << lpr_H0 << " ---\n";
 //                print(inst);
 //                exit(106);
                 }
-                printf("lpr_H0: %f\n", lpr_H0);
+//                printf("lpr_H0: %f\n", lpr_H0);
             }
 //            exit(19);
 
@@ -353,19 +353,19 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
                 for (uint8_t i = 0; i < 3; ++i)
                 {
                     const double init_rho = inst.tree_settings;
-                    std::cout << "init rho: " << init_rho << '\n';
+//                    std::cout << "init rho: " << init_rho << '\n';
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
-                    std::cout << "lpr after min_rho: " << lpr_H1 << " ---\n";
+//                    std::cout << "lpr after min_rho: " << lpr_H1 << " ---\n";
 //            print(inst);
 //            exit(24);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
-                    std::cout << "lpr after min_kappa: " << lpr_H1 << " ---\n";
+//                    std::cout << "lpr after min_kappa: " << lpr_H1 << " ---\n";
 //                print(inst);
 //                exit(106);
                 }
-                std::cout << "lpr_H1: " << lpr_H1 << '\n';
+//                std::cout << "lpr_H1: " << lpr_H1 << '\n';
             }
         }
 
@@ -373,8 +373,10 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
         const double phylocsf_score = (10.0 * (lpr_H1 - lpr_H0) / log(10.0));
         const double anchestral_score = NAN;
-        const double bls_score = compute_bls_score(data.phylo_tree, alignment);
-        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
+        std::vector<double> TODO_deleteme;
+        const double bls_score = compute_bls_score(data.phylo_tree, alignment, TODO_deleteme);
+//        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
+        return std::make_tuple(phylocsf_score, bls_score, anchestral_score);
     }
     else
     {
@@ -387,6 +389,8 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
         double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
 
+        std::vector<double> c_lpr_per_codon, nc_lpr_per_codon, bls_per_codon;
+
         if (algo == algorithm_t::MLE)
         {
             max_lik_lpr_leaves(data.c_instance, alignment, lpr_c, elpr_anc_c, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves);
@@ -394,52 +398,63 @@ void run(char aln_path[], char model_str[], char selected_species_str[], algorit
         }
         else // if (algo == algorithm_t::FIXED)
         {
-            lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c);
-            lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc);
+            lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, c_lpr_per_codon);
+            lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
         }
 
         const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
         const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
-        const double bls_score = compute_bls_score(data.phylo_tree, alignment);
-        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
+        const double bls_score = compute_bls_score(data.phylo_tree, alignment, bls_per_codon);
+
+        for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
+        {
+            const double _score = 10.0 * (c_lpr_per_codon[xx] - nc_lpr_per_codon[xx]) / log(10.0);
+            printf("Codon %d\t%f\t%f\n", xx, _score, bls_per_codon[xx]);
+        }
+
+//        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
+        return std::make_tuple(phylocsf_score, bls_score, anchestral_score);
     }
 }
 
 int main(int argc, char ** argv)
 {
-//    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
-//    exit(1);
-
-//    char* aln_path = argv[1];
-//    char* model_str = argv[2];
-//    char* selected_species_str = argv[3];
-
-//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
-//    char model_str[] = "23flies";
-//    "Dog,Cow,Horse,Human,Mouse,Rat";
-
-//    srand(0);
-//    for (uint16_t i = 0; i < 10; ++i)
-//    {
-//        printf("%f\n", (rand()/(double)RAND_MAX));
-//    }
-//    exit(13);
-
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
-//    exit(0);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
-
-    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::OMEGA);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
-//
-//    printf("\nSOLL:\n"
-//           "361.687566\t0.731391\t48.024101\n"
-//           "297.623468\t0.731391\t48.257442\n"
-//           "-176.807976\t0.058448\t-33.030802\n"
-//           "-179.110842\t0.058448\t-32.878297\n");
-
+//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
+    auto new_results = run("/home/chris/dev-uni/chr4_100vert_alignment.fa", "100vertebrates", "", algorithm_t::FIXED);
+//    auto new_results = run("/tmp/test", "100vertebrates", "Dog,Cow,Horse,Human,Mouse,Rat", algorithm_t::MLE);
+    double new_phylo = std::get<0>(new_results);
+    double new_bls   = std::get<1>(new_results);
+    double new_anc   = std::get<2>(new_results);
+//    printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
     return 0;
 }
+
+////    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
+////    exit(1);
+//
+////    char* aln_path = argv[1];
+////    char* model_str = argv[2];
+////    char* selected_species_str = argv[3];
+//
+////    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
+////    char model_str[] = "23flies";
+////    "Dog,Cow,Horse,Human,Mouse,Rat";
+//
+////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
+////    exit(0);
+////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
+////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
+//
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::OMEGA);
+////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
+////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
+////
+////    printf("\nSOLL:\n"
+////           "361.687566\t0.731391\t48.024101\n"
+////           "297.623468\t0.731391\t48.257442\n"
+////           "-176.807976\t0.058448\t-33.030802\n"
+////           "-179.110842\t0.058448\t-32.878297\n");
+//
+//    return 0;
+//}
 

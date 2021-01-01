@@ -313,7 +313,7 @@ gsl_vector * get_prior(instance_t & instance)
     }
 }
 
-void lpr_leaves(instance_t & instance, const alignment_t & alignment, const double t, double & lpr, double & elpr_anc)
+void lpr_leaves(instance_t & instance, const alignment_t & alignment, const double t, double & lpr, double & elpr_anc, std::vector<double> & lpr_per_codon)
 {
     // don't think a deep-copy is necessary. there's a
     // 1.  copy instance (not sure whether it's necessary), but it doesn't seem that
@@ -428,6 +428,7 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 
         ensure_alpha(instance, workspace, alignment, aa_pos); // eventually return more than just the info.z score, because it might be used for the ancestor computation
         lpr += log(workspace.z);
+        lpr_per_codon.push_back(log(workspace.z));
 
         gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
         assert(pr_root->size == anc_lprior->size);
@@ -452,7 +453,8 @@ double minimizer_lpr_leaves(const double x, void * params)
 {
     minimizer_params_t * min_params = (minimizer_params_t*) params;
     min_params->x = x;
-    lpr_leaves(min_params->instance, min_params->alignment, x, min_params->lpr, min_params->elpr_anc);
+    std::vector<double> TODO_remove;
+    lpr_leaves(min_params->instance, min_params->alignment, x, min_params->lpr, min_params->elpr_anc, TODO_remove);
     return (-1) * min_params->lpr;
 }
 
@@ -469,7 +471,7 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
 {
     assert(lo < hi && lo > 0.0);
 
-    srand(0);
+//    srand(0);
 
     const double width = log(hi) - log(lo);
     // because the function f is also used for the MLE step (using the GSL minimizer), it negates the results.

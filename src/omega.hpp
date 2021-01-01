@@ -337,9 +337,9 @@ double minimizer_lpr_leaves_kappa(const double x, void * params)
     PhyloModel_make(min_params->instance, NULL, true);
 
     lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
-    double lpr_old = min_params->lpr;
+//    double lpr_old = min_params->lpr;
     min_params->lpr += get_lpr_kappa(x);
-    printf("lpr_leaves result (kap, with    get_kap): %f => %f %f\n", x, min_params->lpr, lpr_old);
+//    printf("lpr_leaves result (kap, with    get_kap): %f => %f %f\n", x, min_params->lpr, lpr_old);
 //    print(min_params->instance);
 //    exit(107);
 //    printf("lpr_leaves result (kap, with    get_kap): %f => %f\n", x, min_params->lpr);
