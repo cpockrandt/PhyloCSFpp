@@ -162,7 +162,7 @@ public:
 
         char *alignment_block_beginning = NULL;
         while ( (alignment_block_beginning = strstr(local_buf + in_buffer_pos, "\n")) == NULL &&
-                (file_range_pos[thread_id] += buf_size) < (size_t)file_size // we are searching for a pattern of length 3. it could lie
+                (file_range_pos[thread_id] + buf_size) < (size_t)file_size // we are searching for a pattern of length 3. it could lie
                 ) // alignment block starts with "s " preceded by a newline
         {
             in_buffer_pos = 0;
@@ -172,10 +172,12 @@ public:
                 buf_size2 = file_size - file_range_pos[thread_id];
 
             memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size2);
+            local_buf[buf_size2] = 0;
         }
 
-        if (alignment_block_beginning == NULL && file_range_pos[thread_id] >= (size_t)file_size)
+        if (alignment_block_beginning == NULL && file_range_pos[thread_id] + buf_size >= (size_t)file_size)
         {
+            file_range_pos[thread_id] = file_size;
             return;
         }
 
@@ -189,22 +191,7 @@ public:
         }
     }
 
-    char get_char(size_t & in_buffer_pos, const unsigned thread_id)
-    {
-        assert(in_buffer_pos < 2*buf_size);
-
-        if (in_buffer_pos >= buf_size)
-        {
-            file_range_pos[thread_id] += buf_size;
-            assert(file_range_pos[thread_id] < (size_t)file_size);
-            in_buffer_pos -= buf_size;
-            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size);
-        }
-        assert(in_buffer_pos < buf_size);
-
-        return buf[thread_id][in_buffer_pos];
-    }
-
+    // this function is only called on
     std::string get_line(size_t & in_buffer_pos, const unsigned thread_id)
     {
         std::string res = "";
@@ -235,6 +222,22 @@ public:
         return res;
     }
 
+    char get_char(size_t & in_buffer_pos, const unsigned thread_id)
+    {
+        assert(in_buffer_pos < 2*buf_size);
+
+        if (in_buffer_pos >= buf_size)
+        {
+            file_range_pos[thread_id] += buf_size;
+            assert(file_range_pos[thread_id] < (size_t)file_size);
+            in_buffer_pos -= buf_size;
+            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size);
+        }
+        assert(in_buffer_pos < buf_size);
+
+        return buf[thread_id][in_buffer_pos];
+    }
+
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
     // if "\na" is at the end of the range for a thread, process it
@@ -250,6 +253,8 @@ public:
 
         skip(in_buffer_pos, thread_id);
 
+        int _iter = 0;
+
         char line_type;
         while (file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(in_buffer_pos, thread_id)) != 'a')
         {
@@ -260,11 +265,18 @@ public:
                 // "s ID int int char int SEQ\n"
                 std::string line = get_line(in_buffer_pos, thread_id);
                 printf("%s\n", line.c_str());
+//                if (thread_id == 3 && file_range_pos[thread_id] > 608701000)
+//                    printf("%ld\t%4ld\t%s\n", file_range_pos[thread_id], in_buffer_pos, line.c_str());
             }
             else
             {
+//                std::string line = get_line(in_buffer_pos, thread_id);
+//                printf("%s\n", line.c_str());
+//                if (thread_id == 3 && file_range_pos[thread_id] > 608701000 && in_buffer_pos == 4074)
+//                    printf("Skip: %ld\t%4ld\n", file_range_pos[thread_id], in_buffer_pos);
                 skip(in_buffer_pos, thread_id);
             }
+            ++_iter;
         }
 
         if (file_range_pos[thread_id] < (size_t)file_size)
@@ -287,7 +299,7 @@ public:
         for (unsigned i = 0; i < this->threads; ++i)
             free(buf[i]);
 
-        if (!munmap(file_mem, file_size))
+        if (munmap(file_mem, file_size))
             printf("Error munmap %d\n", errno);
 
         free(buf);
@@ -302,9 +314,10 @@ int main()
     maf_rd.init("/home/chris/Downloads/chr22.head.maf", 4);
 
     alignment_t aln;
-    for (unsigned i = 0; i < 1; ++i)
+    for (unsigned i = 0; i < 4; ++i)
     {
 //        aln.seqs.clear();
+// TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
         while (maf_rd.get_next_alignment(aln, i))
         {
 //            printf("a\n");
