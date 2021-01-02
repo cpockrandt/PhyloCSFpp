@@ -39,6 +39,9 @@ class parallel_maf_reader
     char **buf = NULL; // one buffer / "localArea" for each thread
 
 public:
+
+    size_t memcpy_cnt = 0;
+
     void init(char *file_path, const unsigned threads)
     {
         fd = open(file_path, O_RDONLY);
@@ -124,7 +127,7 @@ public:
                 // but don't do that for the first thread, since the start position is 0 and would trigger an underflow.
                 if (i > 0)
                     --file_range_pos[i];
-                memcpy(local_buf, file_mem + file_range_pos[i], buf_size);
+                memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt;
 
                 if (i == 0 && local_buf[0] == 'a' && local_buf[1] == ' ')
                 {
@@ -137,7 +140,7 @@ public:
                             (file_range_pos[i] += buf_size - 2) < file_range_to // we are searching for a pattern of length 3. it could lie
                     ) // alignment block starts with "s " preceded by a newline
                     {
-                        memcpy(local_buf, file_mem + file_range_pos[i], buf_size);
+                        memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt;
 //                        printf("%s", local_buf);
 //                        offset_in_page[i] += buf_size;
                     }
@@ -148,7 +151,7 @@ public:
                     }
                 }
 
-                memcpy(local_buf, file_mem + file_range_pos[i], buf_size);
+                memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt;
 //                printf("%.15s\n", local_buf);
             }
 
@@ -156,8 +159,9 @@ public:
         }
     }
 
-    void skip(size_t & in_buffer_pos, const unsigned thread_id)
+    void skip(const unsigned thread_id)
     {
+        size_t & in_buffer_pos = buffer_pos[thread_id];
         char *local_buf = buf[thread_id];
 
         char *alignment_block_beginning = NULL;
@@ -171,7 +175,7 @@ public:
             if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
                 buf_size2 = file_size - file_range_pos[thread_id];
 
-            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size2);
+            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size2); ++memcpy_cnt;
             local_buf[buf_size2] = 0;
         }
 
@@ -187,32 +191,40 @@ public:
         {
             in_buffer_pos = 0;
             file_range_pos[thread_id] += buf_size;
-            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size);
+            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size); ++memcpy_cnt;
         }
     }
 
-    // this function is only called on
-    std::string get_line(size_t & in_buffer_pos, const unsigned thread_id)
+    // this function is only called on lines starting with "s "
+    std::string get_line(const unsigned thread_id)
     {
+        size_t & in_buffer_pos = buffer_pos[thread_id];
+
         std::string res = "";
 
         char *local_buf = buf[thread_id];
 
 //        printf("\n\n\n%s\n\n\n", local_buf);
         char *alignment_block_beginning = NULL;
-        while ( (alignment_block_beginning = strstr(local_buf + in_buffer_pos, "\n")) == NULL //&&
-//                (file_range_pos[thread_id] += buf_size) < file_range_end[thread_id] // we are searching for a pattern of length 3. it could lie
+        while ( (alignment_block_beginning = strstr(local_buf + in_buffer_pos, "\n")) == NULL &&
+                (file_range_pos[thread_id] + buf_size) < (size_t)file_size // we are searching for a pattern of length 3. it could lie
                 ) // alignment block starts with "s " preceded by a newline
         {
             res += (local_buf + in_buffer_pos);
             in_buffer_pos = 0;
             file_range_pos[thread_id] += buf_size;
-            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size);
+
+            size_t buf_size2 = buf_size;
+            if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
+                buf_size2 = file_size - file_range_pos[thread_id];
+
+            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size); ++memcpy_cnt;
+            local_buf[buf_size2] = 0;
         }
 
         size_t infix_size = alignment_block_beginning - (local_buf + in_buffer_pos);
         char *buf_prefix = (char*) malloc(sizeof(char) * (infix_size + 1));
-        memcpy(buf_prefix, local_buf + in_buffer_pos, infix_size);
+        memcpy(buf_prefix, local_buf + in_buffer_pos, infix_size); ++memcpy_cnt;
         buf_prefix[infix_size] = 0;
 
         in_buffer_pos = in_buffer_pos + infix_size + 1;
@@ -222,8 +234,10 @@ public:
         return res;
     }
 
-    char get_char(size_t & in_buffer_pos, const unsigned thread_id)
+    char get_char(const unsigned thread_id)
     {
+        size_t & in_buffer_pos = buffer_pos[thread_id];
+
         assert(in_buffer_pos < 2*buf_size);
 
         if (in_buffer_pos >= buf_size)
@@ -231,7 +245,7 @@ public:
             file_range_pos[thread_id] += buf_size;
             assert(file_range_pos[thread_id] < (size_t)file_size);
             in_buffer_pos -= buf_size;
-            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size);
+            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size); ++memcpy_cnt;
         }
         assert(in_buffer_pos < buf_size);
 
@@ -249,21 +263,21 @@ public:
 //        char *local_buf = buf[thread_id];
 
         // points to the beginning of "a score=....\n"
-        size_t in_buffer_pos = 0;
 
-        skip(in_buffer_pos, thread_id);
+        size_t & in_buffer_pos = buffer_pos[thread_id];
+        in_buffer_pos = 0;
 
-        int _iter = 0;
+        skip(thread_id);
 
         char line_type;
-        while (file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(in_buffer_pos, thread_id)) != 'a')
+        while (file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(thread_id)) != 'a')
         {
 //            if (file_range_pos[thread_id] == 608705766 && in_buffer_pos >= 4074)
 //                printf("%ld\t%ld\n", file_range_pos[thread_id], in_buffer_pos);
             if (line_type == 's')
             {
                 // "s ID int int char int SEQ\n"
-                std::string line = get_line(in_buffer_pos, thread_id);
+                std::string line = get_line(thread_id);
                 printf("%s\n", line.c_str());
 //                if (thread_id == 3 && file_range_pos[thread_id] > 608701000)
 //                    printf("%ld\t%4ld\t%s\n", file_range_pos[thread_id], in_buffer_pos, line.c_str());
@@ -274,9 +288,8 @@ public:
 //                printf("%s\n", line.c_str());
 //                if (thread_id == 3 && file_range_pos[thread_id] > 608701000 && in_buffer_pos == 4074)
 //                    printf("Skip: %ld\t%4ld\n", file_range_pos[thread_id], in_buffer_pos);
-                skip(in_buffer_pos, thread_id);
+                skip(thread_id);
             }
-            ++_iter;
         }
 
         if (file_range_pos[thread_id] < (size_t)file_size)
@@ -285,7 +298,7 @@ public:
             size_t buf_size2 = buf_size;
             if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
                 buf_size2 = file_size - file_range_pos[thread_id];
-            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size2); // TODO: avoid this by making pos_in_buffer a member of the class
+            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size2); ++memcpy_cnt; // TODO: avoid this by making pos_in_buffer a member of the class
         }
 
         return true;
@@ -327,6 +340,8 @@ int main()
 //            }
         }
     }
+
+    printf("memcpy count: %ld\n", maf_rd.memcpy_cnt);
 
     return 0;
 }
