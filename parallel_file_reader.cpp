@@ -1,5 +1,3 @@
-//#include <sys/stat.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +8,8 @@
 
 #include <string>
 #include <vector>
+
+#include <cassert>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -32,14 +32,14 @@ class parallel_maf_reader
     size_t last_thread_with_extra_page;
 
     void *file_mem = NULL; // "fileArea"
-    size_t *offset_in_page = NULL;
-//    size_t *offset_pages = NULL;
+    size_t *file_range_pos = NULL;
+    size_t *file_range_end = NULL;
 
     size_t buf_size;
     char **buf = NULL; // one buffer / "localArea" for each thread
 
 public:
-    void init(char *file_path, unsigned threads)
+    void init(char *file_path, const unsigned threads)
     {
         fd = open(file_path, O_RDONLY);
         if (fd < 0)
@@ -86,18 +86,15 @@ public:
         last_thread_with_extra_page = pages % this->threads; // excl
 //        printf("Pages per thread: %ld\nLast page (excl.) with excess page: %ld\n\n", pages_per_thread, last_thread_with_extra_page);
 
-//        offset_pages = (size_t *) calloc(sizeof(size_t), this->threads);
-//        file_start_pos = (void **) calloc(sizeof(size_t*), this->threads);
-        offset_in_page = (size_t*) calloc(sizeof(size_t), this->threads);
+        file_range_pos = (size_t*) calloc(sizeof(size_t), this->threads);
+        file_range_end = (size_t*) calloc(sizeof(size_t), this->threads);
         buf = (char**) calloc(sizeof(char*), this->threads);
 
-        // NOTE: (except for the very first thread), every threads starts one page before the first one it can be processed.
-        // this is necessary in case an alignment block starts at the very beginning of a (by chance). then we need to check whether
-        // the last character on the previous page is a newline!
         size_t file_range_from = 0;
         for (unsigned i = 0; i < this->threads; ++i)
         {
-            buf[i] = (char*) calloc(sizeof(char), buf_size);
+            buf[i] = (char*) calloc(sizeof(char), buf_size + 1);
+            buf[buf_size] = 0; // always make buf a zero-terminated strings
 
             size_t range_size = page_size * (pages_per_thread + (last_thread_with_extra_page > i));
             size_t file_range_to = file_range_from + range_size;
@@ -108,24 +105,12 @@ public:
                 range_size = file_range_to - file_range_from;
             }
 
-            if (i > 0)
-            {
-                file_range_from -= page_size;
-                range_size += page_size;
-            }
-
-            offset_in_page[i] = file_range_from;
+            file_range_pos[i] = file_range_from;
+            file_range_end[i] = file_range_to;
 
             char *local_buf = buf[i];
-//            void *local_file_pos = file_start_pos[i];
 
-            printf("Thread %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_from, file_range_to, range_size);
-//            local_file_pos = mmap(NULL, range_size, PROT_READ, MAP_SHARED, fd, file_range_from);
-//            if (!local_file_pos)
-//            {
-//                printf("Error: Cannot map %s\n", file_path);
-//                exit(-1); // TODO: free memory, etc
-//            }
+//            printf("Thread %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_from, file_range_to, range_size);
 
             // go to beginning of alignment (i.e., go to first page with beginning of a new alignment block and set offset_in_page accordingly)
             // - alignment could start at the very beginning of the current page (or next page). note that except the very first thread, the first page
@@ -133,40 +118,165 @@ public:
             // - there could be no new alignment at all
             // - alignment could start somewhere in the middle of the page
             // - multiple pages could be necessary to be skipped
-//            exit(0);
-//            if (i == 1)
+
             {
-                size_t j = 0;
-                char *alignment_block_beginning = NULL;
-                do {
-//                    memcpy(local_buf, local_file_pos + j, buf_size);
-                    memcpy(local_buf, file_mem + offset_in_page[i] + j, buf_size);
-                    printf("%s", local_buf);
-                    j += buf_size;
-//                    printf("%ld\n", j);
-//                    exit(13);
-                } while (j < range_size && (alignment_block_beginning = strstr(local_buf, "\na ")) == NULL); // alignment block starts with "s " preceded by a newline
-                // TODO: do not go past last page!
+                // in case the alignment starts at the very first position of the starting page, we need to check whether the character before is a newline
+                // but don't do that for the first thread, since the start position is 0 and would trigger an underflow.
+                if (i > 0)
+                    --file_range_pos[i];
+                memcpy(local_buf, file_mem + file_range_pos[i], buf_size);
 
-                offset_in_page[i] = alignment_block_beginning - local_buf;
+                if (i == 0 && local_buf[0] == 'a' && local_buf[1] == ' ')
+                {
+                    file_range_pos[i] += 0; // no offset
+                }
+                else
+                {
+                    char *alignment_block_beginning = NULL;
+                    while ( (alignment_block_beginning = strstr(local_buf, "\na ")) == NULL &&
+                            (file_range_pos[i] += buf_size - 2) < file_range_to // we are searching for a pattern of length 3. it could lie
+                    ) // alignment block starts with "s " preceded by a newline
+                    {
+                        memcpy(local_buf, file_mem + file_range_pos[i], buf_size);
+//                        printf("%s", local_buf);
+//                        offset_in_page[i] += buf_size;
+                    }
 
-                printf("\n\n%ld\n%s\n", offset_in_page[i], local_buf + offset_in_page[i]);
-                printf("\n%c\n", local_buf[0]);
+                    if (alignment_block_beginning != NULL)
+                    {
+                        file_range_pos[i] += alignment_block_beginning - local_buf + 1; // + 1 for newline
+                    }
+                }
+
+                memcpy(local_buf, file_mem + file_range_pos[i], buf_size);
+//                printf("%.15s\n", local_buf);
             }
-            exit(0);
 
             file_range_from = file_range_to;
         }
     }
 
-    // in practice aln.ids will already be set and only
-    void get_next_alignment(alignment_t & aln, unsigned thread_id)
+    void skip(size_t & in_buffer_pos, const unsigned thread_id)
     {
-//        char *local_buf = buf[thread_id];
-//        void *local_file_pos = file_start_pos[thread_id];
+        char *local_buf = buf[thread_id];
 
-//        memcpy(localArea, fileArea + i, cpysize);
-//        printf("%s", localArea, localArea);
+        char *alignment_block_beginning = NULL;
+        while ( (alignment_block_beginning = strstr(local_buf + in_buffer_pos, "\n")) == NULL &&
+                (file_range_pos[thread_id] += buf_size) < (size_t)file_size // we are searching for a pattern of length 3. it could lie
+                ) // alignment block starts with "s " preceded by a newline
+        {
+            in_buffer_pos = 0;
+            file_range_pos[thread_id] += buf_size;
+            size_t buf_size2 = buf_size;
+            if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
+                buf_size2 = file_size - file_range_pos[thread_id];
+
+            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size2);
+        }
+
+        if (alignment_block_beginning == NULL && file_range_pos[thread_id] >= (size_t)file_size)
+        {
+            return;
+        }
+
+        in_buffer_pos += alignment_block_beginning - (local_buf + in_buffer_pos) + 1; // +1 to skip \n
+
+        if (in_buffer_pos == buf_size)
+        {
+            in_buffer_pos = 0;
+            file_range_pos[thread_id] += buf_size;
+            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size);
+        }
+    }
+
+    char get_char(size_t & in_buffer_pos, const unsigned thread_id)
+    {
+        assert(in_buffer_pos < 2*buf_size);
+
+        if (in_buffer_pos >= buf_size)
+        {
+            file_range_pos[thread_id] += buf_size;
+            assert(file_range_pos[thread_id] < (size_t)file_size);
+            in_buffer_pos -= buf_size;
+            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size);
+        }
+        assert(in_buffer_pos < buf_size);
+
+        return buf[thread_id][in_buffer_pos];
+    }
+
+    std::string get_line(size_t & in_buffer_pos, const unsigned thread_id)
+    {
+        std::string res = "";
+
+        char *local_buf = buf[thread_id];
+
+//        printf("\n\n\n%s\n\n\n", local_buf);
+        char *alignment_block_beginning = NULL;
+        while ( (alignment_block_beginning = strstr(local_buf + in_buffer_pos, "\n")) == NULL //&&
+//                (file_range_pos[thread_id] += buf_size) < file_range_end[thread_id] // we are searching for a pattern of length 3. it could lie
+                ) // alignment block starts with "s " preceded by a newline
+        {
+            res += (local_buf + in_buffer_pos);
+            in_buffer_pos = 0;
+            file_range_pos[thread_id] += buf_size;
+            memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size);
+        }
+
+        size_t infix_size = alignment_block_beginning - (local_buf + in_buffer_pos);
+        char *buf_prefix = (char*) malloc(sizeof(char) * (infix_size + 1));
+        memcpy(buf_prefix, local_buf + in_buffer_pos, infix_size);
+        buf_prefix[infix_size] = 0;
+
+        in_buffer_pos = in_buffer_pos + infix_size + 1;
+
+        res += buf_prefix;
+
+        return res;
+    }
+
+    // in practice aln.ids will already be set and only
+    // if only \n is at the end of the range for a thread, don't process it
+    // if "\na" is at the end of the range for a thread, process it
+    bool get_next_alignment(alignment_t & aln, const unsigned thread_id)
+    {
+        if (file_range_pos[thread_id] >= file_range_end[thread_id])
+            return false;
+
+//        char *local_buf = buf[thread_id];
+
+        // points to the beginning of "a score=....\n"
+        size_t in_buffer_pos = 0;
+
+        skip(in_buffer_pos, thread_id);
+
+        char line_type;
+        while (file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(in_buffer_pos, thread_id)) != 'a')
+        {
+//            if (file_range_pos[thread_id] == 608705766 && in_buffer_pos >= 4074)
+//                printf("%ld\t%ld\n", file_range_pos[thread_id], in_buffer_pos);
+            if (line_type == 's')
+            {
+                // "s ID int int char int SEQ\n"
+                std::string line = get_line(in_buffer_pos, thread_id);
+                printf("%s\n", line.c_str());
+            }
+            else
+            {
+                skip(in_buffer_pos, thread_id);
+            }
+        }
+
+        if (file_range_pos[thread_id] < (size_t)file_size)
+        {
+            file_range_pos[thread_id] += in_buffer_pos;
+            size_t buf_size2 = buf_size;
+            if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
+                buf_size2 = file_size - file_range_pos[thread_id];
+            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size2); // TODO: avoid this by making pos_in_buffer a member of the class
+        }
+
+        return true;
     }
 
     ~parallel_maf_reader()
@@ -175,18 +285,14 @@ public:
             close(fd);
 
         for (unsigned i = 0; i < this->threads; ++i)
-        {
             free(buf[i]);
-//            if (!munmap((file_start_pos + i), pages_per_thread + (last_thread_with_extra_page > i)))
-//                printf("Error munmap %d\n", errno);
-        }
 
         if (!munmap(file_mem, file_size))
             printf("Error munmap %d\n", errno);
 
         free(buf);
-        free(offset_in_page);
-//        free(file_start_pos);
+        free(file_range_pos);
+        free(file_range_end);
     }
 };
 
@@ -194,6 +300,21 @@ int main()
 {
     parallel_maf_reader maf_rd;
     maf_rd.init("/home/chris/Downloads/chr22.head.maf", 4);
+
+    alignment_t aln;
+    for (unsigned i = 0; i < 1; ++i)
+    {
+//        aln.seqs.clear();
+        while (maf_rd.get_next_alignment(aln, i))
+        {
+//            printf("a\n");
+//            for (auto & s : aln.seqs)
+//            {
+//                printf("%s\n", s.c_str());
+//            }
+        }
+    }
+
     return 0;
 }
 

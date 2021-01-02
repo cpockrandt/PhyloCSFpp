@@ -1,3 +1,4 @@
 .idea
-PhyloCSF++
 rev_eng
+build
+cmake-build-debug
