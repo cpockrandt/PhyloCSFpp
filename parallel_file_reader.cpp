@@ -34,6 +34,7 @@ class parallel_maf_reader
     void *file_mem = NULL; // "fileArea"
     size_t *file_range_pos = NULL;
     size_t *file_range_end = NULL;
+    size_t *buffer_pos = NULL;
 
     size_t buf_size;
     char **buf = NULL; // one buffer / "localArea" for each thread
@@ -91,6 +92,7 @@ public:
 
         file_range_pos = (size_t*) calloc(sizeof(size_t), this->threads);
         file_range_end = (size_t*) calloc(sizeof(size_t), this->threads);
+        buffer_pos = (size_t*) calloc(sizeof(size_t), this->threads);
         buf = (char**) calloc(sizeof(char*), this->threads);
 
         size_t file_range_from = 0;
@@ -113,7 +115,7 @@ public:
 
             char *local_buf = buf[i];
 
-//            printf("Thread %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_from, file_range_to, range_size);
+            printf("Thread %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_from, file_range_to, range_size);
 
             // go to beginning of alignment (i.e., go to first page with beginning of a new alignment block and set offset_in_page accordingly)
             // - alignment could start at the very beginning of the current page (or next page). note that except the very first thread, the first page
@@ -127,7 +129,9 @@ public:
                 // but don't do that for the first thread, since the start position is 0 and would trigger an underflow.
                 if (i > 0)
                     --file_range_pos[i];
-                memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt;
+                memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt; // TODO: last page could be smaller than buf_size
+
+//                printf("yyy --- %ld\n%s\n", file_range_pos[i], local_buf);
 
                 if (i == 0 && local_buf[0] == 'a' && local_buf[1] == ' ')
                 {
@@ -140,23 +144,28 @@ public:
                             (file_range_pos[i] += buf_size - 2) < file_range_to // we are searching for a pattern of length 3. it could lie
                     ) // alignment block starts with "s " preceded by a newline
                     {
+                        // TODO: this page could already be the last page and have less than buf_size chars!
                         memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt;
 //                        printf("%s", local_buf);
 //                        offset_in_page[i] += buf_size;
                     }
 
+                    // TODO adding -1 and (buf_size - 2) when accessing memory mapped file could lead to slow-down, align read access!
+
                     if (alignment_block_beginning != NULL)
                     {
-                        file_range_pos[i] += alignment_block_beginning - local_buf + 1; // + 1 for newline
+                        buffer_pos[i] = alignment_block_beginning - local_buf + 1; // + 1 for newline
+//                        file_range_pos[i] += alignment_block_beginning - local_buf + 1; // + 1 for newline
                     }
                 }
 
-                memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt;
+//                memcpy(local_buf, file_mem + file_range_pos[i], buf_size); ++memcpy_cnt;
 //                printf("%.15s\n", local_buf);
             }
 
             file_range_from = file_range_to;
         }
+//        exit(13);
     }
 
     void skip(const unsigned thread_id)
@@ -181,6 +190,7 @@ public:
 
         if (alignment_block_beginning == NULL && file_range_pos[thread_id] + buf_size >= (size_t)file_size)
         {
+            assert(thread_id == this->threads - 1);
             file_range_pos[thread_id] = file_size;
             return;
         }
@@ -190,7 +200,7 @@ public:
         if (in_buffer_pos == buf_size)
         {
             in_buffer_pos = 0;
-            file_range_pos[thread_id] += buf_size;
+            file_range_pos[thread_id] += buf_size; // TODO: could be the last (partial) page
             memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size); ++memcpy_cnt;
         }
     }
@@ -204,6 +214,8 @@ public:
 
         char *local_buf = buf[thread_id];
 
+        size_t buf_size2 = buf_size; // TODO: is this correct? can we already be on the last partial page when calling this function (again)?
+
 //        printf("\n\n\n%s\n\n\n", local_buf);
         char *alignment_block_beginning = NULL;
         while ( (alignment_block_beginning = strstr(local_buf + in_buffer_pos, "\n")) == NULL &&
@@ -214,22 +226,37 @@ public:
             in_buffer_pos = 0;
             file_range_pos[thread_id] += buf_size;
 
-            size_t buf_size2 = buf_size;
+            buf_size2 = buf_size;
             if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
+            {
                 buf_size2 = file_size - file_range_pos[thread_id];
+                local_buf[buf_size2] = 0;
+            }
 
             memcpy(local_buf, file_mem + file_range_pos[thread_id], buf_size); ++memcpy_cnt;
-            local_buf[buf_size2] = 0;
         }
 
-        size_t infix_size = alignment_block_beginning - (local_buf + in_buffer_pos);
+        size_t infix_size;
+        if (alignment_block_beginning)
+        {
+            infix_size = alignment_block_beginning - (local_buf + in_buffer_pos);
+        }
+        else
+        {
+            // this case should only happen if we are on the very last page
+            assert(thread_id == this->threads - 1);
+            assert(file_range_pos[thread_id] + page_size >= file_size);
+            infix_size = buf_size2 - in_buffer_pos;
+            file_range_pos[thread_id] = file_size;
+        }
+
         char *buf_prefix = (char*) malloc(sizeof(char) * (infix_size + 1));
-        memcpy(buf_prefix, local_buf + in_buffer_pos, infix_size); ++memcpy_cnt;
+        memcpy(buf_prefix, local_buf + in_buffer_pos, infix_size); // ++memcpy_cnt;
         buf_prefix[infix_size] = 0;
+        res += buf_prefix;
+        free(buf_prefix);
 
         in_buffer_pos = in_buffer_pos + infix_size + 1;
-
-        res += buf_prefix;
 
         return res;
     }
@@ -255,17 +282,30 @@ public:
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
     // if "\na" is at the end of the range for a thread, process it
+    // TODO: check whether this works!
     bool get_next_alignment(alignment_t & aln, const unsigned thread_id)
     {
         if (file_range_pos[thread_id] >= file_range_end[thread_id])
             return false;
 
+
+
+
 //        char *local_buf = buf[thread_id];
+//        memcpy(local_buf, file_mem + 456536063, buf_size);
+//        printf("XXX: %s\n", local_buf);
+//        memcpy(local_buf, file_mem + 456540159, buf_size);
+//        printf("XXX: %s\n", local_buf);
+//        exit(1);
+
+
+
+
 
         // points to the beginning of "a score=....\n"
 
         size_t & in_buffer_pos = buffer_pos[thread_id];
-        in_buffer_pos = 0;
+//        in_buffer_pos = 0;
 
         skip(thread_id);
 
@@ -277,29 +317,32 @@ public:
             if (line_type == 's')
             {
                 // "s ID int int char int SEQ\n"
+                const size_t old_file_range_pos = file_range_pos[thread_id];
+                const size_t old_in_buffer_pos = in_buffer_pos;
                 std::string line = get_line(thread_id);
-                printf("%s\n", line.c_str());
+//                printf("%s\n", line.c_str());
 //                if (thread_id == 3 && file_range_pos[thread_id] > 608701000)
-//                    printf("%ld\t%4ld\t%s\n", file_range_pos[thread_id], in_buffer_pos, line.c_str());
+                    printf("%ld\t%4ld\t%s\n", old_file_range_pos, old_in_buffer_pos, line.c_str());
             }
             else
             {
-//                std::string line = get_line(in_buffer_pos, thread_id);
+//                std::string line = get_line(thread_id);
 //                printf("%s\n", line.c_str());
-//                if (thread_id == 3 && file_range_pos[thread_id] > 608701000 && in_buffer_pos == 4074)
+
+//                if (thread_id == 3 && file_range_pos[thread_id] > 608701000 /*&& in_buffer_pos == 4074*/)
 //                    printf("Skip: %ld\t%4ld\n", file_range_pos[thread_id], in_buffer_pos);
                 skip(thread_id);
             }
         }
 
-        if (file_range_pos[thread_id] < (size_t)file_size)
-        {
-            file_range_pos[thread_id] += in_buffer_pos;
-            size_t buf_size2 = buf_size;
-            if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
-                buf_size2 = file_size - file_range_pos[thread_id];
-            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size2); ++memcpy_cnt; // TODO: avoid this by making pos_in_buffer a member of the class
-        }
+//        if (file_range_pos[thread_id] < (size_t)file_size)
+//        {
+//            file_range_pos[thread_id] += in_buffer_pos;
+//            size_t buf_size2 = buf_size;
+//            if (file_range_pos[thread_id] + buf_size > (size_t)file_size)
+//                buf_size2 = file_size - file_range_pos[thread_id];
+//            memcpy(buf[thread_id], file_mem + file_range_pos[thread_id], buf_size2); ++memcpy_cnt; // TODO: avoid this by making pos_in_buffer a member of the class
+//        }
 
         return true;
     }
@@ -327,12 +370,14 @@ int main()
     maf_rd.init("/home/chris/Downloads/chr22.head.maf", 4);
 
     alignment_t aln;
-    for (unsigned i = 0; i < 4; ++i)
+    for (unsigned i = 2; i < 3; ++i)
     {
 //        aln.seqs.clear();
 // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
         while (maf_rd.get_next_alignment(aln, i))
         {
+//            printf("\n\n---------------------\n\n\n");
+//            break;
 //            printf("a\n");
 //            for (auto & s : aln.seqs)
 //            {
