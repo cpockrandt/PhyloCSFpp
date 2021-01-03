@@ -15,12 +15,6 @@
 #include <omp.h>
 #endif
 
-struct alignment_t
-{
-    std::vector<std::string> ids;
-    std::vector<std::string> seqs;
-};
-
 class parallel_maf_reader
 {
     unsigned threads;
@@ -166,8 +160,6 @@ public:
         memcpy(res, file_mem + file_range_pos[thread_id], len + 1);
         res[len] = 0;
 
-//        printf("%s\n", res);
-
         char *strtok_state;
         char *token = strtok_r(res, " ", &strtok_state);
         uint16_t token_id = 0;
@@ -179,7 +171,6 @@ public:
                 *id = (char*) malloc(token_len + 1);
                 memcpy(*id, token, token_len);
                 (*id)[token_len] = 0;
-//                printf("%d. Token: %s (len: %ld)\n", token_id, token, token_len);
             }
             else if (token_id == 6)
             {
@@ -187,7 +178,6 @@ public:
                 *seq = (char*) malloc(token_len + 1);
                 memcpy(*seq, token, token_len);
                 (*seq)[token_len] = 0;
-//                printf("%d. Token: %s (len: %ld)\n", token_id, token, token_len);
             }
             token = strtok_r(NULL, " ", &strtok_state);
 //            printf("%d. Token: %s\n", token_id, token);
@@ -254,30 +244,30 @@ public:
     }
 };
 
-int main()
-{
-    parallel_maf_reader maf_rd;
-    maf_rd.init("/home/chris/Downloads/chr22.head.maf", 4);
-
-    #pragma omp parallel for num_threads(4)
-    for (unsigned thread_id = 0; thread_id < 4; ++thread_id)
-    {
-        alignment_t aln;
-        // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
-        while (maf_rd.get_next_alignment(aln, thread_id))
-        {
-            #pragma omp critical
-            {
-                for (size_t i = 0; i < aln.ids.size(); ++i)
-                {
-                    printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
-                }
-                printf("\n");
-            }
-            aln.ids.clear();
-            aln.seqs.clear();
-        }
-    }
-
-    return 0;
-}
+//int main()
+//{
+//    parallel_maf_reader maf_rd;
+//    maf_rd.init("/home/chris/Downloads/chr22.head.maf", 4);
+//
+//    #pragma omp parallel for num_threads(4)
+//    for (unsigned thread_id = 0; thread_id < 4; ++thread_id)
+//    {
+//        alignment_t aln;
+//        // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
+//        while (maf_rd.get_next_alignment(aln, thread_id))
+//        {
+//            #pragma omp critical
+//            {
+//                for (size_t i = 0; i < aln.ids.size(); ++i)
+//                {
+//                    printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//                }
+//                printf("\n");
+//            }
+//            aln.ids.clear();
+//            aln.seqs.clear();
+//        }
+//    }
+//
+//    return 0;
+//}

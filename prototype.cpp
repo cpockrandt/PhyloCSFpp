@@ -6,6 +6,7 @@
 #include "src/newick.hpp"
 #include "src/fit.hpp"
 #include "src/models.hpp"
+#include "src/parallel_file_reader.hpp"
 
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
 {
@@ -426,6 +427,35 @@ int main(int argc, char ** argv)
     double new_bls   = std::get<1>(new_results);
     double new_anc   = std::get<2>(new_results);
 //    printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
+
+    unsigned threads = 4;
+
+    parallel_maf_reader maf_rd;
+    maf_rd.init("/home/chris/Downloads/chr22.head.maf", threads);
+
+    #pragma omp parallel for num_threads(4) default(none) shared(maf_rd)
+    for (unsigned thread_id = 0; thread_id < 4; ++thread_id)
+    {
+        alignment_t aln;
+        // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
+        while (maf_rd.get_next_alignment(aln, thread_id))
+        {
+#pragma omp critical
+            {
+                for (size_t i = 0; i < aln.ids.size(); ++i)
+                {
+                    printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+                }
+                printf("\n");
+            }
+            aln.ids.clear();
+            aln.seqs.clear();
+        }
+    }
+
+
+
+
     return 0;
 }
 
