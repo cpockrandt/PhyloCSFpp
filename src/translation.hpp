@@ -42,8 +42,8 @@ uint8_t get_dna_id(const char n)
             return 4;
         default:
             // TODO: error handling?
-            assert(false);
             printf("AHHHH: #%c#\n", n);
+            assert(false);
             exit(37);
             return 99;
     }

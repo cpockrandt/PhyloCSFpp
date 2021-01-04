@@ -9,7 +9,7 @@
 #include "src/newick.hpp"
 #include "src/fit.hpp"
 #include "src/models.hpp"
-#include "prototype.cpp"
+#include "phylocsfpp.cpp"
 
 void newick_get_species(newick_node * n, std::vector<std::string> & v)
 {

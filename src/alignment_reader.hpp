@@ -8,23 +8,6 @@
 #include "translation.hpp"
 #include "newick.hpp"
 
-struct alignment_t
-{
-    std::vector<std::string> ids;
-    std::vector<std::string> seqs;
-    std::vector<std::vector<uint8_t> > peptides;
-
-    alignment_t(const std::vector<newick_elem> & phylo_array)
-    {
-        const uint16_t leaves = (phylo_array.size() + 1)/2;
-        ids.resize(leaves);
-        seqs.resize(leaves, "");
-        peptides.resize(leaves, {});
-        for (uint16_t i = 0; i < leaves; ++i)
-            ids[i] = phylo_array[i].label;
-    }
-};
-
 int read_alignment(const char * const file_path, alignment_t & alignment)
 {
     char * linebuf;

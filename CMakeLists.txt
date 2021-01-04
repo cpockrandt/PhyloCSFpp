@@ -8,7 +8,7 @@ find_package (OpenMP)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g -Wall -pedantic -Wno-write-strings -Wno-pointer-arith -fopenmp") # -DNOCURL -static -fsanitize=address -fno-omit-frame-pointer
 
-add_executable (phylocsf++ prototype.cpp)
+add_executable (phylocsf++ phylocsfpp.cpp)
 add_executable (tests automatic_tests.cpp)
 #add_executable (reader parallel_file_reader.hpp)
 

@@ -8,6 +8,10 @@
 #include "src/models.hpp"
 #include "src/parallel_file_reader.hpp"
 
+//#ifdef OPENMP
+#include <omp.h>
+//#endif
+
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
 {
     os  << e.id << '\t'
@@ -198,27 +202,8 @@ struct Data
     }
 };
 
-auto run(char aln_path[], char model_str[], char selected_species_str[], algorithm_t algo)
+auto run(Data & data, alignment_t & alignment, algorithm_t algo)
 {
-    Data data;
-    char delim[] = ",";
-
-    char *ptr = strtok(selected_species_str, delim);
-    while(ptr != NULL)
-    {
-        data.selected_species.emplace(ptr);
-        ptr = strtok(NULL, delim);
-    }
-
-    data.load_model(model_str, algo == algorithm_t::OMEGA); // TODO: check whether selected species exist!
-
-    // prepare alignment
-    alignment_t alignment(data.phylo_array);
-    // read alignment
-    read_alignment(aln_path, alignment);
-//     for (uint16_t i = 0; i < alignment.seqs.size(); ++i)
-//        std::cout << alignment.ids[i] << '\t' << alignment.seqs[i] << '\t' << print_peptide(alignment.peptides[i]) << '\n';
-
     if (algo == algorithm_t::OMEGA)
     {
         auto & inst = data.c_instance;
@@ -420,41 +405,104 @@ auto run(char aln_path[], char model_str[], char selected_species_str[], algorit
 
 int main(int argc, char ** argv)
 {
-//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
-    auto new_results = run("/home/chris/dev-uni/chr4_100vert_alignment.fa", "100vertebrates", "", algorithm_t::FIXED);
-//    auto new_results = run("/tmp/test", "100vertebrates", "Dog,Cow,Horse,Human,Mouse,Rat", algorithm_t::MLE);
-    double new_phylo = std::get<0>(new_results);
-    double new_bls   = std::get<1>(new_results);
-    double new_anc   = std::get<2>(new_results);
-//    printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
+    algorithm_t mode = algorithm_t::FIXED;
+    unsigned threads = 1;
+    unsigned jobs = 1;
+    char *model_str = "100vertebrates";
+    char selected_species_str[] = ""; // "Dog,Cow,Horse,Human,Mouse,Rat";
+    char *aln_path = "/home/chris/Downloads/chr22.head.maf";
 
-    unsigned threads = 4;
+    Data data;
+    char delim[] = ",";
 
-    parallel_maf_reader maf_rd;
-    maf_rd.init("/home/chris/Downloads/chr22.head.maf", threads);
-
-    #pragma omp parallel for num_threads(4) default(none) shared(maf_rd)
-    for (unsigned thread_id = 0; thread_id < 4; ++thread_id)
+    char *ptr = strtok(selected_species_str, delim);
+    while (ptr != NULL)
     {
-        alignment_t aln;
-        // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
-        while (maf_rd.get_next_alignment(aln, thread_id))
+        data.selected_species.emplace(ptr);
+        ptr = strtok(NULL, delim);
+    }
+
+    data.load_model(model_str, mode == algorithm_t::OMEGA); // TODO: check whether selected species exist!
+
+    std::unordered_map<std::string, uint16_t> fastaid_to_alnid;
+    // we use the order of data.phylo_array
+    {
+        FILE *file = fopen("/home/chris/dev-uni/PhyloCSF++/commonNames_assemblies.txt", "r");
+        if (file != NULL)
         {
-#pragma omp critical
+            char line[BUFSIZ];
+            char c1[BUFSIZ];
+            char c2[BUFSIZ];
+            while (fgets(line, sizeof line, file) != NULL)
+            {
+                sscanf(line, "%s\t%s", c1, c2); // PhyloCSF identifier => maf identifier
+
+                bool found = false;
+                for (uint16_t i = 0; i < data.phylo_array.size(); ++i)
+                {
+                    if (strcmp(data.phylo_array[i].label.c_str(), c1) == 0)
+                    {
+                        fastaid_to_alnid.emplace(c2, i); // maf identifier => id in vector for ids and seqs
+//                        printf("%20s\t%10s\t%2d\n", c1, c2, i);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    printf("ERROR: %20s\t%10s\tmapping missing!\n", c1, c2);
+            }
+        }
+
+        // TODO: check whether there are mappings missing (not sure) or superfluous mappings (also not sure)
+
+    }
+
+    // prepare alignment
+    std::vector<alignment_t> alignments;
+    for (unsigned i = 0; i < threads; ++i)
+    {
+        alignments.emplace_back(data.phylo_array); // TODO: remove id's outside of aln struct because they are read-only
+    }
+
+    // read alignment
+    // read_alignment(aln_path, alignment);
+
+    parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
+
+    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data, mode)
+    for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it more parts than threads
+    {
+        auto & aln = alignments[omp_get_thread_num()];
+        // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
+        while (maf_rd.get_next_alignment(aln, job_id))
+        {
+            auto new_results = run(data, aln, mode);
+            double new_phylo = std::get<0>(new_results);
+            double new_bls   = std::get<1>(new_results);
+            double new_anc   = std::get<2>(new_results);
+            printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
+
+            #pragma omp critical
             {
                 for (size_t i = 0; i < aln.ids.size(); ++i)
                 {
-                    printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+                    if (aln.seqs[i] != "")
+                        printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
                 }
                 printf("\n");
             }
-            aln.ids.clear();
-            aln.seqs.clear();
+            for (auto & seq : aln.seqs)
+                seq = "";
         }
     }
 
-
-
+//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
+//    auto new_results = run("/home/chris/dev-uni/chr4_100vert_alignment.fa", "100vertebrates", "", algorithm_t::FIXED);
+//    auto new_results = run("/tmp/test", "100vertebrates", "Dog,Cow,Horse,Human,Mouse,Rat", algorithm_t::MLE);
+//    double new_phylo = std::get<0>(new_results);
+//    double new_bls   = std::get<1>(new_results);
+//    double new_anc   = std::get<2>(new_results);
+//    printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
 
     return 0;
 }

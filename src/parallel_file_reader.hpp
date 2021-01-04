@@ -11,9 +11,22 @@
 
 #include <cassert>
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
+struct alignment_t
+{
+    std::vector<std::string> ids;
+    std::vector<std::string> seqs;
+    std::vector<std::vector<uint8_t> > peptides;
+
+    alignment_t(const std::vector<newick_elem> & phylo_array)
+    {
+        const uint16_t leaves = (phylo_array.size() + 1)/2;
+        ids.resize(leaves);
+        seqs.resize(leaves, "");
+        peptides.resize(leaves, {});
+        for (uint16_t i = 0; i < leaves; ++i)
+            ids[i] = phylo_array[i].label;
+    }
+};
 
 class parallel_maf_reader
 {
@@ -25,13 +38,15 @@ class parallel_maf_reader
     size_t pages_per_thread;
     size_t last_thread_with_extra_page;
 
-    void *file_mem = NULL;
-    size_t *file_range_pos = NULL;
-    size_t *file_range_end = NULL;
+    std::unordered_map<std::string, uint16_t> *fastaid_to_alnid;
+
+    void *file_mem = nullptr;
+    size_t *file_range_pos = nullptr;
+    size_t *file_range_end = nullptr;
 
 public:
 
-    void init(char *file_path, const unsigned threads)
+    parallel_maf_reader(char *file_path, const unsigned threads, std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
     {
         fd = open(file_path, O_RDONLY);
         if (fd < 0)
@@ -48,7 +63,7 @@ public:
             exit(-1);
         }
 
-        file_mem = mmap(NULL, file_size, PROT_READ, MAP_SHARED, fd, 0);
+        file_mem = mmap(nullptr, file_size, PROT_READ, MAP_SHARED, fd, 0);
         if (!file_mem)
         {
             printf("Error: Cannot map %s\n", file_path);
@@ -110,9 +125,9 @@ public:
 
                 if (!(i == 0 && *((char*) file_mem + file_range_pos[i] + 0) == 'a' && *((char*) file_mem + file_range_pos[i] + 1) == ' '))
                 {
-                    char *aln_begin = strstr((char*) (file_mem + file_range_pos[i]), "\na ");
+                    char *aln_begin = strstr((char*) file_mem + file_range_pos[i], "\na ");
 
-                    if (aln_begin == NULL)
+                    if (aln_begin == nullptr)
                     {
                         file_range_pos[i] = file_size;
                     }
@@ -127,14 +142,16 @@ public:
 
             file_range_from = file_range_to;
         }
+
+        this->fastaid_to_alnid = fastaid_to_alnid;
     }
 
     // skip a line
     void skip(const unsigned thread_id)
     {
-        char *newline_begin = strstr((char*) (file_mem + file_range_pos[thread_id]), "\n");
+        char *newline_begin = strstr((char*) file_mem + file_range_pos[thread_id], "\n");
 
-        if (newline_begin == NULL)
+        if (newline_begin == nullptr)
             file_range_pos[thread_id] = file_size;
         else
             file_range_pos[thread_id] = newline_begin - (char*) file_mem + 1; // skip \n
@@ -146,10 +163,10 @@ public:
         assert(file_range_pos[thread_id] < (size_t) file_size);
         assert(*((char*) file_mem + file_range_pos[thread_id]) == 's');
 
-        char *newline_begin = strstr((char*) (file_mem + file_range_pos[thread_id]), "\n");
+        char *newline_begin = strstr((char*) file_mem + file_range_pos[thread_id], "\n"); // TODO: replace all occurrences with strchr()
 
         size_t new_file_range_pos;
-        if (newline_begin == NULL)
+        if (newline_begin == nullptr)
             new_file_range_pos = file_size;
         else
             new_file_range_pos = newline_begin - (char*) file_mem;
@@ -157,13 +174,13 @@ public:
         // TODO: this malloc and memcpy can be avoided by reimplementing strtok that does not modify the input string
         const size_t len = new_file_range_pos - file_range_pos[thread_id];
         char *res = (char*) malloc(len + 1);
-        memcpy(res, file_mem + file_range_pos[thread_id], len + 1);
+        memcpy(res, (char*) file_mem + file_range_pos[thread_id], len + 1);
         res[len] = 0;
 
         char *strtok_state;
         char *token = strtok_r(res, " ", &strtok_state);
         uint16_t token_id = 0;
-        while (token != NULL)
+        while (token != nullptr)
         {
             if (token_id == 1)
             {
@@ -179,12 +196,12 @@ public:
                 memcpy(*seq, token, token_len);
                 (*seq)[token_len] = 0;
             }
-            token = strtok_r(NULL, " ", &strtok_state);
+            token = strtok_r(nullptr, " ", &strtok_state);
 //            printf("%d. Token: %s\n", token_id, token);
             ++token_id;
         }
 
-        assert(id != NULL && seq != NULL);
+        assert(id != nullptr && seq != nullptr);
 
         free(res);
 
@@ -215,10 +232,21 @@ public:
             if (line_type == 's')
             {
                 // "s ID int int char int SEQ\n"
-                char *id = NULL, *seq = NULL;
+                char *id = nullptr, *seq = nullptr;
                 get_line(thread_id, &id, &seq);
-                aln.ids.emplace_back(id);
-                aln.seqs.emplace_back(seq);
+
+                // cut id starting after "."
+                char *ptr = strchr(id, '.');
+                *ptr = 0;
+
+                auto alnid = (*fastaid_to_alnid).find(id);
+                if (alnid == (*fastaid_to_alnid).end())
+                {
+                    printf("ERROR: Species %s in alignment file does not exist in model (or is not translated correctly)!\n", id);
+                    exit(-1);
+                }
+
+                aln.seqs[alnid->second] = seq; // TODO: std::move?
                 free(id);
                 free(seq);
             }
