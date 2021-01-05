@@ -9,7 +9,7 @@
 #include "src/parallel_file_reader.hpp"
 
 //#ifdef OPENMP
-#include <omp.h>
+//#include <omp.h>
 //#endif
 
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
@@ -407,15 +407,35 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
     }
 }
 
+struct comp_result
+{
+    double fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls;
+
+    comp_result(double fixed_score, double fixed_anc, double mle_score, double mle_anc, double omega_score, double bls)
+    {
+        this->fixed_score = fixed_score;
+        this->fixed_anc = fixed_anc;
+        this->mle_score = mle_score;
+        this->mle_anc = mle_anc;
+        this->omega_score = omega_score;
+        this->bls = bls;
+    }
+
+    void print() const noexcept
+    {
+        printf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls);
+    }
+};
+
 int main(int /*argc*/, char ** /*argv*/)
 {
-//    algorithm_t mode = algorithm_t::FIXED;
     unsigned threads = 1;
     unsigned jobs = 1;
     char model_str[] = "100vertebrates";
     char selected_species_str[] = ""; // "Dog,Cow,Horse,Human,Mouse,Rat";
     char aln_path[] = "/home/chris/Downloads/chr22.head.maf";
 //    char aln_path[] = "/home/chris/dev-uni/PhyloCSF++/ALDH2.exon5.maf";
+    char scores_path[] = "/home/chris/dev-uni/PhyloCSF++/chr22.head.orig.results.formatted";
 
     Data data_omega, data_fixed_mle;
     char delim[] = ",";
@@ -451,7 +471,6 @@ int main(int /*argc*/, char ** /*argv*/)
                     {
                         fastaid_to_alnid.emplace(c2, i); // maf identifier => id in vector for ids and seqs
                         fastaid_to_alnid.emplace(c1, i); // maf identifier => id in vector for ids and seqs
-//                        printf("%20s\t%10s\t%2d\n", c1, c2, i);
                         found = true;
                         break;
                     }
@@ -460,6 +479,7 @@ int main(int /*argc*/, char ** /*argv*/)
                     printf("ERROR: %20s\t%10s\tmapping missing!\n", c1, c2);
             }
         }
+        fclose(file);
 
         // TODO: check whether there are mappings missing (not sure) or superfluous mappings (also not sure)
     }
@@ -471,79 +491,103 @@ int main(int /*argc*/, char ** /*argv*/)
         alignments.emplace_back(data_omega.phylo_array); // TODO: remove id's outside of aln struct because they are read-only
     }
 
-    // read alignment
-    // read_alignment(aln_path, alignment);
+    // open correct values from orig PhyloCSF++
+    // awk 'BEGIN{ OFS="\t"; print "ALN-ID", "FIXED", "FIXED-ANC", "MLE", "MLE-ANC", "OMEGA", "BLS" } ($0 != "" && !($0 ~ /^\/tmp/)) { if ($3 ~ /^\/tmp/) { $3 = "nan" } if ($2 == "Fixed:") { bls[$1] = $4 } anc[$1][$2] = $5; f[$1][$2] = $3 } END { for (id in f) print id, f[id]["Fixed:"], anc[id]["Fixed:"], f[id]["MLE:"], anc[id]["MLE:"], f[id]["Omega:"], bls[id] }' chr22.head.orig.results > chr22.head.orig.results.formatted
+    std::vector<comp_result> results;
+    {
+        FILE *file = fopen(scores_path, "r");
+        if (file != NULL)
+        {
+            char line[BUFSIZ];
+            size_t id;
+            double fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls;
+            fgets(line, sizeof line, file); // skip header line
+            while (fgets(line, sizeof line, file) != NULL)
+            {
+                sscanf(line, "%lu\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf", &id, &fixed_score, &fixed_anc, &mle_score, &mle_anc, &omega_score, &bls);
+                assert(id == results.size());
+                results.emplace_back(fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls);
+            }
+        }
+        fclose(file);
+    }
+//    printf("%ld\n%lf\n%lf\n%lf\n%lf\n%lf\n%lf\n\n", 0,  results[0].fixed_score, results[0].fixed_anc, results[0].mle_score, results[0].mle_anc, results[0].omega_score, results[0].bls);
 
     parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
 
 //    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data, mode)
     for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it more parts than threads
     {
-        auto & aln = alignments[omp_get_thread_num()];
+        auto & aln = alignments[0/*omp_get_thread_num()*/];
         size_t a_id = 0;
-        maf_rd.get_next_alignment(aln, job_id);
-        maf_rd.get_next_alignment(aln, job_id);
         // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
-        while (a_id < 10)
+
+        printf("ALN-ID\tFIXED\tFIXED-ANC\tMLE\tMLE-ANC\tOMEGA\tBLS\n");
+
+        maf_rd.get_next_alignment(aln, job_id); // skip 1st (which is big) alignment
+//        maf_rd.get_next_alignment(aln, job_id);
+
+        while (a_id < 2 /*results.size()*/)
         {
+            auto & r = results[0/*a_id*/];
+
+            std::tuple<double, double, double> results_fixed, results_mle, results_omega;
+
 //            {
-//                auto new_results = run(data_fixed_mle, aln, algorithm_t::FIXED);
+//                results_fixed = run(data_fixed_mle, aln, algorithm_t::FIXED);
 //                data_fixed_mle.clear();
-//                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Fixed", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
+//                const double score = fabs(std::get<0>(results_fixed) - r.fixed_score);
+//                const double anc = fabs(std::get<2>(results_fixed) - r.fixed_anc);
+//                const double bls = fabs(std::get<1>(results_fixed) - r.bls);
+//                if (score >= 0.000001 || anc >= 0.000001 || bls >= 0.000001)
+//                    printf("%ld\t%s:\t%f\t%f\t%f\t*****\n", a_id, "Fixed", score, anc, bls);
 //            }
+//
 //            {
-//                auto new_results = run(data_fixed_mle, aln, algorithm_t::MLE);
+//                results_mle = run(data_fixed_mle, aln, algorithm_t::MLE);
 //                data_fixed_mle.clear();
-//                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "MLE", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
+//                const double score = fabs(std::get<0>(results_mle) - r.mle_score);
+//                const double anc = fabs(std::get<2>(results_mle) - r.mle_anc);
+//                if (score >= 0.000001 || anc >= 0.000001)
+//                    printf("%ld\t%s:\t%f\t%f\t--------\t*****\n", a_id, "MLE", score, anc);
 //            }
+
             {
-                auto new_results = run(data_omega, aln, algorithm_t::OMEGA);
+                results_omega = run(data_fixed_mle, aln, algorithm_t::OMEGA);
                 data_omega.clear();
-                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Omega", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
+                const double score = fabs(std::get<0>(results_omega) - r.omega_score);
+                if (score >= 0.000001)
+                    printf("%ld\t%s:\t%f\t--------\t--------\t*****\n", a_id, "Omega", score);
             }
+
+            printf("%ld\t%f\t%f\t%f\t%f\t%f\t%f\n",
+                       a_id,
+                       std::get<0>(results_fixed), std::get<2>(results_fixed),
+                       std::get<0>(results_mle), std::get<2>(results_mle),
+                       std::get<0>(results_omega), std::get<1>(results_fixed)
+            );
+            fflush(stdout);
 
 //            for (auto & seq : aln.seqs)
 //                seq = "";
             ++a_id;
         }
-
-        // TODO: bls incorrect for id = 1 and id = 3 (also anc and Phylo)
     }
-
-//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
-//    auto new_results = run("/home/chris/dev-uni/chr4_100vert_alignment.fa", "100vertebrates", "", algorithm_t::FIXED);
-//    auto new_results = run("/tmp/test", "100vertebrates", "Dog,Cow,Horse,Human,Mouse,Rat", algorithm_t::MLE);
-//    double new_phylo = std::get<0>(new_results);
-//    double new_bls   = std::get<1>(new_results);
-//    double new_anc   = std::get<2>(new_results);
-//    printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
 
     return 0;
 }
 
-//    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
-
-//    char* aln_path = argv[1];
-//    char* model_str = argv[2];
-//    char* selected_species_str = argv[3];
-//
+//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
+//    auto new_results = run("/home/chris/dev-uni/chr4_100vert_alignment.fa", "100vertebrates", "", algorithm_t::FIXED);
+//    auto new_results = run("/tmp/test", "100vertebrates", "Dog,Cow,Horse,Human,Mouse,Rat", algorithm_t::MLE);
 //    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
 //    char model_str[] = "23flies";
 //    "Dog,Cow,Horse,Human,Mouse,Rat";
-//
 //    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
-//    exit(0);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
 //    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
-//
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::OMEGA);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
 //    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
-//
 //    printf("\nSOLL:\n"
 //           "361.687566\t0.731391\t48.024101\n"
 //           "297.623468\t0.731391\t48.257442\n"
 //           "-176.807976\t0.058448\t-33.030802\n"   // FIXED
 //           "-179.110842\t0.058448\t-32.878297\n"); // MLE
-
-

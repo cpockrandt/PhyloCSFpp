@@ -226,12 +226,23 @@ struct instance_t
                     gsl_matrix_free(q);
                     q = NULL;
                 }
+
                 if (have_pi)
                 {
                     assert(pi != NULL);
                     gsl_vector_free(pi);
                     pi = NULL;
                     have_pi = false;
+                }
+                else
+                {
+                    // TODO: multple elements can have the same pointer which would lead to a double-free. investigate this memory leak!
+//                    if (pi != NULL)
+//                    {
+//                        gsl_vector_free(pi);
+//                        pi = NULL;
+//                    }
+//                    assert(pi == NULL); // TODO: either always keep allocated memory for have pi or get rid of bool "have_pi" and check whether pi == NULL
                 }
             }; // destructor
         };
@@ -412,6 +423,8 @@ struct instance_t
         // -- still in of_Q
         if (is_l_complex)
         {
+            // TODO: have to code this like the ELSE case, re-use memory. but for now we assume that we will never use complex numbers
+            assert(this->model.qms[0].eig.nr_s == NULL && this->model.qms[0].eig.nr_l == NULL && this->model.qms[0].eig.nr_s2 == NULL);
             this->model.qms[0].eig.nr_s = s;
             this->model.qms[0].eig.nr_l = l;
             this->model.qms[0].eig.nr_s2 = s2;
@@ -423,13 +436,34 @@ struct instance_t
         else
         {
             // transform complex matrices and vector into real ones
-            this->model.qms[0].eig.r_s = gsl_matrix_alloc(64, 64);
-            this->model.qms[0].eig.r_l = gsl_vector_alloc(64);
-            this->model.qms[0].eig.r_s2 = gsl_matrix_alloc(64, 64);
+            if (this->model.qms[0].eig.r_s == NULL)
+            {
+                assert(this->model.qms[0].eig.r_l == NULL && this->model.qms[0].eig.r_s2 == NULL);
 
-            this->model.qms[0].eig.nr_s = NULL;
-            this->model.qms[0].eig.nr_l = NULL;
-            this->model.qms[0].eig.nr_s2 = NULL;
+                this->model.qms[0].eig.r_s = gsl_matrix_alloc(64, 64);
+                this->model.qms[0].eig.r_l = gsl_vector_alloc(64);
+                this->model.qms[0].eig.r_s2 = gsl_matrix_alloc(64, 64);
+            }
+            else
+            {
+                assert(this->model.qms[0].eig.r_l != NULL && this->model.qms[0].eig.r_s2 != NULL);
+            }
+
+            // TODO: free memory
+            if (this->model.qms[0].eig.nr_s != NULL)
+            {
+                assert(this->model.qms[0].eig.nr_l != NULL && this->model.qms[0].eig.nr_s2 != NULL);
+                gsl_matrix_complex_free(this->model.qms[0].eig.nr_s);
+                gsl_vector_complex_free(this->model.qms[0].eig.nr_l);
+                gsl_matrix_complex_free(this->model.qms[0].eig.nr_s2);
+                this->model.qms[0].eig.nr_s = NULL;
+                this->model.qms[0].eig.nr_l = NULL;
+                this->model.qms[0].eig.nr_s2 = NULL;
+            }
+            else
+            {
+                assert(this->model.qms[0].eig.nr_l == NULL && this->model.qms[0].eig.nr_s2 == NULL);
+            }
 
             for (uint8_t i = 0; i < 64; ++i)
             {
@@ -451,6 +485,7 @@ struct instance_t
 
         this->model.qms[0].tol = tol;
         this->model.qms[0].have_pi = false;
+        // TODO: delete/reuse old pi? is it shared/still needed by other elements?
         this->model.qms[0].pi = gsl_vector_alloc(64); // TODO: unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
         gsl_vector_set_zero(this->model.qms[0].pi); // TODO: only for debugging
 
