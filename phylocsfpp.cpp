@@ -126,6 +126,12 @@ struct Data
 
     std::unordered_set<std::string> selected_species;
 
+    void clear()
+    {
+        c_instance.clear();
+        nc_instance.clear();
+    }
+
     void load_model(const char * dataset_or_path, const bool only_phylo_tree)
     {
         auto dataset = models.find(dataset_or_path);
@@ -456,7 +462,6 @@ int main(int /*argc*/, char ** /*argv*/)
         }
 
         // TODO: check whether there are mappings missing (not sure) or superfluous mappings (also not sure)
-
     }
 
     // prepare alignment
@@ -476,25 +481,29 @@ int main(int /*argc*/, char ** /*argv*/)
     {
         auto & aln = alignments[omp_get_thread_num()];
         size_t a_id = 0;
+        maf_rd.get_next_alignment(aln, job_id);
+        maf_rd.get_next_alignment(aln, job_id);
         // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
-        while (maf_rd.get_next_alignment(aln, job_id))
+        while (a_id < 10)
         {
-            {
-                auto new_results = run(data_fixed_mle, aln, algorithm_t::FIXED);
-                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Fixed", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
-            }
+//            {
+//                auto new_results = run(data_fixed_mle, aln, algorithm_t::FIXED);
+//                data_fixed_mle.clear();
+//                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Fixed", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
+//            }
 //            {
 //                auto new_results = run(data_fixed_mle, aln, algorithm_t::MLE);
+//                data_fixed_mle.clear();
 //                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "MLE", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
 //            }
-//            if (a_id == 4)
-//            {
-//                auto new_results = run(data_omega, aln, algorithm_t::OMEGA);
-//                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Omega", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
-//            }
+            {
+                auto new_results = run(data_omega, aln, algorithm_t::OMEGA);
+                data_omega.clear();
+                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Omega", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
+            }
 
-            for (auto & seq : aln.seqs)
-                seq = "";
+//            for (auto & seq : aln.seqs)
+//                seq = "";
             ++a_id;
         }
 

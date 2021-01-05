@@ -157,9 +157,16 @@ struct instance_t
                     gsl_matrix_free(r_s);
                     gsl_matrix_free(r_s2);
                     gsl_vector_free(r_l);
+                    r_s = NULL;
+                    r_s2 = NULL;
+                    r_l = NULL;
+
                     gsl_matrix_complex_free(nr_s);
                     gsl_matrix_complex_free(nr_s2);
                     gsl_vector_complex_free(nr_l);
+                    nr_s = NULL;
+                    nr_s2 = NULL;
+                    nr_l = NULL;
                 }
             } eig;
 
@@ -211,15 +218,20 @@ struct instance_t
                 return *this;
             };
             q_diag_t& operator=(q_diag_t&&) = default; // move assignment
+
             virtual ~q_diag_t()
             {
-                gsl_matrix_free(q);
-                q = NULL;
+                if (q != NULL)
+                {
+                    gsl_matrix_free(q);
+                    q = NULL;
+                }
                 if (have_pi)
                 {
                     assert(pi != NULL);
                     gsl_vector_free(pi);
                     pi = NULL;
+                    have_pi = false;
                 }
             }; // destructor
         };
@@ -251,10 +263,27 @@ struct instance_t
 //            return *this;
 //        };
         model_t& operator=(model_t&&) = default; // move assignment
+
+        void clear()
+        {
+            if (prior != NULL)
+            {
+                gsl_vector_free(prior);
+                prior = NULL;
+            }
+            for (auto p : pms)
+                gsl_matrix_free(p);
+            pms.clear();
+            qms.clear();
+        }
+
         ~model_t()
         {
             if (prior != NULL)
+            {
                 gsl_vector_free(prior);
+                prior = NULL;
+            }
             for (auto p : pms)
                 gsl_matrix_free(p);
         };
@@ -270,20 +299,47 @@ struct instance_t
         std::vector<newick_elem> tree_p14n; // tree with evaluated branch lengths (already computed)
         std::vector<domain> tree_domains;
 
+        void clear()
+        {
+            if (q_p14ns != NULL)
+            {
+                gsl_matrix_free(q_p14ns);
+                q_p14ns = NULL;
+            }
+        }
+
         ~p14n_t()
         {
             if (q_p14ns != NULL)
+            {
                 gsl_matrix_free(q_p14ns);
+                q_p14ns = NULL;
+            }
         };
     } p14n;
 
     gsl_vector * q_settings = NULL;
     double tree_settings; // this only stores the tree scale (a single float/double), no need for a vector!
 
+    void clear()
+    {
+        if (q_settings != NULL)
+        {
+            gsl_vector_free(q_settings);
+            q_settings = NULL;
+        }
+
+        p14n.clear();
+        model.clear();
+    }
+
     ~instance_t()
     {
         if (q_settings != NULL)
+        {
             gsl_vector_free(q_settings);
+            q_settings = NULL;
+        }
     }
 
     void instantiate_tree(const double factor) noexcept // see instantiate_tree
@@ -399,11 +455,6 @@ struct instance_t
         gsl_vector_set_zero(this->model.qms[0].pi); // TODO: only for debugging
 
         gsl_matrix_free(q_cpy);
-
-//        std::cout << *this->model.qms[0].q << '\n';
-//        std::cout << *this->model.qms[0].eig.r_l << '\n';
-//        std::cout << *this->model.qms[0].eig.r_s << '\n';
-//        exit(13);
     }
 };
 
