@@ -41,6 +41,7 @@ uint8_t get_dna_id(const char n)
         case '.':
         case '-':
         case 'N': // TODO: some amino acids could be called even with a single N!
+        case 'n':
             return 4;
         default:
             // TODO: error handling?

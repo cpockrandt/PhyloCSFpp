@@ -407,7 +407,7 @@ struct instance_t
     }
 };
 
-std::ostream& operator<<(std::ostream & os, const instance_t::p14n_t & x)
+std::ostream& operator<<(std::ostream & os, const instance_t::p14n_t &)
 {
 //    os << "q_p14ns\n" << x.q_p14ns << '\n';
 //    char buf[10];
@@ -420,7 +420,7 @@ std::ostream& operator<<(std::ostream & os, const instance_t::p14n_t & x)
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, const instance_t::model_t & x)
+std::ostream& operator<<(std::ostream & os, const instance_t::model_t &)
 {
 //    os << "tree\n" << x.tree << '\n';
 //    os << "qms\n" << x.qms << '\n';
@@ -432,7 +432,7 @@ std::ostream& operator<<(std::ostream & os, const instance_t::model_t & x)
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, const instance_t & x)
+std::ostream& operator<<(std::ostream & os, const instance_t &)
 {
 //    os << x.p14n << '\n';
 //    os << x.model;

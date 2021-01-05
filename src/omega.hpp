@@ -201,7 +201,7 @@ double get_lpr_kappa(const double kappa) noexcept
 
 
 
-void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, const double t, double & lpr)
+void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, const double /*t*/, double & lpr)
 {
     // let workspace = PhyloLik.new_workspace (PM.tree (PM.P14n.model inst)) Codon.dim
     workspace_t workspace;

@@ -77,13 +77,11 @@ std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, dou
     return os;
 }
 
-#include "src/alignment_reader.hpp"
 #include "src/ecm.hpp"
 #include "src/instance.hpp"
 #include "src/fixed_lik.hpp"
 #include "src/additional_scores.hpp"
 #include "src/omega.hpp"
-#include "src/maf_parser.hpp"
 
 //std::ostream& operator<<(std::ostream & os, const gsl_matrix& m)
 //{
@@ -403,9 +401,9 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
     }
 }
 
-int main(int argc, char ** argv)
+int main(int /*argc*/, char ** /*argv*/)
 {
-    algorithm_t mode = algorithm_t::FIXED;
+//    algorithm_t mode = algorithm_t::FIXED;
     unsigned threads = 1;
     unsigned jobs = 1;
     char model_str[] = "100vertebrates";
@@ -413,17 +411,19 @@ int main(int argc, char ** argv)
     char aln_path[] = "/home/chris/Downloads/chr22.head.maf";
 //    char aln_path[] = "/home/chris/dev-uni/PhyloCSF++/ALDH2.exon5.maf";
 
-    Data data;
+    Data data_omega, data_fixed_mle;
     char delim[] = ",";
 
     char *ptr = strtok(selected_species_str, delim);
     while (ptr != NULL)
     {
-        data.selected_species.emplace(ptr);
+        data_omega.selected_species.emplace(ptr);
+        data_fixed_mle.selected_species.emplace(ptr);
         ptr = strtok(NULL, delim);
     }
 
-    data.load_model(model_str, mode == algorithm_t::OMEGA); // TODO: check whether selected species exist!
+    data_omega.load_model(model_str, true); // TODO: check whether selected species exist!
+    data_fixed_mle.load_model(model_str, false); // TODO: check whether selected species exist!
 
     std::unordered_map<std::string, uint16_t> fastaid_to_alnid;
     // we use the order of data.phylo_array
@@ -439,9 +439,9 @@ int main(int argc, char ** argv)
                 sscanf(line, "%s\t%s", c1, c2); // PhyloCSF identifier => maf identifier
 
                 bool found = false;
-                for (uint16_t i = 0; i < data.phylo_array.size(); ++i)
+                for (uint16_t i = 0; i < data_omega.phylo_array.size(); ++i)
                 {
-                    if (strcmp(data.phylo_array[i].label.c_str(), c1) == 0)
+                    if (strcmp(data_omega.phylo_array[i].label.c_str(), c1) == 0)
                     {
                         fastaid_to_alnid.emplace(c2, i); // maf identifier => id in vector for ids and seqs
                         fastaid_to_alnid.emplace(c1, i); // maf identifier => id in vector for ids and seqs
@@ -463,7 +463,7 @@ int main(int argc, char ** argv)
     std::vector<alignment_t> alignments;
     for (unsigned i = 0; i < threads; ++i)
     {
-        alignments.emplace_back(data.phylo_array); // TODO: remove id's outside of aln struct because they are read-only
+        alignments.emplace_back(data_omega.phylo_array); // TODO: remove id's outside of aln struct because they are read-only
     }
 
     // read alignment
@@ -471,7 +471,7 @@ int main(int argc, char ** argv)
 
     parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
 
-    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data, mode)
+//    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data, mode)
     for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it more parts than threads
     {
         auto & aln = alignments[omp_get_thread_num()];
@@ -479,25 +479,20 @@ int main(int argc, char ** argv)
         // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
         while (maf_rd.get_next_alignment(aln, job_id))
         {
-//            if (a_id == 1)
             {
-                auto new_results = run(data, aln, mode);
-                double new_phylo = std::get<0>(new_results);
-                double new_bls   = std::get<1>(new_results);
-                double new_anc   = std::get<2>(new_results);
-                printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
-
-                #pragma omp critical
-                {
-//                for (size_t i = 0; i < aln.ids.size(); ++i)
-//                {
-//                    if (aln.seqs[i] != "")
-//                        printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
-//                }
-//                printf("\n");
-                }
-//                exit(1);
+                auto new_results = run(data_fixed_mle, aln, algorithm_t::FIXED);
+                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Fixed", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
             }
+//            {
+//                auto new_results = run(data_fixed_mle, aln, algorithm_t::MLE);
+//                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "MLE", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
+//            }
+//            if (a_id == 4)
+//            {
+//                auto new_results = run(data_omega, aln, algorithm_t::OMEGA);
+//                printf("%ld\t%s:\t%f\t%f\t%f\n", a_id, "Omega", std::get<0>(new_results), std::get<1>(new_results), std::get<2>(new_results));
+//            }
+
             for (auto & seq : aln.seqs)
                 seq = "";
             ++a_id;
@@ -517,32 +512,29 @@ int main(int argc, char ** argv)
     return 0;
 }
 
-////    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
-////    exit(1);
+//    parse_maf("/home/chris/dev-uni/PhyloCSF++/test/test.maf");
+
+//    char* aln_path = argv[1];
+//    char* model_str = argv[2];
+//    char* selected_species_str = argv[3];
 //
-////    char* aln_path = argv[1];
-////    char* model_str = argv[2];
-////    char* selected_species_str = argv[3];
+//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
+//    char model_str[] = "23flies";
+//    "Dog,Cow,Horse,Human,Mouse,Rat";
 //
-////    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
-////    char model_str[] = "23flies";
-////    "Dog,Cow,Horse,Human,Mouse,Rat";
-//
-////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
-////    exit(0);
-////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
-////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
+//    exit(0);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::FIXED);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
 //
 //    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::OMEGA);
-////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
-////    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
-////
-////    printf("\nSOLL:\n"
-////           "361.687566\t0.731391\t48.024101\n"
-////           "297.623468\t0.731391\t48.257442\n"
-////           "-176.807976\t0.058448\t-33.030802\n"   // FIXED
-////           "-179.110842\t0.058448\t-32.878297\n"); // MLE
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::FIXED);
+//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
 //
-//    return 0;
-//}
+//    printf("\nSOLL:\n"
+//           "361.687566\t0.731391\t48.024101\n"
+//           "297.623468\t0.731391\t48.257442\n"
+//           "-176.807976\t0.058448\t-33.030802\n"   // FIXED
+//           "-179.110842\t0.058448\t-32.878297\n"); // MLE
+
 
