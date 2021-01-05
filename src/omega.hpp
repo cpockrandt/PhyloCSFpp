@@ -159,11 +159,13 @@ void compute_q_p14ns_and_q_scale_p14ns_omega(instance_t & instance)
 {
     gsl_vector * pi_evaluated = pi_expr(instance.q_settings);
 
-    auto q_p14n_tmp = comp_q_p14n(instance.q_settings, pi_evaluated);
+    gsl_matrix * q_p14n_tmp = comp_q_p14n(instance.q_settings, pi_evaluated);
 
     instance.p14n.q_scale_p14ns = comp_q_scale(pi_evaluated, q_p14n_tmp);
 
-    instance.p14n.q_p14ns = gsl_matrix_alloc(64, 64);
+    if (instance.p14n.q_p14ns == NULL)
+        instance.p14n.q_p14ns = gsl_matrix_alloc(64, 64);
+
     for (uint8_t i = 0; i < 64; ++i)
     {
         for (uint8_t j = 0; j < 64; ++j)
