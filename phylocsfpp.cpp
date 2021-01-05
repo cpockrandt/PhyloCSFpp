@@ -392,11 +392,11 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
         const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
         const double bls_score = compute_bls_score(data.phylo_tree, alignment, bls_per_codon);
 
-        for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
-        {
-            const double _score = 10.0 * (c_lpr_per_codon[xx] - nc_lpr_per_codon[xx]) / log(10.0);
-            printf("Codon %d\t%f\t%f\n", xx, _score, bls_per_codon[xx]);
-        }
+//        for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
+//        {
+//            const double _score = 10.0 * (c_lpr_per_codon[xx] - nc_lpr_per_codon[xx]) / log(10.0);
+//            printf("Codon %d\t%f\t%f\n", xx, _score, bls_per_codon[xx]);
+//        }
 
 //        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
         return std::make_tuple(phylocsf_score, bls_score, anchestral_score);
@@ -408,9 +408,10 @@ int main(int argc, char ** argv)
     algorithm_t mode = algorithm_t::FIXED;
     unsigned threads = 1;
     unsigned jobs = 1;
-    char *model_str = "100vertebrates";
+    char model_str[] = "100vertebrates";
     char selected_species_str[] = ""; // "Dog,Cow,Horse,Human,Mouse,Rat";
-    char *aln_path = "/home/chris/Downloads/chr22.head.maf";
+    char aln_path[] = "/home/chris/Downloads/chr22.head.maf";
+//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF++/ALDH2.exon5.maf";
 
     Data data;
     char delim[] = ",";
@@ -443,6 +444,7 @@ int main(int argc, char ** argv)
                     if (strcmp(data.phylo_array[i].label.c_str(), c1) == 0)
                     {
                         fastaid_to_alnid.emplace(c2, i); // maf identifier => id in vector for ids and seqs
+                        fastaid_to_alnid.emplace(c1, i); // maf identifier => id in vector for ids and seqs
 //                        printf("%20s\t%10s\t%2d\n", c1, c2, i);
                         found = true;
                         break;
@@ -473,27 +475,35 @@ int main(int argc, char ** argv)
     for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it more parts than threads
     {
         auto & aln = alignments[omp_get_thread_num()];
+        size_t a_id = 0;
         // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
         while (maf_rd.get_next_alignment(aln, job_id))
         {
-            auto new_results = run(data, aln, mode);
-            double new_phylo = std::get<0>(new_results);
-            double new_bls   = std::get<1>(new_results);
-            double new_anc   = std::get<2>(new_results);
-            printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
-
-            #pragma omp critical
+//            if (a_id == 1)
             {
-                for (size_t i = 0; i < aln.ids.size(); ++i)
+                auto new_results = run(data, aln, mode);
+                double new_phylo = std::get<0>(new_results);
+                double new_bls   = std::get<1>(new_results);
+                double new_anc   = std::get<2>(new_results);
+                printf("new : %f\t%f\t%f\n", new_phylo, new_bls, new_anc);
+
+                #pragma omp critical
                 {
-                    if (aln.seqs[i] != "")
-                        printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//                for (size_t i = 0; i < aln.ids.size(); ++i)
+//                {
+//                    if (aln.seqs[i] != "")
+//                        printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//                }
+//                printf("\n");
                 }
-                printf("\n");
+//                exit(1);
             }
             for (auto & seq : aln.seqs)
                 seq = "";
+            ++a_id;
         }
+
+        // TODO: bls incorrect for id = 1 and id = 3 (also anc and Phylo)
     }
 
 //    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
@@ -530,8 +540,8 @@ int main(int argc, char ** argv)
 ////    printf("\nSOLL:\n"
 ////           "361.687566\t0.731391\t48.024101\n"
 ////           "297.623468\t0.731391\t48.257442\n"
-////           "-176.807976\t0.058448\t-33.030802\n"
-////           "-179.110842\t0.058448\t-32.878297\n");
+////           "-176.807976\t0.058448\t-33.030802\n"   // FIXED
+////           "-179.110842\t0.058448\t-32.878297\n"); // MLE
 //
 //    return 0;
 //}

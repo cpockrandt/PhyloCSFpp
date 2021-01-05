@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "translation.hpp"
+
 #include <cassert>
 
 struct alignment_t
@@ -226,6 +228,10 @@ public:
         // points to the beginning of "a score=....\n"
         skip(thread_id);
 
+        // size_t max_seq_len = 0;
+
+        int64_t ref_seq_id = -1;
+
         char line_type;
         while (file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(thread_id)) != 'a')
         {
@@ -237,7 +243,8 @@ public:
 
                 // cut id starting after "."
                 char *ptr = strchr(id, '.');
-                *ptr = 0;
+                if (ptr != NULL)
+                    *ptr = 0;
 
                 auto alnid = (*fastaid_to_alnid).find(id);
                 if (alnid == (*fastaid_to_alnid).end())
@@ -247,12 +254,94 @@ public:
                 }
 
                 aln.seqs[alnid->second] = seq; // TODO: std::move?
+
+                // first sequence we encounter is the reference sequence. store its length!
+                if (ref_seq_id == -1)
+                    ref_seq_id = alnid->second;
+                else
+                {
+//                    printf("%ld\t%ld\n", aln.seqs[ref_seq_id].size(), aln.seqs[alnid->second].size());
+                    assert(aln.seqs[ref_seq_id].size() == aln.seqs[alnid->second].size()); // all seqs same length
+                }
+
                 free(id);
                 free(seq);
             }
             else
             {
                 skip(thread_id);
+            }
+        }
+
+//        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+//            printf("%25s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//        printf("\n\n\n");
+
+        size_t new_ref_seq_len = aln.seqs[ref_seq_id].size();
+        for (uint64_t pos = 0; pos < aln.seqs[ref_seq_id].size(); ++pos)
+        {
+            if (aln.seqs[ref_seq_id][pos] == '-')
+            {
+                aln.seqs[ref_seq_id][pos] = 'X';
+                --new_ref_seq_len;
+            }
+        }
+
+        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+        {
+            if (i != (size_t) ref_seq_id && aln.seqs[i].size() != 0)
+            {
+                for (uint64_t pos = 0; pos < aln.seqs[i].size(); ++pos)
+                {
+                    if (aln.seqs[ref_seq_id][pos] == 'X')
+                        aln.seqs[i][pos] = 'X';
+                }
+            }
+        }
+
+//        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+//            printf("%25s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//        printf("\n\n\n");
+
+        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+        {
+            std::string & s = aln.seqs[i];
+            // for species not included in the alignment assign them the sequence NNNN...NNNN. Is this necessary? (TODO)
+            if (aln.seqs[i].size() == 0)
+            {
+                s = std::string(new_ref_seq_len, 'N');
+            }
+            // remove gaps from reference sequence (linear scan over the string)
+            else
+            {
+                size_t pos_w = 0;
+                for (size_t pos_r = 0; pos_r < s.size(); ++pos_r)
+                {
+                    if (s[pos_r] != 'X')
+                    {
+                        s[pos_w] = s[pos_r];
+                        ++pos_w;
+                    }
+                }
+                s.resize(pos_w);
+            }
+        }
+
+//        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+//            printf("%25s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//        printf("\n\n\n");
+
+        // translate nucleotides
+        for (uint16_t i = 0; i < aln.seqs.size(); ++i)
+        {
+            // alignment.peptides.push_back(translate(alignment.seqs[i]));
+            aln.peptides[i].resize(aln.seqs[i].size() / 3);
+            for (uint64_t aa_pos = 0; aa_pos < aln.peptides[i].size(); ++aa_pos)
+            {
+                aln.peptides[i][aa_pos] = get_amino_acid_id(
+                        aln.seqs[i][3 * aa_pos],
+                        aln.seqs[i][3 * aa_pos + 1],
+                        aln.seqs[i][3 * aa_pos + 2]);
             }
         }
 

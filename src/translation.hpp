@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cassert>
 
 char translation_table[65] = {

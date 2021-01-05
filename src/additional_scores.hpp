@@ -83,7 +83,7 @@ double compute_bls_score(newick_node* node, const alignment_t & alignment, std::
             if (alignment.seqs[species_id].size() > 0 && get_dna_id(alignment.seqs[species_id][i]) <= 3)
                 subset.insert(alignment.ids[species_id]);
         }
-//        printf("%d %f\n", subset.size(), newick_sum_branch_lengths(node, subset));
+//        printf("%ld %f\n", subset.size(), newick_sum_branch_lengths(node, subset));
         if (subset.size() >= 2) // NOTE: if only one sequence has a DNA4 base, Ocaml produces an (empty?) subtree, and we seem to produce a tree with some branch length! that's why we have this if statement here!
         {
             bl_total += newick_sum_branch_lengths(node, subset);
