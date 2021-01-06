@@ -60,7 +60,8 @@ gsl_vector * alpha_get(const instance_t & instance, workspace_t & workspace, con
     else
     {
         auto row = gsl_matrix_row(&workspace.alpha.matrix, br - nl);
-        gsl_vector * result = _deep_copy_vector(&row.vector);
+        gsl_vector * result = NULL;
+        _deeep_copy_vector(&result, &row.vector);
         return result;
 //        return gsl_matrix_row(alpha, br - nl); // Gsl.Matrix.row x.alpha (br-nl)
     }
@@ -201,8 +202,9 @@ gsl_vector * complex_to_real(const gsl_vector_complex * const cv, const double t
         const gsl_complex & c = gsl_vector_complex_get(cv, i);
         if (!check_real(c, tol))
         {
-            printf("real_of_complex %g+%gi", GSL_REAL(c), GSL_IMAG(c));
-            exit(19);
+//            printf("real_of_complex %g+%gi", GSL_REAL(c), GSL_IMAG(c));
+            throw std::runtime_error("real_of_complex " + std::to_string(GSL_REAL(c)) + "+" + std::to_string(GSL_IMAG(c)) + "i");
+//            exit(19);
         }
         gsl_vector_set(v, i, GSL_REAL(c));
     }
@@ -218,8 +220,9 @@ gsl_matrix * complex_to_real(const gsl_matrix_complex * const cm, const double t
         {
             const gsl_complex &c = gsl_matrix_complex_get(cm, i, j);
             if (!check_real(c, tol)) {
-                printf("real_of_complex %g+%gi", GSL_REAL(c), GSL_IMAG(c));
-                exit(20);
+//                printf("real_of_complex %g+%gi", GSL_REAL(c), GSL_IMAG(c));
+                throw std::runtime_error("real_of_complex " + std::to_string(GSL_REAL(c)) + "+" + std::to_string(GSL_IMAG(c)) + "i");
+//                exit(20);
             }
             gsl_matrix_set(m, i, j, GSL_REAL(c));
         }
@@ -421,7 +424,6 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 //            }
 //            std::cout << '\n';
 //        }
-//        exit(10);
 
 //        { tree = tree; pms = pms; leaves = leaves; workspace = workspace; my_generation = workspace.generation;
 //            alpha = alpha; z = nan; have_alpha = false; beta = beta; have_beta = false }
@@ -523,7 +525,6 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
     minimizer_params_t params {instance, alignment};
     fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params);
 //    std::cout << "good init: " << params.x << " => " << params.lpr << '\n';
-//    exit(44);
     if (lo < params.x && params.x < hi)
     {
         const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;

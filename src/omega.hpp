@@ -290,7 +290,6 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
 //                std::cout << gsl_matrix_get(&workspace.beta.matrix, x, y) << ' ';
 //            std::cout << '\n';
 //        }
-//        exit(10);
 
         ensure_alpha(instance, workspace, alignment, aa_pos); // eventually return more than just the info.z score, because it might be used for the ancestor computation
 //        std::cout << workspace.alpha.matrix << '\n';
@@ -314,11 +313,9 @@ double minimizer_lpr_leaves_rho(const double x, void * params)
     lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
 
 //    print(min_params->instance);
-//    exit(19);
 //    std::cout << "get_lpr_rho(" << x << "): " << get_lpr_rho(x) << '\n';
 //    printf("lpr_leaves result (rho, without get_rho): %f => %f\n", x, min_params->lpr);
 //    std::cout << "lpr_leaves result (rho, without get_rho): " << x << " => " << min_params->lpr << '\n';
-//    exit(55);
     min_params->lpr += get_lpr_rho(x);
 //    printf("lpr_leaves result (rho, with    get_rho): %f => %f\n", x, min_params->lpr);
 //    std::cout << "lpr_leaves result (rho, with    get_rho): " << x << " => " << min_params->lpr << '\n';
@@ -343,7 +340,6 @@ double minimizer_lpr_leaves_kappa(const double x, void * params)
     min_params->lpr += get_lpr_kappa(x);
 //    printf("lpr_leaves result (kap, with    get_kap): %f => %f %f\n", x, min_params->lpr, lpr_old);
 //    print(min_params->instance);
-//    exit(107);
 //    printf("lpr_leaves result (kap, with    get_kap): %f => %f\n", x, min_params->lpr);
 //    printf("get_kappa(%f): %f\n", x, get_lpr_kappa(x));
     return (-1) * min_params->lpr;

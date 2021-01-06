@@ -100,40 +100,60 @@ inline bool check_real(const gsl_complex& c, const double tol)
         (fabs(c.dat[0]) < tol && fabs(c.dat[1]) < tol);
 }
 
-gsl_matrix * _deep_copy_matrix(const gsl_matrix * src)
+void _deeep_copy_matrix(gsl_matrix ** dst, const gsl_matrix * src, const bool dont_touch_old = false)
 {
     if (src == NULL)
-        return NULL;
-    gsl_matrix * dest = gsl_matrix_alloc(src->size1, src->size2);
-    gsl_matrix_memcpy(dest, src);
-    return dest;
+    {
+        if (*dst != NULL && !dont_touch_old)
+            gsl_matrix_free(*dst);
+        return;
+    }
+
+    if (*dst == NULL || dont_touch_old)
+        *dst = gsl_matrix_alloc(src->size1, src->size2);
+    gsl_matrix_memcpy(*dst, src);
 }
 
-gsl_vector * _deep_copy_vector(const gsl_vector * src)
+void _deeep_copy_vector(gsl_vector ** dst, const gsl_vector * src, const bool dont_touch_old = false)
 {
     if (src == NULL)
-        return NULL;
-    gsl_vector * dest = gsl_vector_alloc(src->size);
-    gsl_vector_memcpy(dest, src);
-    return dest;
+    {
+        if (*dst != NULL && !dont_touch_old)
+            gsl_vector_free(*dst);
+        return;
+    }
+
+    if (*dst == NULL || dont_touch_old)
+        *dst = gsl_vector_alloc(src->size);
+    gsl_vector_memcpy(*dst, src);
 }
 
-gsl_matrix_complex * _deep_copy_matrix_complex(const gsl_matrix_complex * src)
+void _deeep_copy_matrix_complex(gsl_matrix_complex ** dst, const gsl_matrix_complex * src, const bool dont_touch_old = false)
 {
     if (src == NULL)
-        return NULL;
-    gsl_matrix_complex * dest = gsl_matrix_complex_alloc(src->size1, src->size2);
-    gsl_matrix_complex_memcpy(dest, src);
-    return dest;
+    {
+        if (*dst != NULL && !dont_touch_old)
+            gsl_matrix_complex_free(*dst);
+        return;
+    }
+
+    if (*dst == NULL || dont_touch_old)
+        *dst = gsl_matrix_complex_alloc(src->size1, src->size2);
+    gsl_matrix_complex_memcpy(*dst, src);
 }
 
-gsl_vector_complex * _deep_copy_vector_complex(const gsl_vector_complex * src)
+void _deeep_copy_vector_complex(gsl_vector_complex ** dst, const gsl_vector_complex * src, const bool dont_touch_old = false)
 {
     if (src == NULL)
-        return NULL;
-    gsl_vector_complex * dest = gsl_vector_complex_alloc(src->size);
-    gsl_vector_complex_memcpy(dest, src);
-    return dest;
+    {
+        if (*dst != NULL && !dont_touch_old)
+            gsl_vector_complex_free(*dst);
+        return;
+    }
+
+    if (*dst == NULL || dont_touch_old)
+        *dst = gsl_vector_complex_alloc(src->size);
+    gsl_vector_complex_memcpy(*dst, src);
 }
 
 struct instance_t
@@ -179,15 +199,15 @@ struct instance_t
             q_diag_t() = default;
             q_diag_t(const q_diag_t& other)// copy constructor
             {
-                this->q = _deep_copy_matrix(other.q);
+                _deeep_copy_matrix(&this->q, other.q);
 
-                this->eig.r_l = _deep_copy_vector(other.eig.r_l);
-                this->eig.r_s = _deep_copy_matrix(other.eig.r_s);
-                this->eig.r_s2 = _deep_copy_matrix(other.eig.r_s2);
+                _deeep_copy_vector(&this->eig.r_l, other.eig.r_l);
+                _deeep_copy_matrix(&this->eig.r_s, other.eig.r_s);
+                _deeep_copy_matrix(&this->eig.r_s2, other.eig.r_s2);
 
-                this->eig.nr_l = _deep_copy_vector_complex(other.eig.nr_l);
-                this->eig.nr_s = _deep_copy_matrix_complex(other.eig.nr_s);
-                this->eig.nr_s2 = _deep_copy_matrix_complex(other.eig.nr_s2);
+                _deeep_copy_vector_complex(&this->eig.nr_l, other.eig.nr_l);
+                _deeep_copy_matrix_complex(&this->eig.nr_s, other.eig.nr_s);
+                _deeep_copy_matrix_complex(&this->eig.nr_s2, other.eig.nr_s2);
 
 //                this->pi = _deep_copy_vector(other.pi); // NOTE: this might be important!!!!
                 this->pi = other.pi; // NOTE: this might be important!!!!
@@ -199,15 +219,15 @@ struct instance_t
             q_diag_t(q_diag_t&&) = default; // move constructor
             q_diag_t& operator=(const q_diag_t& other) // copy assignment
             {
-                this->q = _deep_copy_matrix(other.q);
+                _deeep_copy_matrix(&this->q, other.q);
 
-                this->eig.r_l = _deep_copy_vector(other.eig.r_l);
-                this->eig.r_s = _deep_copy_matrix(other.eig.r_s);
-                this->eig.r_s2 = _deep_copy_matrix(other.eig.r_s2);
+                _deeep_copy_vector(&this->eig.r_l, other.eig.r_l);
+                _deeep_copy_matrix(&this->eig.r_s, other.eig.r_s);
+                _deeep_copy_matrix(&this->eig.r_s2, other.eig.r_s2);
 
-                this->eig.nr_l = _deep_copy_vector_complex(other.eig.nr_l);
-                this->eig.nr_s = _deep_copy_matrix_complex(other.eig.nr_s);
-                this->eig.nr_s2 = _deep_copy_matrix_complex(other.eig.nr_s2);
+                _deeep_copy_vector_complex(&this->eig.nr_l, other.eig.nr_l);
+                _deeep_copy_matrix_complex(&this->eig.nr_s, other.eig.nr_s);
+                _deeep_copy_matrix_complex(&this->eig.nr_s2, other.eig.nr_s2);
 
 //                this->pi = _deep_copy_vector(other.pi); // NOTE: this might be important!!!!
                 this->pi = other.pi; // NOTE: this might be important!!!!
@@ -254,25 +274,8 @@ struct instance_t
 
         model_t() = default;
         model_t(const model_t& other) = delete; // copy constructor: TODO: deep-copy of prior
-//        {
-//            this->tree = other.tree;
-//            this->qms = other.qms;
-//            this->pms.resize(other.pms.size());
-//            for (uint16_t i = 0; i < other.pms.size(); ++i)
-//                this->pms[i] = _deep_copy_matrix(other.pms[i]);
-//            this->prior = other.prior;
-//        };
         model_t(model_t&&) = default; // move constructor
         model_t& operator=(const model_t& other) = delete; // copy assignment TODO: deep-copy of prior
-//        {
-//            this->tree = other.tree;
-//            this->qms = other.qms;
-//            this->pms.resize(other.pms.size());
-//            for (uint16_t i = 0; i < other.pms.size(); ++i)
-//                this->pms[i] = _deep_copy_matrix(other.pms[i]);
-//            this->prior = other.prior;
-//            return *this;
-//        };
         model_t& operator=(model_t&&) = default; // move assignment
 
         void clear()
@@ -580,7 +583,8 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
     if (prior != NULL)
     {
         // this is codon_freq on very first initialization
-        instance.model.prior = _deep_copy_vector(prior); // NOTE: this makes a deep-copy
+        _deeep_copy_vector(&instance.model.prior, prior); // TODO: IMPORTANT: NEWWW!!!! THIS COULD BE A CAUSE FOR ERROR. PRIOR and/or PI can have multiple member ptr pointing to the same memory region
+//        instance.model.prior = _deep_copy_vector(prior); // NOTE: this makes a deep-copy
     }
 
     if (instance.model.pms.size() != instance.p14n.tree_p14n.size() - 1)
@@ -715,8 +719,9 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
                 {
                     if (fabs(cell_value) > q.tol) // fabs is for doubles, fabsf is for floats
                     {
-                        printf("CamlPaml.Q.substition_matrix: expm(%.2e*Q)[%d,%d] = %e < 0", t, index_i, index_j, cell_value);
-                        exit(1);
+//                        printf("CamlPaml.Q.substition_matrix: expm(%.2e*Q)[%d,%d] = %e < 0", t, index_i, index_j, cell_value);
+                        throw std::runtime_error("CamlPaml.Q.substition_matrix: expm(" + std::to_string(t) + "*Q)[" + std::to_string(index_i) + "," + std::to_string(index_j) + "] = " + std::to_string(cell_value) + " < 0");
+//                        exit(1);
                     }
                     else
                     {
@@ -731,8 +736,9 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
 
             if (fabs(total - 1.0) > q.tol)
             {
-                printf("CamlPaml.Q.substitution matrix: sum(expm(%.2e*Q)[%d,] = %e > 1", t, index_i, total);
-                exit(2);
+//                printf("CamlPaml.Q.substitution matrix: sum(expm(%.2e*Q)[%d,] = %e > 1", t, index_i, total);
+                throw std::runtime_error("CamlPaml.Q.substition_matrix: sum(expm(" + std::to_string(t) + "*Q)[" + std::to_string(index_i) + ",] = " + std::to_string(total) + " > 1");
+//                exit(2);
             }
             assert(smii <= 1.0 && smii > 0.0);
 

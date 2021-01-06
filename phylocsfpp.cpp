@@ -165,7 +165,6 @@ struct Data
 //            printf("ERROR: The model \"23flies\" does not exist. Please choose one from the following set or give a path to your model:\n");
 //            for (const auto & m : models)
 //                printf("\t- %s\n", m.first.c_str());
-//            exit(-1);
 //        }
         assert(phylo_tree->branch_length == 0.0);
 
@@ -213,8 +212,17 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
         auto & inst = data.c_instance;
         // let new_instance ?(kappa:2.5):2.5 ?(omega=1.0) ?(sigma=1.0) ?(tree_scale=1.0) tree_shape =
         {
-            // let q_settings = Array.concat [ [| kappa; omega; sigma |]; (Array.make 9 1.0) ]
-            inst.q_settings = gsl_vector_alloc(12);
+            // let q_settings = Array.concat [ [| kappa; omega; sigma |]; (Array.make 9 1.0) ]x
+            if (inst.q_settings != NULL && inst.q_settings->size != 12)
+            {
+                gsl_vector_free(inst.q_settings);
+                inst.q_settings = gsl_vector_alloc(12);
+            }
+            else if (inst.q_settings == NULL)
+            {
+                inst.q_settings = gsl_vector_alloc(12);
+            }
+
             gsl_vector_set(inst.q_settings, 0, 2.5); // kappa
             gsl_vector_set(inst.q_settings, 1, 1.0); // omega
             gsl_vector_set(inst.q_settings, 2, 1.0); // sigma
@@ -246,12 +254,10 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
             // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
             PhyloModel_make(inst, inst.q_settings, true);
 //            print(inst);
-//            exit(13);
         }
 
 //        std::cout << *inst.model.qms[0].q << '\n';
 //        std::cout << *inst.model.qms[0].eig.r_l << '\n';
-//        exit(17);
         {
             //let update_f3x4 inst leaves = // REVIEW: update_f3x4 seems to be correct!
             gsl_matrix * counts = gsl_matrix_alloc(3, 4);
@@ -300,7 +306,6 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
             PhyloModel_make(inst, NULL, true);
 
 //            print(inst);
-//            exit(19);
         }
 
         // STATUS 2020-12-03 02:40 pms and qms are identical here with Ocaml version!!!! :)
@@ -319,17 +324,13 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
 //                    std::cout << "lpr after min_rho: " << lpr_H0 << " ---\n";
 //            print(inst);
-//            exit(24);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
 //                    std::cout << "lpr after min_kappa: " << lpr_H0 << " ---\n";
-//                print(inst);
-//                exit(106);
                 }
 //                printf("lpr_H0: %f\n", lpr_H0);
             }
-//            exit(19);
 
 
             {
@@ -347,19 +348,15 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
 //                    std::cout << "lpr after min_rho: " << lpr_H1 << " ---\n";
 //            print(inst);
-//            exit(24);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
 //                    std::cout << "lpr after min_kappa: " << lpr_H1 << " ---\n";
 //                print(inst);
-//                exit(106);
                 }
 //                std::cout << "lpr_H1: " << lpr_H1 << '\n';
             }
         }
-
-//         exit(1);
 
         const double phylocsf_score = (10.0 * (lpr_H1 - lpr_H0) / log(10.0));
         const double anchestral_score = NAN;
@@ -516,48 +513,54 @@ int main(int /*argc*/, char ** /*argv*/)
     parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
 
 //    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data, mode)
-    for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it more parts than threads
+    for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it in more parts than there are threads
     {
         auto & aln = alignments[0/*omp_get_thread_num()*/];
         size_t a_id = 0;
-        // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
+        // TODO: merge arrays file_range_pos and _end are thread-safe for cache locality. should be thread-safe
 
         printf("ALN-ID\tFIXED\tFIXED-ANC\tMLE\tMLE-ANC\tOMEGA\tBLS\n");
 
-        maf_rd.get_next_alignment(aln, job_id); // skip 1st (which is big) alignment
-//        maf_rd.get_next_alignment(aln, job_id);
-
-        while (a_id < 2 /*results.size()*/)
+        while (a_id < results.size() && maf_rd.get_next_alignment(aln, job_id))
         {
-            auto & r = results[0/*a_id*/];
+            auto & r = results[a_id];
 
             std::tuple<double, double, double> results_fixed, results_mle, results_omega;
 
-//            {
-//                results_fixed = run(data_fixed_mle, aln, algorithm_t::FIXED);
-//                data_fixed_mle.clear();
-//                const double score = fabs(std::get<0>(results_fixed) - r.fixed_score);
-//                const double anc = fabs(std::get<2>(results_fixed) - r.fixed_anc);
-//                const double bls = fabs(std::get<1>(results_fixed) - r.bls);
-//                if (score >= 0.000001 || anc >= 0.000001 || bls >= 0.000001)
-//                    printf("%ld\t%s:\t%f\t%f\t%f\t*****\n", a_id, "Fixed", score, anc, bls);
-//            }
-//
-//            {
-//                results_mle = run(data_fixed_mle, aln, algorithm_t::MLE);
-//                data_fixed_mle.clear();
-//                const double score = fabs(std::get<0>(results_mle) - r.mle_score);
-//                const double anc = fabs(std::get<2>(results_mle) - r.mle_anc);
-//                if (score >= 0.000001 || anc >= 0.000001)
-//                    printf("%ld\t%s:\t%f\t%f\t--------\t*****\n", a_id, "MLE", score, anc);
-//            }
+            {
+                results_fixed = run(data_fixed_mle, aln, algorithm_t::FIXED);
+                data_fixed_mle.clear();
+                const double score = fabs(std::get<0>(results_fixed) - r.fixed_score);
+                const double anc = fabs(std::get<2>(results_fixed) - r.fixed_anc);
+                const double bls = fabs(std::get<1>(results_fixed) - r.bls);
+                if (score >= 0.000001 || anc >= 0.000001 || bls >= 0.000001)
+                    printf("%ld\t%s:\t%f\t%f\t%f\t*****\n", a_id, "Fixed", score, anc, bls);
+            }
 
             {
-                results_omega = run(data_fixed_mle, aln, algorithm_t::OMEGA);
+                results_mle = run(data_fixed_mle, aln, algorithm_t::MLE);
+                data_fixed_mle.clear();
+                const double score = fabs(std::get<0>(results_mle) - r.mle_score);
+                const double anc = fabs(std::get<2>(results_mle) - r.mle_anc);
+                if (score >= 0.000001 || anc >= 0.000001)
+                    printf("%ld\t%s:\t%f\t%f\t--------\t*****\n", a_id, "MLE", score, anc);
+            }
+
+            {
+                try
+                {
+                    results_omega = run(data_fixed_mle, aln, algorithm_t::OMEGA);
+                    const double score = fabs(std::get<0>(results_omega) - r.omega_score);
+                    if (score >= 0.000001)
+                        printf("%ld\t%s:\t%f\t--------\t--------\t*****\n", a_id, "Omega", score);
+                }
+                catch (const std::runtime_error& error)
+                {
+                    std::get<0>(results_omega) = NAN;
+                    printf("%ld\t%s:\t%s\t--------\t--------\t*****\n", a_id, "Omega", error.what());
+                }
+
                 data_omega.clear();
-                const double score = fabs(std::get<0>(results_omega) - r.omega_score);
-                if (score >= 0.000001)
-                    printf("%ld\t%s:\t%f\t--------\t--------\t*****\n", a_id, "Omega", score);
             }
 
             printf("%ld\t%f\t%f\t%f\t%f\t%f\t%f\n",
@@ -568,8 +571,8 @@ int main(int /*argc*/, char ** /*argv*/)
             );
             fflush(stdout);
 
-//            for (auto & seq : aln.seqs)
-//                seq = "";
+            for (auto & seq : aln.seqs)
+                seq = "";
             ++a_id;
         }
     }
