@@ -202,9 +202,7 @@ gsl_vector * complex_to_real(const gsl_vector_complex * const cv, const double t
         const gsl_complex & c = gsl_vector_complex_get(cv, i);
         if (!check_real(c, tol))
         {
-//            printf("real_of_complex %g+%gi", GSL_REAL(c), GSL_IMAG(c));
             throw std::runtime_error("real_of_complex " + std::to_string(GSL_REAL(c)) + "+" + std::to_string(GSL_IMAG(c)) + "i");
-//            exit(19);
         }
         gsl_vector_set(v, i, GSL_REAL(c));
     }
@@ -220,9 +218,7 @@ gsl_matrix * complex_to_real(const gsl_matrix_complex * const cm, const double t
         {
             const gsl_complex &c = gsl_matrix_complex_get(cm, i, j);
             if (!check_real(c, tol)) {
-//                printf("real_of_complex %g+%gi", GSL_REAL(c), GSL_IMAG(c));
                 throw std::runtime_error("real_of_complex " + std::to_string(GSL_REAL(c)) + "+" + std::to_string(GSL_IMAG(c)) + "i");
-//                exit(20);
             }
             gsl_matrix_set(m, i, j, GSL_REAL(c));
         }

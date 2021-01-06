@@ -194,7 +194,7 @@ struct instance_t
 
             bool have_pi; // mutable
 //        mutable memoized_to_Pt : (float -> Gsl.Matrix.matrix) option; // TODO
-            double tol; // mutable
+            double tol = 1e-6; // mutable
 
             q_diag_t() = default;
             q_diag_t(const q_diag_t& other)// copy constructor
@@ -209,8 +209,8 @@ struct instance_t
                 _deeep_copy_matrix_complex(&this->eig.nr_s, other.eig.nr_s);
                 _deeep_copy_matrix_complex(&this->eig.nr_s2, other.eig.nr_s2);
 
-//                this->pi = _deep_copy_vector(other.pi); // NOTE: this might be important!!!!
-                this->pi = other.pi; // NOTE: this might be important!!!!
+                _deeep_copy_vector(&this->pi, other.pi); // NOTE: this might be important!!!!
+//                this->pi = other.pi; // NOTE: this might be important!!!!
 
                 this->have_pi = other.have_pi; // TODO: THIS MIGHT ALSO BE A POINTER!!!!
                 // mutable memoized_to_Pt
@@ -229,8 +229,8 @@ struct instance_t
                 _deeep_copy_matrix_complex(&this->eig.nr_s, other.eig.nr_s);
                 _deeep_copy_matrix_complex(&this->eig.nr_s2, other.eig.nr_s2);
 
-//                this->pi = _deep_copy_vector(other.pi); // NOTE: this might be important!!!!
-                this->pi = other.pi; // NOTE: this might be important!!!!
+                _deeep_copy_vector(&this->pi, other.pi); // NOTE: this might be important!!!!
+//                this->pi = other.pi; // NOTE: this might be important!!!!
 
                 this->have_pi = other.have_pi; // TODO: THIS MIGHT ALSO BE A POINTER!!!!
                 // mutable memoized_to_Pt
@@ -257,11 +257,11 @@ struct instance_t
                 else
                 {
                     // TODO: multple elements can have the same pointer which would lead to a double-free. investigate this memory leak!
-//                    if (pi != NULL)
-//                    {
-//                        gsl_vector_free(pi);
-//                        pi = NULL;
-//                    }
+                    if (pi != NULL)
+                    {
+                        gsl_vector_free(pi);
+                        pi = NULL;
+                    }
 //                    assert(pi == NULL); // TODO: either always keep allocated memory for have pi or get rid of bool "have_pi" and check whether pi == NULL
                 }
             }; // destructor
@@ -489,6 +489,8 @@ struct instance_t
         this->model.qms[0].tol = tol;
         this->model.qms[0].have_pi = false;
         // TODO: delete/reuse old pi? is it shared/still needed by other elements?
+        if (this->model.qms[0].pi != NULL)
+            gsl_vector_free(this->model.qms[0].pi);
         this->model.qms[0].pi = gsl_vector_alloc(64); // TODO: unused empty vector? // pi = Gsl.Vector.create (fst (Gsl.Matrix.dims qm))
         gsl_vector_set_zero(this->model.qms[0].pi); // TODO: only for debugging
 
@@ -532,7 +534,7 @@ std::ostream& operator<<(std::ostream & os, const instance_t &)
 
 // TODO: let make ?prior t qms
 // the new tree and the new qms (created by instantiate_tree or instantiate_qs) are passed be reference in Ocaml
-// the results are stored (or computed) in copies.
+// the results are stored (or computed) in cop ies.
 // on initialization it is okay, when we change them in place. See "let instantiate " in PhyloModel.ml:
 // the model, which is part of instance, is constructed the first time on return, i.e., inst or model is not passed by argument
 // (because it does not exist yet)
@@ -563,7 +565,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
         for (uint16_t i = 1; i < instance.model.qms.size(); ++i)
             instance.model.qms[i] = instance.model.qms[0]; // deep-copy of object diag_t
         // NOTE: we cannot resize here, because resizing qms will call destructors of qms.model.eig
-        // which will delete the matrices (actually it should perform deep-copies of qms[0] members.
+        // which will delete the matrices (actually it should perform deep-cop ies of qms[0] members.
         // TODO: figure out why it's not working. maybe a pointer existing to something in qms[0] that is stored outside qms[0]?
         // for simplicity we moved this to the end of PhyloCSFModel_make()
 //        instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
@@ -717,11 +719,10 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
                 total += cell_value;
                 if (cell_value < 0.0)
                 {
+//                    printf("%f\t%f\n", cell_value, q.tol);
                     if (fabs(cell_value) > q.tol) // fabs is for doubles, fabsf is for floats
                     {
-//                        printf("CamlPaml.Q.substition_matrix: expm(%.2e*Q)[%d,%d] = %e < 0", t, index_i, index_j, cell_value);
                         throw std::runtime_error("CamlPaml.Q.substition_matrix: expm(" + std::to_string(t) + "*Q)[" + std::to_string(index_i) + "," + std::to_string(index_j) + "] = " + std::to_string(cell_value) + " < 0");
-//                        exit(1);
                     }
                     else
                     {
@@ -736,9 +737,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
 
             if (fabs(total - 1.0) > q.tol)
             {
-//                printf("CamlPaml.Q.substitution matrix: sum(expm(%.2e*Q)[%d,] = %e > 1", t, index_i, total);
                 throw std::runtime_error("CamlPaml.Q.substition_matrix: sum(expm(" + std::to_string(t) + "*Q)[" + std::to_string(index_i) + ",] = " + std::to_string(total) + " > 1");
-//                exit(2);
             }
             assert(smii <= 1.0 && smii > 0.0);
 
@@ -756,6 +755,10 @@ void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and insta
 {
     // - multiply every element q[i][j] with a variable j
     // - then set diagonal to: q[i][i] = sum_(i <> j) (-q[i][j])
+    if (instance.p14n.q_p14ns == NULL)
+    {
+        gsl_matrix_free(instance.p14n.q_p14ns);
+    }
     instance.p14n.q_p14ns = _q;
     instance.p14n.q_scale_p14ns = 0.0;
 
@@ -779,7 +782,6 @@ void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and insta
         for (uint8_t j = 0; j < 64; ++j)
         {
             gsl_matrix_set(instance.p14n.q_p14ns, i, j, gsl_matrix_get(instance.p14n.q_p14ns, i, j) / instance.p14n.q_scale_p14ns);
-//            instance.p14n.q_p14ns[i][j] /= instance.p14n.q_scale_p14ns;
         }
     }
 }
