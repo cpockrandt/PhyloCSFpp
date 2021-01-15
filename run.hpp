@@ -389,7 +389,7 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<dou
 
         const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
         const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
-        const double bls_score = compute_bls_score(data.phylo_tree, alignment, bls_per_codon);
+//        const double bls_score = compute_bls_score(data.phylo_tree, alignment, bls_per_codon);
 
         for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
         {
@@ -399,7 +399,7 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<dou
         }
 
 //        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
-        return std::make_tuple(phylocsf_score, bls_score, anchestral_score);
+        return std::make_tuple(phylocsf_score, SNAN/*bls_score*/, anchestral_score);
     }
 }
 

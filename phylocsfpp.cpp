@@ -128,36 +128,12 @@ int main(int /*argc*/, char ** /*argv*/)
         alignments.emplace_back(data_omega[0].phylo_array); // TODO: remove id's outside of aln struct because they are read-only
     }
 
-    // open correct values from orig PhyloCSF++
-//    // awk 'BEGIN{ OFS="\t"; print "ALN-ID", "FIXED", "FIXED-ANC", "MLE", "MLE-ANC", "OMEGA", "BLS" } ($0 != "" && !($0 ~ /^\/tmp/)) { if ($3 ~ /^\/tmp/) { $3 = "nan" } if ($2 == "Fixed:") { bls[$1] = $4 } anc[$1][$2] = $5; f[$1][$2] = $3 } END { for (id in f) print id, f[id]["Fixed:"], anc[id]["Fixed:"], f[id]["MLE:"], anc[id]["MLE:"], f[id]["Omega:"], bls[id] }' chr22.head.orig.results > chr22.head.orig.results.formatted
-//    std::vector<comp_result> correct_results;
-//    {
-//        FILE *file = fopen(scores_path, "r");
-//        if (file != NULL)
-//        {
-//            char line[BUFSIZ];
-//            size_t id;
-//            double fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls;
-//            fgets(line, sizeof line, file); // skip header line
-//            while (fgets(line, sizeof line, file) != NULL)
-//            {
-//                sscanf(line, "%lu\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf", &id, &fixed_score, &fixed_anc, &mle_score, &mle_anc, &omega_score, &bls);
-//                assert(id == correct_results.size());
-//                correct_results.emplace_back(fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls);
-//            }
-//        }
-//        fclose(file);
-//    }
-////    printf("%ld\n%lf\n%lf\n%lf\n%lf\n%lf\n%lf\n\n", 0,  results[0].fixed_score, results[0].fixed_anc, results[0].mle_score, results[0].mle_anc, results[0].omega_score, results[0].bls);
-
     parallel_maf_reader tmp_maf_rd(aln_path, jobs, &fastaid_to_alnid);
     jobs = tmp_maf_rd.get_jobs();
 
-//    printf("ALN-ID\tFIXED\tFIXED-ANC\tMLE\tMLE-ANC\tOMEGA\tBLS\n");
-
     std::vector<std::vector<comp_result> > computed_results(jobs);
 
-    std::vector<std::vector<double> > lpr_per_codon(jobs), bls_per_codon(jobs);
+    std::vector<std::vector<double> > lpr_per_codon(jobs), bls_per_bp(jobs);
 
     FILE *file_power = fopen(filename_power.c_str(), "w");
     if (file_power == NULL)
@@ -197,74 +173,58 @@ int main(int /*argc*/, char ** /*argv*/)
                 {
                     if (aln.chrom == "chrM")
                         aln.chrom = "chrMT";
-//                    printf("%20ld, %20ld\n", aln.start_pos, aln.seqs[0].size());
-        //            auto & r = correct_results[0];
-        //            printf("%d\n", aln.start_pos);
 
-                    std::tuple<double, double, double> results_fixed, results_mle, results_omega;
+                    std::tuple<double, double, double> results_fixed;
 
+                    // on first iteration, compute bls scores (used by all 6 frames then!)
+                    if (strand == '+' && frame == 1)
                     {
-                        results_fixed = run(data_fixed_mle[thread_id], aln, algorithm_t::FIXED, lpr_per_codon[job_id], bls_per_codon[job_id]);
-                        data_fixed_mle[thread_id].clear();
-
-        //                const double score = fabs(std::get<0>(results_fixed) - r.fixed_score);
-        //                const double anc = fabs(std::get<2>(results_fixed) - r.fixed_anc);
-        //                const double bls = fabs(std::get<1>(results_fixed) - r.bls);
-        //                if (score >= 0.000001 || anc >= 0.000001 || bls >= 0.000001)
-        //                    printf("%ld\t%s:\t%f\t%f\t%f\t*****\n", a_id, "Fixed", score, anc, bls);
+                        bls_per_bp[job_id].clear();
+                        compute_bls_score(data_fixed_mle[thread_id].phylo_tree, aln, bls_per_bp[job_id]);
                     }
 
-        //            {
-        //                results_mle = run(data_fixed_mle[thread_id], aln, algorithm_t::MLE);
-        //                data_fixed_mle[thread_id].clear();
-        ////                const double score = fabs(std::get<0>(results_mle) - r.mle_score);
-        ////                const double anc = fabs(std::get<2>(results_mle) - r.mle_anc);
-        ////                if (score >= 0.000001 || anc >= 0.000001)
-        ////                    printf("%ld\t%s:\t%f\t%f\t--------\t*****\n", a_id, "MLE", score, anc);
-        //            }
+                    results_fixed = run(data_fixed_mle[thread_id], aln, algorithm_t::FIXED, lpr_per_codon[job_id], bls_per_bp[job_id]);
+                    data_fixed_mle[thread_id].clear();
 
                     if (strand == '-')
                     {
                         std::reverse(lpr_per_codon[job_id].begin(), lpr_per_codon[job_id].end());
-                        std::reverse(bls_per_codon[job_id].begin(), bls_per_codon[job_id].end());
 
-                        aln.start_pos += (aln.seqs[0].size() % 3);
-                        for (uint8_t i = 0; i < aln.seqs[0].size() % 3; ++i)
-                            bls_per_codon[job_id].erase(bls_per_codon[job_id].begin());
+                        const size_t excess_basepairs = aln.seqs[0].size() % 3;
+                        aln.start_pos += excess_basepairs;
                     }
 
                     if (frame == 3 && strand == '+')
                     {
-                        fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
-                        for (uint32_t xx = 0; xx < lpr_per_codon[job_id].size(); ++xx)
-                        {
-                            size_t pos = xx * 3;
+                        // since we iterate over a codon array, there must be 3 bp for each codon
+                        // the last 0-2 remaining basepairs in the bls array do not have a codon entry
+                        assert(lpr_per_codon[job_id].size() * 3 <= bls_per_bp[job_id].size());
 
-                            float bls_codon_avg = bls_per_codon[job_id][pos];
-                            if (pos + 2 < bls_per_codon[job_id].size())
-                            {
-                                bls_codon_avg += bls_per_codon[job_id][pos + 1];
-                                bls_codon_avg += bls_per_codon[job_id][pos + 2];
-                                bls_codon_avg /= 3;
-                            } else if (pos + 1 < bls_per_codon[job_id].size()) {
-                                assert(false);
-                                bls_codon_avg += bls_per_codon[job_id][pos + 1];
-                                bls_codon_avg /= 2;
-                            }
-                            else
-                            {
-                                assert(false);
-                            }
-\
+                        fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
+                        for (uint32_t pos = frame - 1; pos < lpr_per_codon[job_id].size() * 3; pos += 3)
+                        {
+                            const float bls_codon_avg = (bls_per_bp[job_id][pos]
+                                                      +  bls_per_bp[job_id][pos + 1]
+                                                      +  bls_per_bp[job_id][pos + 2]) / 3.0;
+
                             my_fprintf(file_power, "%.4f", bls_codon_avg);
                         }
                     }
 
+                    size_t bls_pos = 0;
+                    // compute offset
+                    if (strand == '+')
+                        bls_pos += (frame - 1);
+                    else
+                        bls_pos += aln.seqs[0].size() % 3;
+
                     int64_t prevPos = -4;
                     int64_t startBlockPos = aln.start_pos;
-                    for (uint32_t xx = 0; xx < lpr_per_codon[job_id].size(); ++xx)
+                    for (uint32_t xx = 0; xx < lpr_per_codon[job_id].size(); ++xx, bls_pos += 3)
                     {
-                        const float bls_codon_sum = bls_per_codon[job_id][xx * 3] + bls_per_codon[job_id][xx * 3 + 1] + bls_per_codon[job_id][xx * 3 + 2];
+                        const float bls_codon_sum = bls_per_bp[job_id][bls_pos]
+                                                  + bls_per_bp[job_id][bls_pos + 1]
+                                                  + bls_per_bp[job_id][bls_pos + 2];
                         if (bls_codon_sum < 0.1f * 3)
                         {
                             if (scores.empty())
@@ -297,7 +257,6 @@ int main(int /*argc*/, char ** /*argv*/)
                         prevPos = newPos;
                         my_fprintf(file_score_raw, "%.3f", lpr_per_codon[job_id][xx]);
                         scores.push_back(lpr_per_codon[job_id][xx]);
-        //                printf("\t\t\t\tCodon %ld\t%f\t%f\n", aln.start_pos + (xx * 3), lpr_per_codon[job_id][xx], bls_per_codon[job_id][xx]);
                     }
 
                     if (!scores.empty())
@@ -314,37 +273,6 @@ int main(int /*argc*/, char ** /*argv*/)
                         region.clear();
                     }
 
-                    computed_results[job_id].emplace_back(
-                            std::get<0>(results_fixed), 0/*std::get<2>(results_fixed)*/,
-                            0/*std::get<0>(results_mle)*/, 0/*std::get<2>(results_mle)*/,
-                            0,
-                            std::get<1>(results_fixed));
-
-        //            {
-        //                try
-        //                {
-        //                    results_omega = run(data_fixed_mle[thread_id], aln, algorithm_t::OMEGA);
-        ////                    const double score = fabs(std::get<0>(results_omega) - r.omega_score);
-        ////                    if (score >= 0.000001)
-        ////                        printf("%ld\t%s:\t%f\t--------\t--------\t*****\n", a_id, "Omega", score);
-        //                }
-        //                catch (const std::runtime_error& error)
-        //                {
-        //                    std::get<0>(results_omega) = NAN;
-        //                    printf("%ld\t%s:\t%s\t--------\t--------\t*****\n", a_id, "Omega", error.what());
-        //                }
-        //
-        //                data_omega[thread_id].clear();
-        //            }
-
-        //            printf("%ld\t%f\t%f\t%f\t%f\t%f\t%f\n",
-        //                       a_id,
-        //                       std::get<0>(results_fixed), std::get<2>(results_fixed),
-        //                       std::get<0>(results_mle), std::get<2>(results_mle),
-        //                       std::get<0>(results_omega), std::get<1>(results_fixed)
-        //            );
-        //            fflush(stdout);
-
                     for (auto & seq : aln.seqs)
                         seq = "";
                     ++a_id;
@@ -357,57 +285,5 @@ int main(int /*argc*/, char ** /*argv*/)
 
     fclose(file_power);
 
-      // compute differences
-//    size_t j = 0;
-//    for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it in more parts than there are threads
-//    {
-//        for (size_t i = 0; i < computed_results[job_id].size(); ++i)
-//        {
-//            const auto & comp = computed_results[job_id][i];
-//            printf("%f\t%f\n", comp.fixed_score, comp.bls);
-////            const auto & cor = correct_results[j];
-////            if (fabs(comp.fixed_score - cor.fixed_score) > 1e-6 ||
-////                fabs(comp.fixed_anc   - cor.fixed_anc  ) > 1e-6 ||
-////                fabs(comp.bls         - cor.bls        ) > 1e-6
-////            )
-////                printf("%f\t%f\t\t%f\t%f\t\t%f\t%f\n", comp.fixed_score, cor.fixed_score, comp.fixed_anc, cor.fixed_anc, comp.bls, cor.bls);
-//            ++j;
-//        }
-//    }
-
-    // create wig file for track
-//    std::vector<double> scores = {-13.6462, -8.2680, -7.7692, -7.1405, -3.1386, -3.6159, -9.1372, -14.4608, 2.5891};
-//    std::vector<scored_region> region;
-//    process_scores(hmm, scores, /*block_start_pos*/204316, region, SCORE_CODON);
-//    scores.clear();
-//
-////    std::string phyloCSFregionDir = "/home/chris/dev-uni/PhyloCSF++/chr4_GL000008v2_random.Strand-.Frame1.fixed.out";
-////    std::string chrom = "chr4_GL000008v2_random";
-////    std::string strand = "-";
-////    std::string frame = "1";
-////
-////    std::vector<scored_region> region = create_track(hmm_param, phyloCSFregionDir);
-//    for(size_t i = 0; i < region.size(); i++)
-//    {
-//        std::cout << "chr4_GL000008v2_random" << "\t" << "-" << "\t" << "1" << "\t"
-//                  << region[i].region_start <<"\t" << region[i].region_end << "\t"
-//                  << region[i].log_odds_prob << std::endl;
-//    }
-
     return 0;
 }
-
-//    char selected_species_str[] = "Dog,Cow,Horse,Human,Mouse,Rat";
-//    auto new_results = run("/home/chris/dev-uni/chr4_100vert_alignment.fa", "100vertebrates", "", algorithm_t::FIXED);
-//    auto new_results = run("/tmp/test", "100vertebrates", "Dog,Cow,Horse,Human,Mouse,Rat", algorithm_t::MLE);
-//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa";
-//    char model_str[] = "23flies";
-//    "Dog,Cow,Horse,Human,Mouse,Rat";
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA-tiny3.fa", "23flies", "", algorithm_t::OMEGA);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/tal-AA.fa", "12flies", "", algorithm_t::MLE);
-//    run("/home/chris/dev-uni/PhyloCSF_vm/PhyloCSF_Examples/ALDH2.exon5.fa", "100vertebrates", "", algorithm_t::MLE);
-//    printf("\nSOLL:\n"
-//           "361.687566\t0.731391\t48.024101\n"
-//           "297.623468\t0.731391\t48.257442\n"
-//           "-176.807976\t0.058448\t-33.030802\n"   // FIXED
-//           "-179.110842\t0.058448\t-32.878297\n"); // MLE
