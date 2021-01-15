@@ -519,7 +519,6 @@ public:
                 for (uint16_t i = 0; i < aln.seqs.size(); ++i)
                 {
                     aln.seqs[i].pop_back();
-//                    aln.seqs[i].erase(0, 1);
                 }
 //                ++aln.start_pos;
 //                size_t size_after = aln.seqs[0].size();

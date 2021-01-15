@@ -52,7 +52,7 @@ int main(int /*argc*/, char ** /*argv*/)
 //    char hmm_data_path[] = "/home/chris/dev-uni/PhyloCSF++/phylo_yeast/YeastCodingExons.txt";
 //    const std::string output_folder = "/home/chris/dev-uni/PhyloCSF++/yeast_out";
 
-    const std::string filename_power     = output_folder + "/PhyloCSFpower-chrM.wig";
+    const std::string filename_power = output_folder + "/PhyloCSFpower-chrM.wig";
 
     const hmm_parameter hmm_param = estimate_hmm_params_for_genome(hmm_data_path, genome_length);
     const hmm hmm = get_coding_hmm(hmm_param);
@@ -227,6 +227,10 @@ int main(int /*argc*/, char ** /*argv*/)
                     {
                         std::reverse(lpr_per_codon[job_id].begin(), lpr_per_codon[job_id].end());
                         std::reverse(bls_per_codon[job_id].begin(), bls_per_codon[job_id].end());
+
+                        aln.start_pos += (aln.seqs[0].size() % 3);
+                        for (uint8_t i = 0; i < aln.seqs[0].size() % 3; ++i)
+                            bls_per_codon[job_id].erase(bls_per_codon[job_id].begin());
                     }
 
                     if (frame == 3 && strand == '+')
