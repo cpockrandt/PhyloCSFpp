@@ -52,6 +52,31 @@ uint8_t get_dna_id(const char n)
     }
 }
 
+char complement(const char n)
+{
+    switch (n)
+    {
+        case 'A':
+            return 'T';
+        case 'a':
+            return 't';
+        case 'C':
+            return 'G';
+        case 'c':
+            return 'g';
+        case 'G':
+            return 'C';
+        case 'g':
+            return 'c';
+        case 'T':
+            return 'A';
+        case 't':
+            return 'a';
+        default:
+            return n;
+    }
+}
+
 uint8_t get_amino_acid_id(const char n1, const char n2, const char n3)
 {
     const uint8_t id1 = get_dna_id(n1);

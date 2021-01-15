@@ -74,6 +74,8 @@ double compute_bls_score(newick_node* node, const alignment_t & alignment, std::
     std::unordered_set<std::string> all_species(alignment.ids.begin(), alignment.ids.end());
     const double all_species_branch_length = newick_sum_branch_lengths(node, all_species);
 
+    score_per_codon.clear();
+
     for (uint64_t i = lo; i < hi; ++i)
     {
         // determine subspecies set that has A,C,G or T at position i
@@ -88,6 +90,7 @@ double compute_bls_score(newick_node* node, const alignment_t & alignment, std::
         {
             bl_total += newick_sum_branch_lengths(node, subset);
             score_per_codon.push_back(newick_sum_branch_lengths(node, subset) / all_species_branch_length);
+//            printf("BLS push_back(%f, %f) = %f\n", newick_sum_branch_lengths(node, subset), all_species_branch_length, score_per_codon.back());
         }
         else
         {
@@ -99,5 +102,5 @@ double compute_bls_score(newick_node* node, const alignment_t & alignment, std::
 //    printf("sum: %f\n", bl_total);
 //    printf("divisor: %f\n", newick_sum_branch_lengths(node, all_species));
 
-    return bl_total/divisor;
+    return bl_total / divisor;
 }

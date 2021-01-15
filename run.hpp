@@ -201,7 +201,7 @@ struct Data
     }
 };
 
-auto run(Data & data, alignment_t & alignment, algorithm_t algo)
+auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<double> & lpr_per_codon, std::vector<double> & bls_per_codon)
 {
     if (algo == algorithm_t::OMEGA)
     {
@@ -372,7 +372,7 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
 
         double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
 
-        std::vector<double> c_lpr_per_codon, nc_lpr_per_codon, bls_per_codon;
+        std::vector<double> c_lpr_per_codon, nc_lpr_per_codon;
 
         if (algo == algorithm_t::MLE)
         {
@@ -385,15 +385,18 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo)
             lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
         }
 
+        lpr_per_codon.resize(c_lpr_per_codon.size());
+
         const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
         const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
         const double bls_score = compute_bls_score(data.phylo_tree, alignment, bls_per_codon);
 
-//        for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
-//        {
-//            const double _score = 10.0 * (c_lpr_per_codon[xx] - nc_lpr_per_codon[xx]) / log(10.0);
+        for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
+        {
+            const double _score = 10.0 * (c_lpr_per_codon[xx] - nc_lpr_per_codon[xx]) / log(10.0);
+            lpr_per_codon[xx] = _score;
 //            printf("Codon %d\t%f\t%f\n", xx, _score, bls_per_codon[xx]);
-//        }
+        }
 
 //        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
         return std::make_tuple(phylocsf_score, bls_score, anchestral_score);

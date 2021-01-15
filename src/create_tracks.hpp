@@ -225,7 +225,7 @@ enum score_mode{
 /*
  * Processes a set of contiguous scores and returns coding regions with its respective maximal log-odds score
  */
-void process_scores(hmm & hmm, std::vector<double> &scores,
+void process_scores(hmm const & hmm, std::vector<double> &scores,
                     uint32_t blockStartPos, std::vector<scored_region> & result,
                     score_mode mode){
     double ** state_probabilities = hmm::state_posterior_probabilities(hmm, scores);

@@ -15,6 +15,8 @@
 
 struct alignment_t
 {
+    uint64_t start_pos = 0;
+    std::string chrom;
     std::vector<std::string> ids;
     std::vector<std::string> seqs;
     std::vector<std::vector<uint8_t> > peptides;
@@ -48,6 +50,8 @@ class parallel_maf_reader
 
 public:
 
+    unsigned get_jobs() const noexcept { return this->threads; }
+
     parallel_maf_reader(char *file_path, const unsigned threads, std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
     {
         fd = open(file_path, O_RDONLY);
@@ -80,7 +84,7 @@ public:
         {
             // there have to be at least as many pages as threads
             this->threads = pages;
-            printf("Info: Using %ld threads instead of %d.\n", pages, threads);
+            printf("Info: Using %ld jobs instead of %d.\n", pages, threads);
         }
         else
         {
@@ -141,6 +145,7 @@ public:
                 // else
                 //    file_range_pos[i] += 0; // no offset
             }
+//            printf("%3ld, %3ld\n", file_range_pos[i], file_range_end[i]);
 
             file_range_from = file_range_to;
         }
@@ -160,7 +165,7 @@ public:
     }
 
     // this function is only called on lines starting with "s "
-    void get_line(const unsigned thread_id, char ** id, char ** seq)
+    void get_line(const unsigned thread_id, char ** id, char ** seq, uint64_t & start_pos, uint64_t & len_wo_ref_gaps, char & strand, const bool immutable = false)
     {
         assert(file_range_pos[thread_id] < (size_t) file_size);
         assert(*((char*) file_mem + file_range_pos[thread_id]) == 's');
@@ -191,6 +196,18 @@ public:
                 memcpy(*id, token, token_len);
                 (*id)[token_len] = 0;
             }
+            else if (token_id == 2)
+            {
+                start_pos = atoi(token);
+            }
+            else if (token_id == 3)
+            {
+                len_wo_ref_gaps = atoi(token);
+            }
+            else if (token_id == 4)
+            {
+                strand = *token;
+            }
             else if (token_id == 6)
             {
                 const size_t token_len = strlen(token);
@@ -207,7 +224,8 @@ public:
 
         free(res);
 
-        file_range_pos[thread_id] = new_file_range_pos + 1; // skip \n
+        if (!immutable)
+            file_range_pos[thread_id] = new_file_range_pos + 1; // skip \n
     }
 
     char get_char(const unsigned thread_id) const
@@ -220,7 +238,7 @@ public:
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
     // if "\na" is at the end of the range for a thread, process it
-    bool get_next_alignment(alignment_t & aln, const unsigned thread_id)
+    bool get_next_alignment(alignment_t & aln, const unsigned thread_id, const unsigned frame, const char strand)
     {
         if (file_range_pos[thread_id] >= file_range_end[thread_id])
             return false;
@@ -228,36 +246,62 @@ public:
         // points to the beginning of "a score=....\n"
         skip(thread_id);
 
-        // size_t max_seq_len = 0;
-
         int64_t ref_seq_id = -1;
 
         char line_type;
+        uint64_t prev_cumulative_len_wo_ref_gaps = 0;
+
+        // get the next alignment
         while (file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(thread_id)) != 'a')
         {
             if (line_type == 's')
             {
                 // "s ID int int char int SEQ\n"
                 char *id = nullptr, *seq = nullptr;
-                get_line(thread_id, &id, &seq);
+                uint64_t start_pos;
+                uint64_t tmp_len_wo_ref_gaps;
+                char ref_strand;
+                get_line(thread_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
 
                 // cut id starting after "."
                 char *ptr = strchr(id, '.');
-                if (ptr != NULL)
-                    *ptr = 0;
+                assert(ptr != NULL); // expect format "species_name.chrom_name"
+                *ptr = 0;
+                char *chrom = ptr + 1;
+
+                // remove leading digits (e.g., galGal6 -> galGal)
+                for (size_t id_i = 0; id_i < strlen(id); ++id_i)
+                {
+                    if (isdigit(id[id_i]))
+                    {
+                        id[id_i] = 0;
+                        break;
+                    }
+                }
 
                 auto alnid = (*fastaid_to_alnid).find(id);
                 if (alnid == (*fastaid_to_alnid).end())
                 {
-                    printf("ERROR: Species %s in alignment file does not exist in model (or is not translated correctly)!\n", id);
-                    exit(-1);
+//                    printf("ERROR: Species %s in alignment file does not exist in model (or is not translated correctly)!\n", id);
+//                    exit(-1);
+
+                    free(id);
+                    free(seq);
+                    continue;
                 }
 
                 aln.seqs[alnid->second] = seq; // TODO: std::move?
 
                 // first sequence we encounter is the reference sequence. store its length!
                 if (ref_seq_id == -1)
+                {
+                    aln.start_pos = start_pos + 1; // maf file is to be 0-indexed
+                    aln.chrom = chrom;
                     ref_seq_id = alnid->second;
+                    prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
+                    assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
+//                    printf("Ref_seq_id: %ld\n", ref_seq_id);
+                }
                 else
                 {
 //                    printf("%ld\t%ld\n", aln.seqs[ref_seq_id].size(), aln.seqs[alnid->second].size());
@@ -273,8 +317,121 @@ public:
             }
         }
 
+        // for species not included in the alignment assign them the sequence NNNN...NNNN.
+        const size_t new_ref_seq_len2 = aln.seqs[ref_seq_id].size();
+        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+        {
+            if (aln.seqs[i].size() == 0)
+            {
+                aln.seqs[i] = std::string(new_ref_seq_len2, 'N');
+            }
+        }
+
+        bool abort_next_alignment = false;
+
+        // check whether we can extend the alignment (i.e., next alignment starts on the next base where the last one ended)
+        while (!abort_next_alignment && file_range_pos[thread_id] < (size_t)file_size)
+        {
+            const size_t old_file_range_pos = file_range_pos[thread_id];
+            skip(thread_id); // skip "a score=..."
+
+            char line_type;
+            int64_t ref_seq_id2 = -1;
+            // get the next alignment
+            while (!abort_next_alignment && file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(thread_id)) != 'a')
+            {
+                if (line_type == 's')
+                {
+                    // "s ID int int char int SEQ\n"
+                    char *id = nullptr, *seq = nullptr;
+                    uint64_t start_pos;
+                    uint64_t tmp_len_wo_ref_gaps;
+                    char ref_strand;
+
+                    get_line(thread_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
+
+                    // cut id starting after "."
+                    char *ptr = strchr(id, '.');
+                    assert(ptr != NULL); // expect format "species_name.chrom_name"
+                    *ptr = 0;
+                    char *chrom = ptr + 1;
+
+                    // when the first seq is retrieved (for now it's the reference sequence), check whether it can extend the previous alignment
+                    if (ref_seq_id2 == -1 && !((aln.start_pos - 1) + prev_cumulative_len_wo_ref_gaps == start_pos && (strcmp(chrom, aln.chrom.c_str()) == 0)))
+                    {
+                        abort_next_alignment = true;
+                        break;
+                    }
+
+                    // remove leading digits (e.g., galGal6 -> galGal)
+                    for (size_t id_i = 0; id_i < strlen(id); ++id_i)
+                    {
+                        if (isdigit(id[id_i]))
+                        {
+                            id[id_i] = 0;
+                            break;
+                        }
+                    }
+
+                    auto alnid = (*fastaid_to_alnid).find(id);
+                    if (alnid == (*fastaid_to_alnid).end())
+                    {
+//                    printf("ERROR: Species %s in alignment file does not exist in model (or is not translated correctly)!\n", id);
+//                    exit(-1);
+
+                        free(id);
+                        free(seq);
+                        continue;
+                    }
+
+                    aln.seqs[alnid->second] += seq; // TODO: std::move?
+
+                    // first sequence we encounter is the reference sequence. store its length!
+                    if (ref_seq_id2 == -1)
+                    {
+                        ref_seq_id2 = alnid->second;
+                        prev_cumulative_len_wo_ref_gaps += tmp_len_wo_ref_gaps;
+                        assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
+//                    printf("Ref_seq_id: %ld\n", ref_seq_id);
+                    }
+                    else
+                    {
+//                    printf("%ld\t%ld\n", aln.seqs[ref_seq_id].size(), aln.seqs[alnid->second].size());
+                        assert(aln.seqs[ref_seq_id2].size() == aln.seqs[alnid->second].size()); // all seqs same length
+                    }
+
+                    free(id);
+                    free(seq);
+                }
+                else
+                {
+                    skip(thread_id);
+                }
+            }
+
+            if (abort_next_alignment)
+            {
+                file_range_pos[thread_id] = old_file_range_pos;
+            }
+            else
+            {
+                // for species not included in the alignment add to them the sequence NNNN...NNNN.
+                const size_t new_ref_seq_len2 = aln.seqs[ref_seq_id].size();
+                for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+                {
+                    if (aln.seqs[i].size() != new_ref_seq_len2)
+                    {
+                        aln.seqs[i] += std::string(new_ref_seq_len2 - aln.seqs[i].size(), 'N');
+                    }
+                }
+            }
+        }
+
 //        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
-//            printf("%25s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//        {
+//            aln.seqs[i] = aln.seqs[i].substr(0, 200);
+//            printf("%27s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//        }
 //        printf("\n\n\n");
 
         size_t new_ref_seq_len = aln.seqs[ref_seq_id].size();
@@ -300,35 +457,89 @@ public:
         }
 
 //        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
-//            printf("%25s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//            printf("%27s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
 //        printf("\n\n\n");
+//        printf("new_ref_seq_len: %ld\n", new_ref_seq_len);
 
         for (uint64_t i = 0; i < aln.seqs.size(); ++i)
         {
             std::string & s = aln.seqs[i];
             // for species not included in the alignment assign them the sequence NNNN...NNNN. Is this necessary? (TODO)
-            if (aln.seqs[i].size() == 0)
+            size_t pos_w = 0;
+            for (size_t pos_r = 0; pos_r < s.size(); ++pos_r)
             {
-                s = std::string(new_ref_seq_len, 'N');
-            }
-            // remove gaps from reference sequence (linear scan over the string)
-            else
-            {
-                size_t pos_w = 0;
-                for (size_t pos_r = 0; pos_r < s.size(); ++pos_r)
+                if (s[pos_r] != 'X')
                 {
-                    if (s[pos_r] != 'X')
-                    {
-                        s[pos_w] = s[pos_r];
-                        ++pos_w;
-                    }
+                    s[pos_w] = s[pos_r];
+                    ++pos_w;
                 }
-                s.resize(pos_w);
+            }
+            s.resize(pos_w);
+        }
+
+        // get into right frame / strand
+        if (strand == '+')
+        {
+            // != 1 for +1
+            // != 2 for +2
+            // != 0 for +3
+            while (aln.start_pos % 3 != (frame % 3) && aln.seqs[0].size() > 0)
+            {
+//                size_t size_before = aln.seqs[0].size();
+                for (uint16_t i = 0; i < aln.seqs.size(); ++i)
+                {
+                    aln.seqs[i].erase(0, 1);
+                }
+                ++aln.start_pos;
+//                size_t size_after = aln.seqs[0].size();
+//                printf("R(%ld, %ld, %ld, %ld) ", aln.start_pos - 1, aln.start_pos, size_before, size_after);
+            }
+//            printf("\n");
+        }
+        else
+        {
+            // !=  for -1
+            // !=  for -2
+            // !=  for -3
+
+            size_t required_mod = 0;
+            if (frame == 3) // -3
+                required_mod = 1;
+            else if (frame == 2) // -2
+                required_mod = 2;
+            else if (frame == 1) // -1
+                required_mod = 0;
+            else
+                exit(77);
+
+//            std::cout << aln.start_pos + aln.seqs[0].size() << '\n';
+            while ((aln.start_pos + aln.seqs[0].size()) % 3 != required_mod && aln.seqs[0].size() > 0)
+            {
+//                size_t size_before = aln.seqs[0].size();
+                for (uint16_t i = 0; i < aln.seqs.size(); ++i)
+                {
+                    aln.seqs[i].pop_back();
+//                    aln.seqs[i].erase(0, 1);
+                }
+//                ++aln.start_pos;
+//                size_t size_after = aln.seqs[0].size();
+//                printf("R(%ld, %ld, %ld, %ld) ", aln.start_pos - 1, aln.start_pos, size_before, size_after);
+            }
+//            printf("\n");
+
+            // compute reverse complement
+            for (uint16_t i = 0; i < aln.seqs.size(); ++i)
+            {
+                std::reverse(aln.seqs[i].begin(), aln.seqs[i].end());
+                for (uint64_t j = 0; j < aln.seqs[i].size(); ++j)
+                {
+                    aln.seqs[i][j] = complement(aln.seqs[i][j]);
+                }
             }
         }
 
 //        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
-//            printf("%25s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
+//            printf("%27s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
 //        printf("\n\n\n");
 
         // translate nucleotides
