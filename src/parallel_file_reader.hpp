@@ -21,6 +21,9 @@ struct alignment_t
     std::vector<std::string> seqs;
     std::vector<std::vector<uint8_t> > peptides;
 
+    char strand;
+    unsigned skip_bases = 0;
+
     alignment_t(const std::vector<newick_elem> & phylo_array)
     {
         const uint16_t leaves = (phylo_array.size() + 1)/2;
@@ -29,6 +32,62 @@ struct alignment_t
         peptides.resize(leaves, {});
         for (uint16_t i = 0; i < leaves; ++i)
             ids[i] = phylo_array[i].label;
+    }
+
+    size_t length() const noexcept
+    {
+        assert(seqs.size() > 0);
+        for (uint16_t i = 0; i < seqs.size(); ++i)
+        {
+            assert(seqs[0].size() == seqs[i].size());
+        }
+        return seqs[0].size() - skip_bases;
+    }
+
+    void update_seqs(const uint64_t orig_start_pos, const char strand, const unsigned frame) noexcept
+    {
+        skip_bases = 0;
+        start_pos = orig_start_pos;
+
+        // get into right frame / strand
+        if (strand == '+')
+        {
+            // != 1 for +1,   != 2 for +2,   != 0 for +3
+            while (start_pos % 3 != (frame % 3) && length() > 0)
+            {
+                ++skip_bases;
+                ++start_pos;
+            }
+        }
+        else
+        {
+            size_t required_mod = 0;
+            if (frame == 3) // -3
+                required_mod = 1;
+            else if (frame == 2) // -2
+                required_mod = 2;
+            else // if (frame == 1) // -1
+                required_mod = 0;
+
+            while ((start_pos + length()) % 3 != required_mod && length() > 0)
+            {
+                ++skip_bases;
+            }
+        }
+
+        // translate nucleotides
+        for (uint16_t i = 0; i < seqs.size(); ++i)
+        {
+            // alignment.peptides.push_back(translate(alignment.seqs[i]));
+            peptides[i].resize((seqs[i].size() - skip_bases) / 3);
+            for (uint64_t aa_pos = 0; aa_pos < peptides[i].size(); ++aa_pos)
+            {
+                peptides[i][aa_pos] = get_amino_acid_id(
+                                        seqs[i][skip_bases + 3 * aa_pos],
+                                        seqs[i][skip_bases + 3 * aa_pos + 1],
+                                        seqs[i][skip_bases + 3 * aa_pos + 2]);
+            }
+        }
     }
 };
 
@@ -238,7 +297,7 @@ public:
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
     // if "\na" is at the end of the range for a thread, process it
-    bool get_next_alignment(alignment_t & aln, const unsigned thread_id, const unsigned frame, const char strand)
+    bool get_next_alignment(alignment_t & aln, const unsigned thread_id)
     {
         if (file_range_pos[thread_id] >= file_range_end[thread_id])
             return false;
@@ -475,84 +534,6 @@ public:
                 }
             }
             s.resize(pos_w);
-        }
-
-        // get into right frame / strand
-        if (strand == '+')
-        {
-            // != 1 for +1
-            // != 2 for +2
-            // != 0 for +3
-            while (aln.start_pos % 3 != (frame % 3) && aln.seqs[0].size() > 0)
-            {
-//                size_t size_before = aln.seqs[0].size();
-                for (uint16_t i = 0; i < aln.seqs.size(); ++i)
-                {
-                    aln.seqs[i].erase(0, 1);
-                }
-                ++aln.start_pos;
-//                size_t size_after = aln.seqs[0].size();
-//                printf("R(%ld, %ld, %ld, %ld) ", aln.start_pos - 1, aln.start_pos, size_before, size_after);
-            }
-//            printf("\n");
-        }
-        else
-        {
-            // !=  for -1
-            // !=  for -2
-            // !=  for -3
-
-            size_t required_mod = 0;
-            if (frame == 3) // -3
-                required_mod = 1;
-            else if (frame == 2) // -2
-                required_mod = 2;
-            else if (frame == 1) // -1
-                required_mod = 0;
-            else
-                exit(77);
-
-//            std::cout << aln.start_pos + aln.seqs[0].size() << '\n';
-            while ((aln.start_pos + aln.seqs[0].size()) % 3 != required_mod && aln.seqs[0].size() > 0)
-            {
-//                size_t size_before = aln.seqs[0].size();
-                for (uint16_t i = 0; i < aln.seqs.size(); ++i)
-                {
-                    aln.seqs[i].pop_back();
-                }
-//                ++aln.start_pos;
-//                size_t size_after = aln.seqs[0].size();
-//                printf("R(%ld, %ld, %ld, %ld) ", aln.start_pos - 1, aln.start_pos, size_before, size_after);
-            }
-//            printf("\n");
-
-            // compute reverse complement
-            for (uint16_t i = 0; i < aln.seqs.size(); ++i)
-            {
-                std::reverse(aln.seqs[i].begin(), aln.seqs[i].end());
-                for (uint64_t j = 0; j < aln.seqs[i].size(); ++j)
-                {
-                    aln.seqs[i][j] = complement(aln.seqs[i][j]);
-                }
-            }
-        }
-
-//        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
-//            printf("%27s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
-//        printf("\n\n\n");
-
-        // translate nucleotides
-        for (uint16_t i = 0; i < aln.seqs.size(); ++i)
-        {
-            // alignment.peptides.push_back(translate(alignment.seqs[i]));
-            aln.peptides[i].resize(aln.seqs[i].size() / 3);
-            for (uint64_t aa_pos = 0; aa_pos < aln.peptides[i].size(); ++aa_pos)
-            {
-                aln.peptides[i][aa_pos] = get_amino_acid_id(
-                        aln.seqs[i][3 * aa_pos],
-                        aln.seqs[i][3 * aa_pos + 1],
-                        aln.seqs[i][3 * aa_pos + 2]);
-            }
         }
 
         return true;

@@ -52,12 +52,10 @@ int main(int /*argc*/, char ** /*argv*/)
 //    char hmm_data_path[] = "/home/chris/dev-uni/PhyloCSF++/phylo_yeast/YeastCodingExons.txt";
 //    const std::string output_folder = "/home/chris/dev-uni/PhyloCSF++/yeast_out";
 
-    const std::string filename_power = output_folder + "/PhyloCSFpower-chrM.wig";
-
     const hmm_parameter hmm_param = estimate_hmm_params_for_genome(hmm_data_path, genome_length);
     const hmm hmm = get_coding_hmm(hmm_param);
 
-    std::vector<Data> data_omega(threads), data_fixed_mle(threads);
+    std::vector<Data> data_fixed_mle(threads);
     char delim[] = ",";
 
     char *ptr = strtok(selected_species_str, delim);
@@ -65,7 +63,6 @@ int main(int /*argc*/, char ** /*argv*/)
     {
         for (size_t thread_id = 0; thread_id < threads; ++thread_id)
         {
-            data_omega[thread_id].selected_species.emplace(ptr);
             data_fixed_mle[thread_id].selected_species.emplace(ptr);
         }
         ptr = strtok(NULL, delim);
@@ -74,7 +71,6 @@ int main(int /*argc*/, char ** /*argv*/)
     for (size_t thread_id = 0; thread_id < threads; ++thread_id)
     {
         // TODO: check whether selected species exist!
-        data_omega[thread_id].load_model(model_str, true);
         data_fixed_mle[thread_id].load_model(model_str, false);
     }
 
@@ -92,9 +88,9 @@ int main(int /*argc*/, char ** /*argv*/)
                 sscanf(line, "%s\t%s", c1, c2); // PhyloCSF identifier => maf identifier
 
 //                bool found = false;
-                for (uint16_t i = 0; i < data_omega[0].phylo_array.size(); ++i)
+                for (uint16_t i = 0; i < data_fixed_mle[0].phylo_array.size(); ++i)
                 {
-                    if (strcmp(data_omega[0].phylo_array[i].label.c_str(), c1) == 0)
+                    if (strcmp(data_fixed_mle[0].phylo_array[i].label.c_str(), c1) == 0)
                     {
                         // remove leading digits (e.g., galGal6 -> galGal)
                         for (size_t c2_i = 0; c2_i < strlen(c2); ++c2_i)
@@ -125,72 +121,88 @@ int main(int /*argc*/, char ** /*argv*/)
     std::vector<alignment_t> alignments;
     for (unsigned i = 0; i < threads; ++i)
     {
-        alignments.emplace_back(data_omega[0].phylo_array); // TODO: remove id's outside of aln struct because they are read-only
+        alignments.emplace_back(data_fixed_mle[0].phylo_array); // TODO: remove id's outside of aln struct because they are read-only
     }
 
-    parallel_maf_reader tmp_maf_rd(aln_path, jobs, &fastaid_to_alnid);
-    jobs = tmp_maf_rd.get_jobs();
+    std::vector<std::vector<double> > lpr_per_codon(threads), bls_per_bp(threads);
 
-    std::vector<std::vector<comp_result> > computed_results(jobs);
+    parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
+    jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
 
-    std::vector<std::vector<double> > lpr_per_codon(jobs), bls_per_bp(jobs);
-
-    FILE *file_power = fopen(filename_power.c_str(), "w");
-    if (file_power == NULL)
+    FILE ** file_power = (FILE**) malloc(jobs * sizeof(FILE*));
+    for (size_t job_id = 0; job_id < jobs; ++job_id)
     {
-        printf("Error!");
-        exit(1);
-    }
-
-    for (char strand = '+'; strand <= '-'; strand += 2)
-    {
-        for (unsigned frame = 1; frame <= 3; ++frame)
+        const std::string filename_power = output_folder + "/PhyloCSFpower.wig." + std::to_string(job_id);
+        file_power[job_id] = fopen(filename_power.c_str(), "w");
+        if (file_power[job_id] == NULL)
         {
-            parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
+            printf("Error!");
+            exit(1);
+        }
+    }
 
-            const std::string filename_score_raw = output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + "-chrM.wig";
-            const std::string filename_score     = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + "-chrM.wig";
-            FILE *file_score_raw = fopen(filename_score_raw.c_str(), "w");
-            FILE *file_score = fopen(filename_score.c_str(), "w");
-            if (file_score_raw == NULL || file_score == NULL)
+    FILE *** file_score_raw = (FILE***) malloc(jobs * sizeof(FILE**));
+    FILE *** file_score = (FILE***) malloc(jobs * sizeof(FILE**));
+    for (size_t job_id = 0; job_id < jobs; ++job_id)
+    {
+        file_score_raw[job_id] = (FILE**) malloc(6 * sizeof(FILE*));
+        file_score[job_id] = (FILE**) malloc(6 * sizeof(FILE*));
+
+        for (uint8_t i = 0; i < 6; ++i)
+        {
+            char strand = (i < 3) ? '+' : '-';
+            unsigned frame = (i % 3) + 1;
+            const std::string filename_score_raw = output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
+            const std::string filename_score     = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
+            file_score_raw[job_id][i] = fopen(filename_score_raw.c_str(), "w");
+            file_score[job_id][i]= fopen(filename_score.c_str(), "w");
+
+            if (file_score_raw[job_id][i] == NULL || file_score[job_id][i] == NULL)
             {
-                printf("Error!");
+                printf("Error creating file!");
                 exit(1);
             }
+        }
+    }
 
-        //    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data_fixed_mle, data_omega, frame, stdout, computed_results, lpr_per_codon, bls_per_codon)
-            for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it in more parts than there are threads
+//    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data_fixed_mle, data_omega, frame, stdout, computed_results, lpr_per_codon, bls_per_codon)
+    for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it in more parts than there are threads
+    {
+        unsigned thread_id = 0;//omp_get_thread_num();
+        auto & aln = alignments[thread_id];
+        // TODO: merge arrays file_range_pos and _end are thread-safe for cache locality. should be thread-safe
+
+        std::vector<double> scores;
+        std::vector<scored_region> region;
+
+        while (maf_rd.get_next_alignment(aln, job_id))
+        {
+//            if (aln.chrom == "chrM")
+//                aln.chrom = "chrMT";
+
+            // on first iteration, compute bls scores (used by all 6 frames then!)
+            bls_per_bp[thread_id].clear(); // TODO: should all be thread_id not job_id
+            compute_bls_score(data_fixed_mle[thread_id].phylo_tree, aln, bls_per_bp[thread_id]);
+
+            const uint64_t orig_start_pos = aln.start_pos;
+
+            for (char strand = '+'; strand <= '-'; strand += 2)
             {
-                unsigned thread_id = 0;//omp_get_thread_num();
-                auto & aln = alignments[thread_id];
-                size_t a_id = 0;
-                // TODO: merge arrays file_range_pos and _end are thread-safe for cache locality. should be thread-safe
-
-                std::vector<double> scores;
-                std::vector<scored_region> region;
-
-                while (/*a_id < correct_results.size() && */maf_rd.get_next_alignment(aln, job_id, frame, strand))
+                for (unsigned frame = 1; frame <= 3; ++frame)
                 {
-                    if (aln.chrom == "chrM")
-                        aln.chrom = "chrMT";
+                    const uint8_t file_index = frame - 1 + (strand == '+' ? 0 : 3);
+                    aln.update_seqs(orig_start_pos, strand, frame);
 
                     std::tuple<double, double, double> results_fixed;
 
-                    // on first iteration, compute bls scores (used by all 6 frames then!)
-                    if (strand == '+' && frame == 1)
-                    {
-                        bls_per_bp[job_id].clear();
-                        compute_bls_score(data_fixed_mle[thread_id].phylo_tree, aln, bls_per_bp[job_id]);
-                    }
-
-                    results_fixed = run(data_fixed_mle[thread_id], aln, algorithm_t::FIXED, lpr_per_codon[job_id], bls_per_bp[job_id]);
+                    results_fixed = run(data_fixed_mle[thread_id], aln, algorithm_t::FIXED, lpr_per_codon[thread_id], bls_per_bp[thread_id]);
                     data_fixed_mle[thread_id].clear();
 
                     if (strand == '-')
                     {
-                        std::reverse(lpr_per_codon[job_id].begin(), lpr_per_codon[job_id].end());
+                        std::reverse(lpr_per_codon[thread_id].begin(), lpr_per_codon[thread_id].end());
 
-                        const size_t excess_basepairs = aln.seqs[0].size() % 3;
+                        const size_t excess_basepairs = aln.length() % 3;
                         aln.start_pos += excess_basepairs;
                     }
 
@@ -198,16 +210,16 @@ int main(int /*argc*/, char ** /*argv*/)
                     {
                         // since we iterate over a codon array, there must be 3 bp for each codon
                         // the last 0-2 remaining basepairs in the bls array do not have a codon entry
-                        assert(lpr_per_codon[job_id].size() * 3 <= bls_per_bp[job_id].size());
+                        assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
 
-                        fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
-                        for (uint32_t pos = frame - 1; pos < lpr_per_codon[job_id].size() * 3; pos += 3)
+                        fprintf(file_power[job_id], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
+                        for (uint32_t pos = frame - 1; pos < lpr_per_codon[thread_id].size() * 3; pos += 3)
                         {
-                            const float bls_codon_avg = (bls_per_bp[job_id][pos]
-                                                      +  bls_per_bp[job_id][pos + 1]
-                                                      +  bls_per_bp[job_id][pos + 2]) / 3.0;
+                            const float bls_codon_avg = (bls_per_bp[thread_id][pos]
+                                                      +  bls_per_bp[thread_id][pos + 1]
+                                                      +  bls_per_bp[thread_id][pos + 2]) / 3.0;
 
-                            my_fprintf(file_power, "%.4f", bls_codon_avg);
+                            my_fprintf(file_power[job_id], "%.4f", bls_codon_avg);
                         }
                     }
 
@@ -216,15 +228,15 @@ int main(int /*argc*/, char ** /*argv*/)
                     if (strand == '+')
                         bls_pos += (frame - 1);
                     else
-                        bls_pos += aln.seqs[0].size() % 3;
+                        bls_pos += aln.length() % 3;
 
                     int64_t prevPos = -4;
                     int64_t startBlockPos = aln.start_pos;
-                    for (uint32_t xx = 0; xx < lpr_per_codon[job_id].size(); ++xx, bls_pos += 3)
+                    for (uint32_t xx = 0; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
                     {
-                        const float bls_codon_sum = bls_per_bp[job_id][bls_pos]
-                                                  + bls_per_bp[job_id][bls_pos + 1]
-                                                  + bls_per_bp[job_id][bls_pos + 2];
+                        const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
+                                                  + bls_per_bp[thread_id][bls_pos + 1]
+                                                  + bls_per_bp[thread_id][bls_pos + 2];
                         if (bls_codon_sum < 0.1f * 3)
                         {
                             if (scores.empty())
@@ -236,16 +248,16 @@ int main(int /*argc*/, char ** /*argv*/)
 
                         if (prevPos + 3 != newPos)
                         {
-                            fprintf(file_score_raw, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), newPos);
+                            fprintf(file_score_raw[job_id][file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), newPos);
                             if (!scores.empty())
                             {
-                                fprintf(file_score, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                                fprintf(file_score[job_id][file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
 
                                 process_scores(hmm, scores, startBlockPos, region, SCORE_CODON);
 
                                 for(size_t i = 0; i < region.size(); i++)
                                 {
-                                    my_fprintf(file_score, "%.3f", region[i].log_odds_prob);
+                                    my_fprintf(file_score[job_id][file_index], "%.3f", region[i].log_odds_prob);
                                 }
 
                                 scores.clear();
@@ -255,35 +267,71 @@ int main(int /*argc*/, char ** /*argv*/)
                         }
 
                         prevPos = newPos;
-                        my_fprintf(file_score_raw, "%.3f", lpr_per_codon[job_id][xx]);
-                        scores.push_back(lpr_per_codon[job_id][xx]);
+                        my_fprintf(file_score_raw[job_id][file_index], "%.3f", lpr_per_codon[thread_id][xx]);
+                        scores.push_back(lpr_per_codon[thread_id][xx]);
                     }
 
                     if (!scores.empty())
                     {
-                        fprintf(file_score, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                        fprintf(file_score[job_id][file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
                         process_scores(hmm, scores, startBlockPos, region, SCORE_CODON);
 
                         for(size_t i = 0; i < region.size(); i++)
                         {
-                            my_fprintf(file_score, "%.3f", region[i].log_odds_prob);
+                            my_fprintf(file_score[job_id][file_index], "%.3f", region[i].log_odds_prob);
                         }
 
                         scores.clear();
                         region.clear();
                     }
+                }
 
-                    for (auto & seq : aln.seqs)
-                        seq = "";
-                    ++a_id;
+                // compute reverse complement for neg. strand
+                for (auto & seq : aln.seqs)
+                {
+                    std::reverse(seq.begin(), seq.end());
+                    for (uint64_t j = 0; j < seq.size(); ++j)
+                    {
+                        seq[j] = complement(seq[j]);
+                    }
                 }
             }
-            fclose(file_score_raw);
-            fclose(file_score);
+
+            for (auto & seq : aln.seqs)
+                seq = "";
         }
     }
 
-    fclose(file_power);
+    for (size_t job_id = 0; job_id < jobs; ++job_id)
+    {
+        fclose(file_power[job_id]);
+
+        for (uint8_t i = 0; i < 6; ++i)
+        {
+            fclose(file_score_raw[job_id][i]);
+            fclose(file_score[job_id][i]);
+        }
+        free(file_score_raw[job_id]);
+        file_score_raw[job_id] = NULL;
+        free(file_score[job_id]);
+        file_score[job_id] = NULL;
+    }
+
+    free(file_power);
+    file_power = NULL;
+
+    free(file_score_raw);
+    file_score_raw = NULL;
+
+    free(file_score);
+    file_score = NULL;
+
+    // merge files
+//    std::ofstream of_a("a.txt", std::ios_base::binary | std::ios_base::app);
+//    std::ifstream if_b("b.txt", std::ios_base::binary);
+//
+//    of_a.seekp(0, std::ios_base::end);
+//    of_a << if_b.rdbuf();
 
     return 0;
 }
