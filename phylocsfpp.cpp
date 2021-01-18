@@ -29,22 +29,28 @@ int main(int /*argc*/, char ** /*argv*/)
     unsigned threads = 1;
     unsigned jobs = 1;
 
-    std::string filename_name_mapping = "/home/chris/dev-uni/PhyloCSF++/commonNames_assemblies.txt";
+    std::string filename_name_mapping = "/ccb/salz4-2/pocki/PhyloCSF++data/commonNames_assemblies.txt";
+    uint32_t genome_length            = 2870184193;
+    char model_str[]                  = "100vertebrates";
+    char selected_species_str[]       = "Rat,Frog_X._tropicalis,Zebrafish,Platypus,Chicken,Turkey,Panda,Mouse,Prairie_vole,Rhesus,Rabbit,Cat,Opossum,Cow,Human,Chimp,Dog,Guinea_pig";
+    char aln_path[]                   = "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/rn6.20way.chr20.maf";
+    char hmm_data_path[]              = "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/RatCodingExons.txt";
+    const std::string output_folder   = "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/out_chr20_1job";
 
-//    uint32_t genome_length = 3252208893;
-//    char model_str[] = "58mammals";
-//    char selected_species_str[] = ""; // "Human,Chimp,Gorilla,Orangutan,Gibbon,Rhesus,Crab_eating_macaque,Baboon,Green_monkey,Marmoset,Squirrel_monkey,Bushbaby,Chinese_tree_shrew,Squirrel,Lesser_Egyptian_jerboa,Prairie_vole,Chinese_hamster,Golden_hamster,Mouse,Rat,Naked_mole_rat,Guinea_pig,Chinchilla,Brush_tailed_rat,Rabbit,Pika,Pig,Alpaca,Wild_bactrian_camel,Dolphin,Killer_whale,Tibetan_antelope,Cow,Sheep,Domestic_goat,Horse,White_rhinoceros,Cat,Dog,Ferret,Panda,Pacific_walrus,Weddell_seal,Black_flying_fox,Megabat,Big_brown_bat,Davids_myotis,Microbat,Hedgehog,Shrew,Star_nosed_mole,Elephant,Cape_elephant_shrew,Manatee,Cape_golden_mole,Tenrec,Aardvark,Armadillo"; // "Dog,Cow,Horse,Human,Mouse,Rat";
-//    char aln_path[] = "/home/chris/dev-uni/PhyloCSF++/chr4_GL000008v2_random.maf"; // chr4_GL000008v2_random.maf"; chr4_small // "/home/chris/Downloads/chr22.516alignments.maf"; // chr22.head.maf";
-////    char aln_path[] = "/home/chris/dev-uni/PhyloCSF++/ALDH2.exon5.maf";
-////    char scores_path[] = "/home/chris/dev-uni/PhyloCSF++/chr22.head.orig.results.formatted";
-//    char hmm_data_path[] = "/home/chris/dev-uni/PhyloCSF++/HumanCodingExonsV29.txt";
+//    std::string filename_name_mapping = "/home/chris/dev-uni/PhyloCSF++/commonNames_assemblies.txt";
+//    uint32_t genome_length            = 1065365434;
+//    char model_str[]                  = "53birds";
+//    char selected_species_str[]       = "";
+//    char aln_path[]                   = "/home/chris/dev-uni/PhyloCSF++/phylo_galgal/galGal6_chrM.maf"; // galGal6_chr32
+//    char hmm_data_path[]              = "/home/chris/dev-uni/PhyloCSF++/phylo_galgal/ChickenCodingExonsV2.txt";
+//    const std::string output_folder   = "/home/chris/dev-uni/PhyloCSF++/galgal_out";
 
-    uint32_t genome_length = 1065365434;
-    char model_str[] = "53birds";
-    char selected_species_str[] = "";
-    char aln_path[] = "/home/chris/dev-uni/PhyloCSF++/phylo_galgal/galGal6_chrM.maf";
-    char hmm_data_path[] = "/home/chris/dev-uni/PhyloCSF++/phylo_galgal/ChickenCodingExonsV2.txt";
-    const std::string output_folder = "/home/chris/dev-uni/PhyloCSF++/galgal_out";
+//    uint32_t genome_length = 1065365434;
+//    char model_str[] = "53birds";
+//    char selected_species_str[] = "Rat,Frog_X._tropicalis,Zebrafish,Platypus,Chicken,Turkey,Panda,Mouse,Prairie_vole,Rhesus,Rabbit,Cat,Opossum,Cow,Human,Chimp,Dog,Guinea_pig";
+//    char aln_path[] =                 "/home/chris/dev-uni/PhyloCSF++/phylo_galgal/galGal6_chrM.maf"; // galGal6_chr32
+//    char hmm_data_path[] =            "/home/chris/dev-uni/PhyloCSF++/phylo_galgal/ChickenCodingExonsV2.txt";
+//    const std::string output_folder = "/home/chris/dev-uni/PhyloCSF++/galgal_out";
 
 // NOTE: FINAL YEAST
 //    uint32_t genome_length = 12157105;
