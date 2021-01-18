@@ -274,7 +274,7 @@ std::vector<scored_region> create_track(hmm_parameter & hmm_params, std::string 
     char line[1024];
     // bed file
     double min_rel_branch_length = 0.1;
-    uint32_t prev_pos, block_start_pos;
+    uint32_t prev_pos, block_start_pos = 0;
     std::string prev_chrom;
     while (fgets(line, sizeof(line), score_file)) {
         const char * delim = " \t";

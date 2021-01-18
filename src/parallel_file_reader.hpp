@@ -91,6 +91,24 @@ struct alignment_t
     }
 };
 
+char* rstrstr(char *haystack_end, char *haystack_begin, char *needle)
+{
+    size_t needle_length = strlen(needle);
+
+    for (char *p = haystack_end; p >= haystack_begin; --p)
+    {
+        for (size_t i = 0; i < needle_length; ++i)
+        {
+            if (p[i] != needle[i])
+                goto next;
+        }
+        return p;
+
+        next:;
+    }
+    return NULL;
+}
+
 class parallel_maf_reader
 {
     unsigned threads;
@@ -110,6 +128,86 @@ class parallel_maf_reader
 public:
 
     unsigned get_jobs() const noexcept { return this->threads; }
+
+    // skip a line
+    void skip(const unsigned job_id)
+    {
+        char *newline_begin = strstr((char*) file_mem + file_range_pos[job_id], "\n");
+
+        if (newline_begin == nullptr)
+            file_range_pos[job_id] = file_size;
+        else
+            file_range_pos[job_id] = newline_begin - (char*) file_mem + 1; // skip \n
+    }
+
+    // this function is only called on lines starting with "s "
+    void get_line(const unsigned job_id, char ** id, char ** seq, uint64_t & start_pos, uint64_t & len_wo_ref_gaps, char & strand)
+    {
+        assert(file_range_pos[job_id] < (size_t) file_size);
+        assert(*((char*) file_mem + file_range_pos[job_id]) == 's');
+
+        char *newline_begin = strstr((char*) file_mem + file_range_pos[job_id], "\n"); // TODO: replace all occurrences with strchr()
+
+        size_t new_file_range_pos;
+        if (newline_begin == nullptr)
+            new_file_range_pos = file_size;
+        else
+            new_file_range_pos = newline_begin - (char*) file_mem;
+
+        // TODO: this malloc and memcpy can be avoided by reimplementing strtok that does not modify the input string
+        const size_t len = new_file_range_pos - file_range_pos[job_id];
+        char *res = (char*) malloc(len + 1);
+        memcpy(res, (char*) file_mem + file_range_pos[job_id], len + 1);
+        res[len] = 0;
+
+        char *strtok_state;
+        char *token = strtok_r(res, " ", &strtok_state);
+        uint16_t token_id = 0;
+        while (token != nullptr)
+        {
+            if (token_id == 1)
+            {
+                const size_t token_len = strlen(token);
+                *id = (char*) malloc(token_len + 1);
+                memcpy(*id, token, token_len);
+                (*id)[token_len] = 0;
+            }
+            else if (token_id == 2)
+            {
+                start_pos = atoi(token);
+            }
+            else if (token_id == 3)
+            {
+                len_wo_ref_gaps = atoi(token);
+            }
+            else if (token_id == 4)
+            {
+                strand = *token;
+            }
+            else if (token_id == 6)
+            {
+                const size_t token_len = strlen(token);
+                *seq = (char*) malloc(token_len + 1);
+                memcpy(*seq, token, token_len);
+                (*seq)[token_len] = 0;
+            }
+            token = strtok_r(nullptr, " ", &strtok_state);
+//            printf("%d. Token: %s\n", token_id, token);
+            ++token_id;
+        }
+
+        file_range_pos[job_id] = new_file_range_pos + 1; // skip \n
+
+        assert(id != nullptr && seq != nullptr);
+        free(res);
+    }
+
+    char get_char(const unsigned job_id) const
+    {
+        assert(file_range_pos[job_id] < (size_t)file_size);
+
+        return *((char*) file_mem + file_range_pos[job_id]);
+    }
 
     parallel_maf_reader(char *file_path, const unsigned threads, std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
     {
@@ -193,16 +291,10 @@ public:
                     char *aln_begin = strstr((char*) file_mem + file_range_pos[i], "\na ");
 
                     if (aln_begin == nullptr)
-                    {
                         file_range_pos[i] = file_size;
-                    }
                     else
-                    {
                         file_range_pos[i] = aln_begin - (char*) file_mem + 1; // skip \n
-                    }
                 }
-                // else
-                //    file_range_pos[i] += 0; // no offset
             }
 //            printf("%3ld, %3ld\n", file_range_pos[i], file_range_end[i]);
 
@@ -212,98 +304,55 @@ public:
         this->fastaid_to_alnid = fastaid_to_alnid;
     }
 
-    // skip a line
-    void skip(const unsigned thread_id)
+    // call this at the beginning of a job, before first alignment is accessed (not for very first job)
+    // this will skip any alignments for this job, that will be taken by the previous job (because it might concatenate immediate alignments
+    // that fall into this jobs range)
+    void skip_partial_alignment(alignment_t & aln, const unsigned job_id)
     {
-        char *newline_begin = strstr((char*) file_mem + file_range_pos[thread_id], "\n");
+        if (job_id == 0)
+            return;
 
-        if (newline_begin == nullptr)
-            file_range_pos[thread_id] = file_size;
-        else
-            file_range_pos[thread_id] = newline_begin - (char*) file_mem + 1; // skip \n
-    }
+        // does this alignment get concatenated to the previous one?
+        char *prev_aln_begin = rstrstr((char*) file_mem + file_range_pos[job_id], // haystack_end
+                                       (char*) file_mem + file_range_pos[job_id - 1], // haysteck_begin
+                                       "\na "); // pattern
 
-    // this function is only called on lines starting with "s "
-    void get_line(const unsigned thread_id, char ** id, char ** seq, uint64_t & start_pos, uint64_t & len_wo_ref_gaps, char & strand, const bool immutable = false)
-    {
-        assert(file_range_pos[thread_id] < (size_t) file_size);
-        assert(*((char*) file_mem + file_range_pos[thread_id]) == 's');
-
-        char *newline_begin = strstr((char*) file_mem + file_range_pos[thread_id], "\n"); // TODO: replace all occurrences with strchr()
-
-        size_t new_file_range_pos;
-        if (newline_begin == nullptr)
-            new_file_range_pos = file_size;
-        else
-            new_file_range_pos = newline_begin - (char*) file_mem;
-
-        // TODO: this malloc and memcpy can be avoided by reimplementing strtok that does not modify the input string
-        const size_t len = new_file_range_pos - file_range_pos[thread_id];
-        char *res = (char*) malloc(len + 1);
-        memcpy(res, (char*) file_mem + file_range_pos[thread_id], len + 1);
-        res[len] = 0;
-
-        char *strtok_state;
-        char *token = strtok_r(res, " ", &strtok_state);
-        uint16_t token_id = 0;
-        while (token != nullptr)
+        if (prev_aln_begin == NULL) // no alignment begin in this section, so there are no alignments to process for this job
         {
-            if (token_id == 1)
-            {
-                const size_t token_len = strlen(token);
-                *id = (char*) malloc(token_len + 1);
-                memcpy(*id, token, token_len);
-                (*id)[token_len] = 0;
-            }
-            else if (token_id == 2)
-            {
-                start_pos = atoi(token);
-            }
-            else if (token_id == 3)
-            {
-                len_wo_ref_gaps = atoi(token);
-            }
-            else if (token_id == 4)
-            {
-                strand = *token;
-            }
-            else if (token_id == 6)
-            {
-                const size_t token_len = strlen(token);
-                *seq = (char*) malloc(token_len + 1);
-                memcpy(*seq, token, token_len);
-                (*seq)[token_len] = 0;
-            }
-            token = strtok_r(nullptr, " ", &strtok_state);
-//            printf("%d. Token: %s\n", token_id, token);
-            ++token_id;
+            file_range_pos[job_id] = file_size;
         }
+        else
+        {
+            // backup
+            const size_t orig_file_range_pos = file_range_pos[job_id];
 
-        assert(id != nullptr && seq != nullptr);
+            // get the previous alignment (last one from previous job)
+            get_next_alignment(aln, job_id);
 
-        free(res);
+            // it either cannot be concatenated with the fist alignment of this job
+            if (orig_file_range_pos == file_range_pos[job_id])
+            {
 
-        if (!immutable)
-            file_range_pos[thread_id] = new_file_range_pos + 1; // skip \n
-    }
+            }
+            // or it "steals" some alignments from this job (which we have to skip), i.e., do nothing
+            // and the first call of get_next_alignment() will retrieve the very first complete alignment
+            else
+            {
 
-    char get_char(const unsigned thread_id) const
-    {
-        assert(file_range_pos[thread_id] < (size_t)file_size);
-
-        return *((char*) file_mem + file_range_pos[thread_id]);
+            }
+        }
     }
 
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
     // if "\na" is at the end of the range for a thread, process it
-    bool get_next_alignment(alignment_t & aln, const unsigned thread_id)
+    bool get_next_alignment(alignment_t & aln, const unsigned job_id)
     {
-        if (file_range_pos[thread_id] >= file_range_end[thread_id])
+        if (file_range_pos[job_id] >= file_range_end[job_id])
             return false;
 
         // points to the beginning of "a score=....\n"
-        skip(thread_id);
+        skip(job_id);
 
         int64_t ref_seq_id = -1;
 
@@ -311,16 +360,16 @@ public:
         uint64_t prev_cumulative_len_wo_ref_gaps = 0;
 
         // get the next alignment
-        while (file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(thread_id)) != 'a')
+        while (file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')
         {
             if (line_type == 's')
             {
                 // "s ID int int char int SEQ\n"
                 char *id = nullptr, *seq = nullptr;
-                uint64_t start_pos;
-                uint64_t tmp_len_wo_ref_gaps;
+                uint64_t start_pos = 0;
+                uint64_t tmp_len_wo_ref_gaps = 0;
                 char ref_strand;
-                get_line(thread_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
+                get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
 
                 // cut id starting after "."
                 char *ptr = strchr(id, '.');
@@ -372,7 +421,7 @@ public:
             }
             else
             {
-                skip(thread_id);
+                skip(job_id);
             }
         }
 
@@ -389,25 +438,25 @@ public:
         bool abort_next_alignment = false;
 
         // check whether we can extend the alignment (i.e., next alignment starts on the next base where the last one ended)
-        while (!abort_next_alignment && file_range_pos[thread_id] < (size_t)file_size)
+        while (!abort_next_alignment && file_range_pos[job_id] < (size_t)file_size)
         {
-            const size_t old_file_range_pos = file_range_pos[thread_id];
-            skip(thread_id); // skip "a score=..."
+            const size_t old_file_range_pos = file_range_pos[job_id];
+            skip(job_id); // skip "a score=..."
 
             char line_type;
             int64_t ref_seq_id2 = -1;
             // get the next alignment
-            while (!abort_next_alignment && file_range_pos[thread_id] < (size_t)file_size && (line_type = get_char(thread_id)) != 'a')
+            while (!abort_next_alignment && file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')
             {
                 if (line_type == 's')
                 {
                     // "s ID int int char int SEQ\n"
                     char *id = nullptr, *seq = nullptr;
-                    uint64_t start_pos;
-                    uint64_t tmp_len_wo_ref_gaps;
+                    uint64_t start_pos = 0;
+                    uint64_t tmp_len_wo_ref_gaps = 0;
                     char ref_strand;
 
-                    get_line(thread_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
+                    get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
 
                     // cut id starting after "."
                     char *ptr = strchr(id, '.');
@@ -464,13 +513,13 @@ public:
                 }
                 else
                 {
-                    skip(thread_id);
+                    skip(job_id);
                 }
             }
 
             if (abort_next_alignment)
             {
-                file_range_pos[thread_id] = old_file_range_pos;
+                file_range_pos[job_id] = old_file_range_pos;
             }
             else
             {

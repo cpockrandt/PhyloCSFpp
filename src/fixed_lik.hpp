@@ -331,16 +331,13 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
     workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
-    gsl_vector * anc_lprior = gsl_vector_alloc(64);
-    gsl_vector_memcpy(anc_lprior, get_prior(instance));
-    for (uint8_t i = 0; i < 64; ++i)
-        gsl_vector_set(anc_lprior, i, log(gsl_vector_get(anc_lprior, i)));
-//    for (const auto a : anc_lprior)
-//        printf("%f ", a);
-//    std::cout << '\n';
-
-    const uint16_t root_node_id = instance.model.tree.size() - 1;
-//    std::cout << root_node_id << '\n';
+// BEGIN - THIS IS FOR ANC SCORE
+//    gsl_vector * anc_lprior = gsl_vector_alloc(64);
+//    gsl_vector_memcpy(anc_lprior, get_prior(instance));
+//    for (uint8_t i = 0; i < 64; ++i)
+//        gsl_vector_set(anc_lprior, i, log(gsl_vector_get(anc_lprior, i)));
+//    const uint16_t root_node_id = instance.model.tree.size() - 1;
+// END - THIS IS FOR ANC SCORE
 
     gsl_vector * tmp_prior = get_prior(instance); // TODO: move this out of the for loop below!
 
@@ -371,16 +368,6 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         assert(workspace.workspace_data->size1 >= (size_t)(2*n-nl)); // if rows < (2*n-nl) || cols <> k then invalid_arg "CamlPaml.Infer.prepare: inappropriate workspace dimensions"
         assert(workspace.workspace_data->size2 == k);
 
-//        for (uint16_t x = 0; x < 7; ++x)
-//        {
-//            double test = 100 * (x + 1);
-//            for (uint16_t y = 0; y < 64; ++y)
-//            {
-//                gsl_matrix_set(workspace_data, x, y, test);
-//                ++test;
-//            }
-//        }
-
         // let alpha = Bigarray.Array2.sub_left workspace.data 0 (n-nl)
         // let beta = Bigarray.Array2.sub_left workspace.data (n-nl) n
         // I don't think submatrices are really necessary here. we can do the calculations ourselves
@@ -394,49 +381,24 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
             gsl_matrix_set(&workspace.beta.matrix, n - 1, a, gsl_vector_get(tmp_prior, a)); // TODO: check whether submatrix works and setting values here!
         }
 
-//        for (uint16_t x = 0; x < 7; ++x)
-//        {
-//            for (uint16_t y = 0; y < 64; ++y)
-//            {
-//                std::cout << gsl_matrix_get(workspace_data, x, y) << ' ';
-//            }
-//            std::cout << '\n';
-//        }
-//        std::cout << "--------------------------\n";
-//        for (uint16_t x = 0; x < alpha.matrix.size1; ++x)
-//        {
-//            for (uint16_t y = 0; y < alpha.matrix.size2; ++y)
-//            {
-//                std::cout << gsl_matrix_get(&alpha.matrix, x, y) << ' ';
-//            }
-//            std::cout << '\n';
-//        }
-//        std::cout << "--------------------------\n";
-//        for (uint16_t x = 0; x < beta.matrix.size1; ++x)
-//        {
-//            for (uint16_t y = 0; y < beta.matrix.size2; ++y)
-//            {
-//                std::cout << gsl_matrix_get(&beta.matrix, x, y) << ' ';
-//            }
-//            std::cout << '\n';
-//        }
-
-//        { tree = tree; pms = pms; leaves = leaves; workspace = workspace; my_generation = workspace.generation;
-//            alpha = alpha; z = nan; have_alpha = false; beta = beta; have_beta = false }
-
         ensure_alpha(instance, workspace, alignment, aa_pos); // eventually return more than just the info.z score, because it might be used for the ancestor computation
-        lpr += log(workspace.z);
-        lpr_per_codon.push_back(log(workspace.z));
+        const double log_z = log(workspace.z);
+        lpr += log_z;
+        lpr_per_codon.push_back(log_z);
 
-        gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
-        assert(pr_root->size == anc_lprior->size);
-        for (uint16_t xx = 0; xx < anc_lprior->size; ++xx)
-        {
-            elpr_anc += gsl_vector_get(anc_lprior, xx) * gsl_vector_get(pr_root, xx);
-        }
-        gsl_vector_free(pr_root);
+// BEGIN - THIS IS FOR ANC SCORE
+//        gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
+//        assert(pr_root->size == anc_lprior->size);
+//        for (uint16_t xx = 0; xx < anc_lprior->size; ++xx)
+//        {
+//            elpr_anc += gsl_vector_get(anc_lprior, xx) * gsl_vector_get(pr_root, xx);
+//        }
+//        gsl_vector_free(pr_root);
+// END - THIS IS FOR ANC SCORE
     }
-    gsl_vector_free(anc_lprior);
+// BEGIN - THIS IS FOR ANC SCORE
+//    gsl_vector_free(anc_lprior);
+// END - THIS IS FOR ANC SCORE
 }
 
 struct minimizer_params_t {

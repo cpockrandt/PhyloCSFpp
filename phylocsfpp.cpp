@@ -29,6 +29,8 @@ int main(int /*argc*/, char ** /*argv*/)
     unsigned threads = 1;
     unsigned jobs = 1;
 
+    std::string filename_name_mapping = "/home/chris/dev-uni/PhyloCSF++/commonNames_assemblies.txt";
+
 //    uint32_t genome_length = 3252208893;
 //    char model_str[] = "58mammals";
 //    char selected_species_str[] = ""; // "Human,Chimp,Gorilla,Orangutan,Gibbon,Rhesus,Crab_eating_macaque,Baboon,Green_monkey,Marmoset,Squirrel_monkey,Bushbaby,Chinese_tree_shrew,Squirrel,Lesser_Egyptian_jerboa,Prairie_vole,Chinese_hamster,Golden_hamster,Mouse,Rat,Naked_mole_rat,Guinea_pig,Chinchilla,Brush_tailed_rat,Rabbit,Pika,Pig,Alpaca,Wild_bactrian_camel,Dolphin,Killer_whale,Tibetan_antelope,Cow,Sheep,Domestic_goat,Horse,White_rhinoceros,Cat,Dog,Ferret,Panda,Pacific_walrus,Weddell_seal,Black_flying_fox,Megabat,Big_brown_bat,Davids_myotis,Microbat,Hedgehog,Shrew,Star_nosed_mole,Elephant,Cape_elephant_shrew,Manatee,Cape_golden_mole,Tenrec,Aardvark,Armadillo"; // "Dog,Cow,Horse,Human,Mouse,Rat";
@@ -77,7 +79,7 @@ int main(int /*argc*/, char ** /*argv*/)
     std::unordered_map<std::string, uint16_t> fastaid_to_alnid;
     // we use the order of data.phylo_array
     {
-        FILE *file = fopen("/home/chris/dev-uni/PhyloCSF++/commonNames_assemblies.txt", "r");
+        FILE *file = fopen(filename_name_mapping.c_str(), "r");
         if (file != NULL)
         {
             char line[BUFSIZ];
@@ -112,6 +114,11 @@ int main(int /*argc*/, char ** /*argv*/)
 //                    printf("ERROR: %20s\t%10s\tmapping missing!\n", c1, c2);
             }
         }
+        else
+        {
+            printf("Cannot open file %s\n", filename_name_mapping.c_str());
+            exit(13);
+        }
         fclose(file);
 
         // TODO: check whether there are mappings missing (not sure) or superfluous mappings (also not sure)
@@ -129,43 +136,7 @@ int main(int /*argc*/, char ** /*argv*/)
     parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
     jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
 
-    FILE ** file_power = (FILE**) malloc(jobs * sizeof(FILE*));
-    for (size_t job_id = 0; job_id < jobs; ++job_id)
-    {
-        const std::string filename_power = output_folder + "/PhyloCSFpower.wig." + std::to_string(job_id);
-        file_power[job_id] = fopen(filename_power.c_str(), "w");
-        if (file_power[job_id] == NULL)
-        {
-            printf("Error!");
-            exit(1);
-        }
-    }
-
-    FILE *** file_score_raw = (FILE***) malloc(jobs * sizeof(FILE**));
-    FILE *** file_score = (FILE***) malloc(jobs * sizeof(FILE**));
-    for (size_t job_id = 0; job_id < jobs; ++job_id)
-    {
-        file_score_raw[job_id] = (FILE**) malloc(6 * sizeof(FILE*));
-        file_score[job_id] = (FILE**) malloc(6 * sizeof(FILE*));
-
-        for (uint8_t i = 0; i < 6; ++i)
-        {
-            char strand = (i < 3) ? '+' : '-';
-            unsigned frame = (i % 3) + 1;
-            const std::string filename_score_raw = output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
-            const std::string filename_score     = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
-            file_score_raw[job_id][i] = fopen(filename_score_raw.c_str(), "w");
-            file_score[job_id][i]= fopen(filename_score.c_str(), "w");
-
-            if (file_score_raw[job_id][i] == NULL || file_score[job_id][i] == NULL)
-            {
-                printf("Error creating file!");
-                exit(1);
-            }
-        }
-    }
-
-//    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data_fixed_mle, data_omega, frame, stdout, computed_results, lpr_per_codon, bls_per_codon)
+//    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data_fixed_mle, output_folder, lpr_per_codon, bls_per_bp, hmm)
     for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it in more parts than there are threads
     {
         unsigned thread_id = 0;//omp_get_thread_num();
@@ -175,10 +146,33 @@ int main(int /*argc*/, char ** /*argv*/)
         std::vector<double> scores;
         std::vector<scored_region> region;
 
+        maf_rd.skip_partial_alignment(aln, job_id);
+
+        const std::string filename_power = output_folder + "/PhyloCSFpower.wig." + std::to_string(job_id);
+        FILE *file_power = fopen(filename_power.c_str(), "w");
+
+        FILE *file_score_raw[6];
+        FILE *file_score[6];
+
+        for (uint8_t i = 0; i < 6; ++i)
+        {
+            char strand = (i < 3) ? '+' : '-';
+            unsigned frame = (i % 3) + 1;
+            const std::string filename_score_raw = output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
+            const std::string filename_score     = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
+            file_score_raw[i] = fopen(filename_score_raw.c_str(), "w");
+            file_score[i]= fopen(filename_score.c_str(), "w");
+
+            if (file_score_raw[i] == NULL || file_score[i] == NULL)
+            {
+                printf("Error creating file!");
+                exit(1);
+            }
+        }
+
         while (maf_rd.get_next_alignment(aln, job_id))
         {
-//            if (aln.chrom == "chrM")
-//                aln.chrom = "chrMT";
+            printf("%ld\n", aln.start_pos);
 
             // on first iteration, compute bls scores (used by all 6 frames then!)
             bls_per_bp[thread_id].clear(); // TODO: should all be thread_id not job_id
@@ -212,14 +206,14 @@ int main(int /*argc*/, char ** /*argv*/)
                         // the last 0-2 remaining basepairs in the bls array do not have a codon entry
                         assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
 
-                        fprintf(file_power[job_id], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
+                        fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
                         for (uint32_t pos = frame - 1; pos < lpr_per_codon[thread_id].size() * 3; pos += 3)
                         {
                             const float bls_codon_avg = (bls_per_bp[thread_id][pos]
                                                       +  bls_per_bp[thread_id][pos + 1]
                                                       +  bls_per_bp[thread_id][pos + 2]) / 3.0;
 
-                            my_fprintf(file_power[job_id], "%.4f", bls_codon_avg);
+                            my_fprintf(file_power, "%.4f", bls_codon_avg);
                         }
                     }
 
@@ -248,16 +242,16 @@ int main(int /*argc*/, char ** /*argv*/)
 
                         if (prevPos + 3 != newPos)
                         {
-                            fprintf(file_score_raw[job_id][file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), newPos);
+                            fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), newPos);
                             if (!scores.empty())
                             {
-                                fprintf(file_score[job_id][file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
 
                                 process_scores(hmm, scores, startBlockPos, region, SCORE_CODON);
 
                                 for(size_t i = 0; i < region.size(); i++)
                                 {
-                                    my_fprintf(file_score[job_id][file_index], "%.3f", region[i].log_odds_prob);
+                                    my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
                                 }
 
                                 scores.clear();
@@ -267,18 +261,18 @@ int main(int /*argc*/, char ** /*argv*/)
                         }
 
                         prevPos = newPos;
-                        my_fprintf(file_score_raw[job_id][file_index], "%.3f", lpr_per_codon[thread_id][xx]);
+                        my_fprintf(file_score_raw[file_index], "%.3f", lpr_per_codon[thread_id][xx]);
                         scores.push_back(lpr_per_codon[thread_id][xx]);
                     }
 
                     if (!scores.empty())
                     {
-                        fprintf(file_score[job_id][file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                        fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
                         process_scores(hmm, scores, startBlockPos, region, SCORE_CODON);
 
                         for(size_t i = 0; i < region.size(); i++)
                         {
-                            my_fprintf(file_score[job_id][file_index], "%.3f", region[i].log_odds_prob);
+                            my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
                         }
 
                         scores.clear();
@@ -300,38 +294,30 @@ int main(int /*argc*/, char ** /*argv*/)
             for (auto & seq : aln.seqs)
                 seq = "";
         }
-    }
 
-    for (size_t job_id = 0; job_id < jobs; ++job_id)
-    {
-        fclose(file_power[job_id]);
-
+        fclose(file_power);
         for (uint8_t i = 0; i < 6; ++i)
         {
-            fclose(file_score_raw[job_id][i]);
-            fclose(file_score[job_id][i]);
+            fclose(file_score_raw[i]);
+            fclose(file_score[i]);
         }
-        free(file_score_raw[job_id]);
-        file_score_raw[job_id] = NULL;
-        free(file_score[job_id]);
-        file_score[job_id] = NULL;
     }
 
-    free(file_power);
-    file_power = NULL;
-
-    free(file_score_raw);
-    file_score_raw = NULL;
-
-    free(file_score);
-    file_score = NULL;
-
     // merge files
+
+//    rename(oldname, newname);
+    for (unsigned job_id = 0; job_id < jobs; ++job_id)
+    {
+
+    }
+    // append .1 to .0, .2 to .0, etc. and delete in each step
 //    std::ofstream of_a("a.txt", std::ios_base::binary | std::ios_base::app);
 //    std::ifstream if_b("b.txt", std::ios_base::binary);
 //
 //    of_a.seekp(0, std::ios_base::end);
 //    of_a << if_b.rdbuf();
+
+    // TODO: rename *.0 files: rename(oldname, newname);
 
     return 0;
 }

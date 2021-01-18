@@ -6,7 +6,9 @@ find_package (OpenMP)
 #include_directories ("include/libBigWig")
 #link_directories ("include/libBigWig")
 
-set(CMAKE_CXX_FLAGS "-O0 -g ${CMAKE_CXX_FLAGS} -O0 -Wall -pedantic -Wno-write-strings -Wno-pointer-arith -fopenmp") # -Wextra -DNOCURL -static -fsanitize=address -fno-omit-frame-pointer
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g -march=native -Wall -pedantic -Wno-write-strings -Wno-pointer-arith -fopenmp") # -Wextra -DNOCURL -static -fsanitize=address -fno-omit-frame-pointer
+
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 add_executable (phylocsf++ phylocsfpp.cpp)
 add_executable (memtest phylo_memtest.cpp)
