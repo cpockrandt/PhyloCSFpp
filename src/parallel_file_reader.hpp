@@ -111,7 +111,7 @@ char* rstrstr(char *haystack_end, char *haystack_begin, char *needle)
 
 class parallel_maf_reader
 {
-    unsigned threads;
+    unsigned jobs;
     int fd = -1;
     off_t file_size;
     size_t page_size;
@@ -123,16 +123,17 @@ class parallel_maf_reader
 
     void *file_mem = nullptr;
     size_t *file_range_pos = nullptr;
+    size_t *file_range_pos_orig = nullptr;
     size_t *file_range_end = nullptr;
 
 public:
 
-    unsigned get_jobs() const noexcept { return this->threads; }
+    unsigned get_jobs() const noexcept { return this->jobs; }
 
     // skip a line
     void skip(const unsigned job_id)
     {
-        char *newline_begin = strstr((char*) file_mem + file_range_pos[job_id], "\n");
+        char *newline_begin = strchr((char*) file_mem + file_range_pos[job_id], '\n');
 
         if (newline_begin == nullptr)
             file_range_pos[job_id] = file_size;
@@ -146,7 +147,7 @@ public:
         assert(file_range_pos[job_id] < (size_t) file_size);
         assert(*((char*) file_mem + file_range_pos[job_id]) == 's');
 
-        char *newline_begin = strstr((char*) file_mem + file_range_pos[job_id], "\n"); // TODO: replace all occurrences with strchr()
+        char *newline_begin = strchr((char*) file_mem + file_range_pos[job_id], '\n'); // TODO: replace all occurrences with strchr()
 
         size_t new_file_range_pos;
         if (newline_begin == nullptr)
@@ -209,7 +210,7 @@ public:
         return *((char*) file_mem + file_range_pos[job_id]);
     }
 
-    parallel_maf_reader(char *file_path, const unsigned threads, std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
+    parallel_maf_reader(char *file_path, const unsigned jobs, std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
     {
         fd = open(file_path, O_RDONLY);
         if (fd < 0)
@@ -237,34 +238,35 @@ public:
         page_size = sysconf(_SC_PAGE_SIZE);
 
         const size_t pages = (file_size + page_size - 1) / page_size; // equals ceil(file_size / page_size)
-        if (threads > pages)
+        if (jobs > pages)
         {
-            // there have to be at least as many pages as threads
-            this->threads = pages;
-            printf("Info: Using %ld jobs instead of %d.\n", pages, threads);
+            // there have to be at least as many pages as jobs
+            this->jobs = pages;
+            printf("Info: Using %ld jobs instead of %d.\n", pages, jobs);
         }
         else
         {
-            this->threads = threads;
+            this->jobs = jobs;
         }
 //        printf("File size: %ld\nPage size: %ld\nPages: %ld\n\n", file_size, page_size, pages);
 
-        // every thread will process at least floor(pages / this->threads) pages.
-        // the first (pages % this->threads) threads will also process an additional page.
-        pages_per_thread = pages / this->threads;
-        last_thread_with_extra_page = pages % this->threads; // excl
+        // every thread will process at least floor(pages / this->jobs) pages.
+        // the first (pages % this->jobs) jobs will also process an additional page.
+        pages_per_thread = pages / this->jobs;
+        last_thread_with_extra_page = pages % this->jobs; // excl
 //        printf("Pages per thread: %ld\nLast page (excl.) with excess page: %ld\n\n", pages_per_thread, last_thread_with_extra_page);
 
-        file_range_pos = (size_t*) calloc(sizeof(size_t), this->threads);
-        file_range_end = (size_t*) calloc(sizeof(size_t), this->threads);
+        file_range_pos = (size_t*) calloc(sizeof(size_t), this->jobs);
+        file_range_end = (size_t*) calloc(sizeof(size_t), this->jobs);
+        file_range_pos_orig = (size_t*) calloc(sizeof(size_t), this->jobs);
 
         size_t file_range_from = 0;
-        for (unsigned i = 0; i < this->threads; ++i)
+        for (unsigned i = 0; i < this->jobs; ++i)
         {
             size_t range_size = page_size * (pages_per_thread + (last_thread_with_extra_page > i));
             size_t file_range_to = file_range_from + range_size;
 
-            if (i == this->threads - 1)
+            if (i == this->jobs - 1)
             {
                 file_range_to = file_size;
                 range_size = file_range_to - file_range_from;
@@ -273,7 +275,7 @@ public:
             file_range_pos[i] = file_range_from;
             file_range_end[i] = file_range_to;
 
-//            printf("Thread %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_from, file_range_to, range_size);
+            printf("STRICT SPLITTING: Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_pos[i], file_range_end[i], file_range_end[i] - file_range_pos[i]);
 
             // go to beginning of alignment (i.e., go to first page with beginning of a new alignment block and set offset_in_page accordingly)
             // - alignment could start at the very beginning of the current page (or next page). note that except the very first thread, the first page
@@ -282,21 +284,22 @@ public:
             // - alignment could start somewhere in the middle of the page
             // - multiple pages could be necessary to be skipped
 
+            // in case the alignment starts at the very first position of the starting page, we need to check whether the character before is a newline
+            // but don't do that for the first thread, since the start position is 0 and would trigger an underflow.
+
+            if (!(i == 0 && *((char*) file_mem + file_range_pos[i] + 0) == 'a' && *((char*) file_mem + file_range_pos[i] + 1) == ' '))
             {
-                // in case the alignment starts at the very first position of the starting page, we need to check whether the character before is a newline
-                // but don't do that for the first thread, since the start position is 0 and would trigger an underflow.
+                char *aln_begin = strstr((char*) file_mem + file_range_pos[i], "\na ");
 
-                if (!(i == 0 && *((char*) file_mem + file_range_pos[i] + 0) == 'a' && *((char*) file_mem + file_range_pos[i] + 1) == ' '))
-                {
-                    char *aln_begin = strstr((char*) file_mem + file_range_pos[i], "\na ");
-
-                    if (aln_begin == nullptr)
-                        file_range_pos[i] = file_size;
-                    else
-                        file_range_pos[i] = aln_begin - (char*) file_mem + 1; // skip \n
-                }
+                if (aln_begin == nullptr)
+                    file_range_pos[i] = file_size;
+                else
+                    file_range_pos[i] = aln_begin - (char*) file_mem + 1; // skip \n
             }
-//            printf("%3ld, %3ld\n", file_range_pos[i], file_range_end[i]);
+
+            file_range_pos_orig[i] = file_range_pos[i];
+
+            printf("SEARCH ALN BEGIN: Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_pos[i], file_range_end[i], file_range_end[i] - file_range_pos[i]);
 
             file_range_from = file_range_to;
         }
@@ -313,9 +316,15 @@ public:
             return;
 
         // does this alignment get concatenated to the previous one?
-        char *prev_aln_begin = rstrstr((char*) file_mem + file_range_pos[job_id], // haystack_end
-                                       (char*) file_mem + file_range_pos[job_id - 1], // haysteck_begin
-                                       "\na "); // pattern
+        char *prev_aln_begin = rstrstr((char*) file_mem + file_range_pos[job_id] - 2, // haystack_end
+                                       (char*) file_mem + file_range_pos_orig[job_id - 1], // haysteck_begin
+                                       "\na ") + 1; // pattern; +1 to skip \n
+
+//        printf("Prev_aln_begin: %ld\n", prev_aln_begin - (char*)file_mem);
+//        char buf[61];
+//        memcpy(buf, prev_aln_begin, 60);
+//        buf[60] = 0;
+//        printf("buf: %s\n", buf);
 
         if (prev_aln_begin == NULL) // no alignment begin in this section, so there are no alignments to process for this job
         {
@@ -327,7 +336,17 @@ public:
             const size_t orig_file_range_pos = file_range_pos[job_id];
 
             // get the previous alignment (last one from previous job)
+            file_range_pos[job_id] = prev_aln_begin - (char*)file_mem;
             get_next_alignment(aln, job_id);
+
+            for (auto & seq : aln.seqs)
+                seq = "";
+
+
+//            printf("after prev alignment read: %ld\n", file_range_pos[job_id]);
+//            memcpy(buf, (char*)file_mem +file_range_pos[job_id], 60);
+//            buf[60] = 0;
+//            printf("buf: %s\n", buf);
 
             // it either cannot be concatenated with the fist alignment of this job
             if (orig_file_range_pos == file_range_pos[job_id])
@@ -341,6 +360,8 @@ public:
 
             }
         }
+
+        printf("AFTER SKIPPING  : Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n\n", job_id, file_range_pos[job_id], file_range_end[job_id], file_range_end[job_id] - file_range_pos[job_id]);
     }
 
     // in practice aln.ids will already be set and only
@@ -350,6 +371,11 @@ public:
     {
         if (file_range_pos[job_id] >= file_range_end[job_id])
             return false;
+
+//        char buf[61];
+//        memcpy(buf, (char*)file_mem + file_range_pos[job_id], 60);
+//        buf[60] = 0;
+//        printf("aln: %s\n", buf);
 
         // points to the beginning of "a score=....\n"
         skip(job_id);
@@ -598,33 +624,6 @@ public:
 
         free(file_range_pos);
         free(file_range_end);
+        free(file_range_pos_orig);
     }
 };
-
-//int main()
-//{
-//    parallel_maf_reader maf_rd;
-//    maf_rd.init("/home/chris/Downloads/chr22.head.maf", 4);
-//
-//    #pragma omp parallel for num_threads(4)
-//    for (unsigned thread_id = 0; thread_id < 4; ++thread_id)
-//    {
-//        alignment_t aln;
-//        // TODO: verify whether file_range_pos and _end are thread-safe (cache lines)? and merge both arrays for cache locality
-//        while (maf_rd.get_next_alignment(aln, thread_id))
-//        {
-//            #pragma omp critical
-//            {
-//                for (size_t i = 0; i < aln.ids.size(); ++i)
-//                {
-//                    printf("%20s\t%s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
-//                }
-//                printf("\n");
-//            }
-//            aln.ids.clear();
-//            aln.seqs.clear();
-//        }
-//    }
-//
-//    return 0;
-//}

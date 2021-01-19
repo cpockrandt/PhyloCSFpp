@@ -201,7 +201,7 @@ struct Data
     }
 };
 
-auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<double> & lpr_per_codon, std::vector<double> & bls_per_codon)
+auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<double> & lpr_per_codon, std::vector<double> & /*bls_per_codon*/)
 {
     if (algo == algorithm_t::OMEGA)
     {
@@ -381,6 +381,7 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<dou
         }
         else // if (algo == algorithm_t::FIXED)
         {
+            // TODO: skip triplets with PhyloPower < 0.1 to speed up computation!
             lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, c_lpr_per_codon);
             lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
         }
@@ -388,7 +389,7 @@ auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<dou
         lpr_per_codon.resize(c_lpr_per_codon.size());
 
         const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
-        const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
+        const double anchestral_score = NAN; // 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
         const double bls_score = NAN; // compute_bls_score(data.phylo_tree, alignment, bls_per_codon);
 
         for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)

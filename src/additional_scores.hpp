@@ -1,6 +1,7 @@
 #pragma once
 
-double newick_sum_branch_lengths(newick_node* node, const std::unordered_set<std::string> & subset, bool arrived_at_lca = false) {
+double newick_sum_branch_lengths(newick_node* node, const std::unordered_set<std::string> & subset, bool arrived_at_lca = false, int16_t overlap_parent = -1)
+{
     if (node->left == NULL) // leaf
     {
         assert(subset.find(node->label) != subset.end());
@@ -9,8 +10,17 @@ double newick_sum_branch_lengths(newick_node* node, const std::unordered_set<std
     }
     else
     {
+        if (overlap_parent == -1)
+        {
+            overlap_parent = newick_overlap_size(node, subset);
+        }
+
         const uint16_t overlap_left_child = newick_overlap_size(node->left, subset);
-        const uint16_t overlap_right_child = newick_overlap_size(node->right, subset); // store nbr of hits in parent node to avoid two passes!
+        const uint16_t overlap_right_child = overlap_parent - overlap_left_child;
+//        const uint16_t overlap_right_child = newick_overlap_size(node->right, subset); // store nbr of hits in parent node to avoid two passes!
+
+//        printf("%d + %d ?= %d\n", overlap_left_child, overlap_right_child, overlap_parent);
+//        assert(overlap_left_child + overlap_right_child == overlap_parent);
 //        std::cout << overlap_left_child << " ... " << overlap_right_child << '\n';
 
         double bl = 0.0;
@@ -27,9 +37,9 @@ double newick_sum_branch_lengths(newick_node* node, const std::unordered_set<std
             arrived_at_lca = true;
 
         if (overlap_left_child > 0)
-            bl += newick_sum_branch_lengths(node->left, subset, arrived_at_lca);
+            bl += newick_sum_branch_lengths(node->left, subset, arrived_at_lca, overlap_left_child);
         if (overlap_right_child > 0)
-            bl += newick_sum_branch_lengths(node->right, subset, arrived_at_lca);
+            bl += newick_sum_branch_lengths(node->right, subset, arrived_at_lca, overlap_right_child);
 
         return bl;
     }
@@ -88,8 +98,13 @@ double compute_bls_score(newick_node* node, const alignment_t & alignment, std::
 //        printf("%ld %f\n", subset.size(), newick_sum_branch_lengths(node, subset));
         if (subset.size() >= 2) // NOTE: if only one sequence has a DNA4 base, Ocaml produces an (empty?) subtree, and we seem to produce a tree with some branch length! that's why we have this if statement here!
         {
-            bl_total += newick_sum_branch_lengths(node, subset);
-            score_per_codon.push_back(newick_sum_branch_lengths(node, subset) / all_species_branch_length);
+            const double bl = newick_sum_branch_lengths(node, subset);
+            bl_total += bl;
+            score_per_codon.push_back(bl / all_species_branch_length);
+            if (isinf(bl / all_species_branch_length))
+            {
+                exit(13);
+            }
 //            printf("BLS push_back(%f, %f) = %f\n", newick_sum_branch_lengths(node, subset), all_species_branch_length, score_per_codon.back());
         }
         else
@@ -98,7 +113,7 @@ double compute_bls_score(newick_node* node, const alignment_t & alignment, std::
         }
     }
 
-    const double divisor = all_species_branch_length * (hi-lo);
+    const double divisor = all_species_branch_length * (hi - lo);
 //    printf("sum: %f\n", bl_total);
 //    printf("divisor: %f\n", newick_sum_branch_lengths(node, all_species));
 
