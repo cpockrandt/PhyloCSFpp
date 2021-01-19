@@ -50,7 +50,7 @@ void append(FILE * file_dest, const char path_src[])
 int main(int /*argc*/, char ** /*argv*/)
 {
     unsigned threads = 30; //4
-    unsigned jobs = 30 * 100; //10
+    unsigned jobs = 30 * 10; //10
 
     std::string filename_name_mapping = "/ccb/salz4-2/pocki/PhyloCSF++data/commonNames_assemblies.txt";
     uint32_t genome_length            = 2870184193;
@@ -158,7 +158,7 @@ int main(int /*argc*/, char ** /*argv*/)
     parallel_maf_reader maf_rd(aln_path, jobs, &fastaid_to_alnid);
     jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
 
-    #pragma omp parallel for num_threads(threads) default(none) shared(jobs, alignments, maf_rd, data_fixed_mle, output_folder, lpr_per_codon, bls_per_bp, hmm)
+    #pragma omp parallel for num_threads(threads) schedule(dynamic, 1) default(none) shared(jobs, alignments, maf_rd, data_fixed_mle, output_folder, lpr_per_codon, bls_per_bp, hmm)
     for (unsigned job_id = 0; job_id < jobs; ++job_id) // TODO: split it in more parts than there are threads
     {
         unsigned thread_id = omp_get_thread_num();
