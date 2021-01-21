@@ -47,18 +47,23 @@ void append(FILE * file_dest, const char path_src[])
     fclose(file_src);
 }
 
-int main(int /*argc*/, char ** /*argv*/)
+int main(int argc, char ** argv)
 {
-    unsigned threads = 30; //4
-    unsigned jobs = 30 * 10; //10
-
     std::string filename_name_mapping = "/ccb/salz4-2/pocki/PhyloCSF++data/commonNames_assemblies.txt";
-    uint32_t genome_length            = 2870184193;
-    char model_str[]                  = "100vertebrates";
-    char selected_species_str[]       = "Rat,Frog_X._tropicalis,Zebrafish,Platypus,Chicken,Turkey,Panda,Mouse,Prairie_vole,Rhesus,Rabbit,Cat,Opossum,Cow,Human,Chimp,Dog,Guinea_pig";
-    char aln_path[]                   = "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/rn6.20way.chr20.maf";
-    char hmm_data_path[]              = "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/RatCodingExons.txt";
-    const std::string output_folder   = "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/out_chr20_30_times_100jobs";
+    if (argc != 9)
+    {
+        printf("ERROR: Expecting X arguments!\n");
+        exit(-1);
+    }
+    char *model_str                   = argv[1]; // "100vertebrates";
+    char *aln_path                    = argv[2]; // "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/rn6.20way.chr20.maf";
+    uint32_t genome_length            = atoi(argv[3]); // 2870184193;
+    char *hmm_data_path               = argv[4]; // "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/RatCodingExons.txt";
+    const std::string output_folder   = argv[5]; // "/ccb/salz4-2/pocki/PhyloCSF++data/rn6/out_chr20_30_times_100jobs";
+    char *selected_species_str        = argv[6]; // "Rat,Frog_X._tropicalis,Zebrafish,Platypus,Chicken,Turkey,Panda,Mouse,Prairie_vole,Rhesus,Rabbit,Cat,Opossum,Cow,Human,Chimp,Dog,Guinea_pig";
+
+    unsigned threads = atoi(argv[7]); // 30
+    unsigned jobs = atoi(argv[8]); // 300
 
 //    std::string filename_name_mapping = "/home/chris/dev-uni/PhyloCSF++/commonNames_assemblies.txt";
 //    uint32_t genome_length            = 1065365434;
@@ -339,7 +344,11 @@ int main(int /*argc*/, char ** /*argv*/)
     {
         std::string filename_new = output_folder + "/PhyloCSFpower.wig";
         std::string filename_old = filename_new + ".0";
-        rename(filename_old.c_str(), filename_new.c_str());
+        if (rename(filename_old.c_str(), filename_new.c_str()) == -1)
+        {
+            printf("Could not rename file %s to %s (error code: %d, %s)\n", filename_old.c_str(), filename_new.c_str(), errno, strerror(errno));
+            exit(-1);
+        }
 
         FILE *merged_file = fopen(filename_new.c_str(), "ab");
         for (unsigned job_id = 1; job_id < jobs; ++job_id)
@@ -361,7 +370,11 @@ int main(int /*argc*/, char ** /*argv*/)
                 {
                     std::string filename_new = output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig";
                     std::string filename_old = filename_new + ".0";
-                    rename(filename_old.c_str(), filename_new.c_str());
+                    if (rename(filename_old.c_str(), filename_new.c_str()) == -1)
+                    {
+                        printf("Could not rename file %s to %s (error code: %d, %s)\n", filename_old.c_str(), filename_new.c_str(), errno, strerror(errno));
+                        exit(-1);
+                    }
 
                     FILE *merged_file = fopen(filename_new.c_str(), "ab");
                     for (unsigned job_id = 1; job_id < jobs; ++job_id)
@@ -377,7 +390,11 @@ int main(int /*argc*/, char ** /*argv*/)
                 {
                     std::string filename_new = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig";
                     std::string filename_old = filename_new + ".0";
-                    rename(filename_old.c_str(), filename_new.c_str());
+                    if (rename(filename_old.c_str(), filename_new.c_str()) == -1)
+                    {
+                        printf("Could not rename file %s to %s (error code: %d, %s)\n", filename_old.c_str(), filename_new.c_str(), errno, strerror(errno));
+                        exit(-1);
+                    }
 
                     FILE *merged_file = fopen(filename_new.c_str(), "ab");
                     for (unsigned job_id = 1; job_id < jobs; ++job_id)
