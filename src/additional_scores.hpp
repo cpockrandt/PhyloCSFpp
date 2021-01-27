@@ -1,5 +1,7 @@
 #pragma once
 
+// TODO: represent subset as bitvector, store bit vector for each node and then do bitwise and check whether it is non-zero
+// also: can we store these nodes in an array instead of a tree structure? still need to consider "arrived_at_lca"
 double newick_sum_branch_lengths(newick_node* node, const std::unordered_set<std::string> & subset, bool arrived_at_lca = false, int16_t overlap_parent = -1)
 {
     if (node->left == NULL) // leaf
