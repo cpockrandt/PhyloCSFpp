@@ -4,6 +4,8 @@
 
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_blas.h>
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_min.h>
 
 static constexpr int64_t MY_MIN_INT = -(1ULL << 62);
 static constexpr int64_t MY_MAX_INT = (1ULL << 62) - 1;

@@ -1,12 +1,13 @@
+#pragma once
+
 #include <iostream>
 #include <vector>
 #include <string>
 #include <unordered_set>
 
-#include "src/newick.hpp"
-#include "src/fit.hpp"
-#include "src/models.hpp"
-#include "src/parallel_file_reader.hpp"
+#include "newick.hpp"
+#include "models.hpp"
+#include "parallel_file_reader.hpp"
 
 std::ostream& operator<<(std::ostream & os, const newick_elem & e)
 {
@@ -73,11 +74,11 @@ std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, dou
     return os;
 }
 
-#include "src/ecm.hpp"
-#include "src/instance.hpp"
-#include "src/fixed_lik.hpp"
-#include "src/additional_scores.hpp"
-#include "src/omega.hpp"
+#include "ecm.hpp"
+#include "instance.hpp"
+#include "fixed_lik.hpp"
+#include "additional_scores.hpp"
+#include "omega.hpp"
 
 //std::ostream& operator<<(std::ostream & os, const gsl_matrix& m)
 //{
@@ -201,7 +202,7 @@ struct Data
     }
 };
 
-auto run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<double> & lpr_per_codon, std::vector<double> & /*bls_per_codon*/)
+std::tuple<double, double, double> run(Data & data, alignment_t & alignment, algorithm_t algo, std::vector<double> & lpr_per_codon, std::vector<double> & /*bls_per_codon*/)
 {
     if (algo == algorithm_t::OMEGA)
     {
@@ -423,3 +424,29 @@ struct comp_result
         printf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls);
     }
 };
+
+int print_model_info(const std::string & model_name)
+{
+    if (models.find(model_name) == models.end())
+    {
+        print_error_msg("Could not find the model " + model_name + ".");
+        return -1;
+    }
+
+    Data data;
+    data.load_model(model_name.c_str(), true);
+    printf("The model %s contains the following species.\n\n", model_name.c_str());
+    printf("%35s\t%s\n", "Common name", "Scientific name(s)");
+    for (const auto & elem : data.phylo_array)
+    {
+        if (elem.label != "")
+        {
+            std::string scientific_names;
+            for (const auto & sn : sequence_name_mapping[elem.label])
+                scientific_names += sn + " ";
+            printf("%35s\t%s\n", elem.label.c_str(), scientific_names.c_str());
+        }
+    }
+
+    return 0;
+}
