@@ -121,7 +121,7 @@ class parallel_maf_reader
     size_t pages_per_thread;
     size_t last_thread_with_extra_page;
 
-    std::unordered_map<std::string, uint16_t> *fastaid_to_alnid;
+    const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid;
 
     void *file_mem = nullptr;
     size_t *file_range_pos = nullptr;
@@ -212,7 +212,7 @@ public:
         return *((char*) file_mem + file_range_pos[job_id]);
     }
 
-    parallel_maf_reader(char *file_path, const unsigned jobs, std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
+    parallel_maf_reader(const char * file_path, const unsigned jobs, const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
     {
         fd = open(file_path, O_RDONLY);
         if (fd < 0)

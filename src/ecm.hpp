@@ -1,6 +1,16 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+struct my_model {
+    std::string * tree;
+    double * coding_matrix; // 63*64/2
+    double * noncoding_matrix; // 63*64/2
+    double * coding_codon_freq; // 64
+    double * noncoding_codon_freq; // 64
+};
 
 struct empirical_codon_model
 {

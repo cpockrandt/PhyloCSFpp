@@ -2,14 +2,12 @@
 
 #include <string>
 #include <unordered_map>
+#include <sstream>
 
-struct my_model {
-    std::string * tree;
-    double * coding_matrix; // 63*64/2
-    double * noncoding_matrix; // 63*64/2
-    double * coding_codon_freq; // 64
-    double * noncoding_codon_freq; // 64
-};
+#include "newick.hpp"
+#include "ecm.hpp"
+#include "estimate_hmm_parameter.hpp"
+#include "create_tracks.hpp"
 
 // TODO: remove semicolons from phylo tree strings (and test)
 std::string g_20flies_tree = "((dgri:0.183954,dvir:0.093575):0.000000,(dmoj:0.110563,((((dbip:0.034265,dana:0.042476):0.121927,(dkik:0.097564,((dfic:0.109823,(((dmel:0.023047,(dsim:0.015485,dsec:0.015184):0.013850):0.016088,(dyak:0.026909,dere:0.029818):0.008929):0.047596,(deug:0.102473,(dbia:0.069103,dtak:0.060723):0.015855):0.005098):0.010453):0.008044,(dele:0.062413,drho:0.051516):0.015405):0.046129):0.018695):0.078585,(dper:0.007065,dpse:0.005900):0.185269):0.068212,dwil:0.259408):0.097093):0.035250);";
@@ -1614,3 +1612,133 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "Scas",						{ "sacCas" } },
     { "Sklu",						{ "sacKlu" } }
 };
+
+// TODO: make common names in mapping structure, mapping file and models and phylo-input all lower case, also scientific names
+void update_sequence_name_mapping(const std::string & path)
+{
+    FILE *file = fopen(path.c_str(), "r");
+    if (file != NULL)
+    {
+        char line[BUFSIZ];
+        char common_name[BUFSIZ];
+        char scientific_name[BUFSIZ];
+        while (fgets(line, sizeof line, file) != NULL)
+        {
+            sscanf(line, "%s\t%s", common_name, scientific_name); // e.g., Human \t hg38
+
+            // remove leading digits (e.g., hg38 -> hg)
+            for (size_t i = 0; i < strlen(scientific_name); ++i)
+            {
+                if (isdigit(scientific_name[i]))
+                {
+                    scientific_name[i] = 0;
+                    break;
+                }
+            }
+
+            auto it = sequence_name_mapping.find(common_name);
+            if (it == sequence_name_mapping.end())
+            {
+                // common name does not exist in mapping yet
+                sequence_name_mapping.emplace(std::make_pair(std::string(common_name), std::vector<std::string>({scientific_name})));
+            }
+            else
+            {
+                // common name already exists. add scientific name if it does not exist yet
+                std::vector<std::string> & scientific_names = it->second;
+                if (std::find(scientific_names.begin(), scientific_names.end(), scientific_name) == scientific_names.end())
+                    scientific_names.emplace_back(scientific_name);
+            }
+        }
+    }
+    else
+    {
+        printf("Cannot open file %s\n", path.c_str());
+        exit(13);
+    }
+    fclose(file);
+}
+
+struct Model
+{
+    empirical_codon_model c_model;
+    empirical_codon_model nc_model;
+    newick_node * phylo_tree = NULL;
+    std::vector<newick_elem> phylo_array;
+    std::unordered_map<std::string, uint16_t> seqid_to_phyloid;
+    hmm _hmm;
+};
+
+void load_model(Model & model, const std::string & model_name_or_path, const std::string & selected_species,
+                const bool phylo_smooth, const uint64_t genome_length, const std::string & coding_exons_path)
+{
+    if (phylo_smooth)
+    {
+        const hmm_parameter hmm_param = estimate_hmm_params_for_genome(coding_exons_path.c_str(), genome_length);
+        model._hmm = get_coding_hmm(hmm_param);
+    }
+
+    auto model_data = models.find(model_name_or_path);
+    // load model from included dataset
+    if (model_data != models.end())
+    {
+        model.c_model.load(model_data->second, 1);
+        model.nc_model.load(model_data->second, 0);
+
+        model.phylo_tree = new newick_node;
+        model.phylo_tree->parent = NULL;
+        newick_parse(*model_data->second.tree, model.phylo_tree);
+    }
+        // load model from files
+    else
+    {
+        // TODO: check and validate files
+        model.c_model.open((std::string(model_name_or_path) + "_coding.ECM").c_str());
+        model.nc_model.open((std::string(model_name_or_path) + "_noncoding.ECM").c_str());
+        model.phylo_tree = newick_open((std::string(model_name_or_path) + ".nh").c_str());
+    }
+
+    // reduce tree when --species is passed (TODO: allow common and scientific names)
+    if (selected_species != "")
+    {
+        std::unordered_set<std::string> selected_species_set;
+        std::stringstream ss(selected_species);
+        while (ss.good())
+        {
+            std::string s;
+            getline(ss, s, ',');
+            selected_species_set.insert(s);
+        }
+
+        std::unordered_set<std::string> missing_species = selected_species_set; // merge into one set with bool
+        newick_check_missing_species(model.phylo_tree, missing_species);
+        if (missing_species.size() > 0)
+        {
+            printf("ERROR: The following selected species are missing in the phylogenetic tree (TODO: output filename):\n");
+            for (const std::string & sp : missing_species)
+                printf("\t- %s\n", sp.c_str());
+            exit(-1);
+        }
+
+        newick_reduce(model.phylo_tree, selected_species_set);
+        assert(model.phylo_tree->branch_length == 0.0);
+    }
+
+    // get array representation of tree
+    newick_flatten(model.phylo_tree, model.phylo_array);
+
+    // create map for sequence name (common or scientific name) => flattened_phylo_tree_key
+    for (uint16_t i = 0; i < model.phylo_array.size(); ++i)
+    {
+        const newick_elem & e = model.phylo_array[i];
+        if (e.label != "")
+        {
+            const std::vector<std::string> scientific_names = sequence_name_mapping[e.label];
+            model.seqid_to_phyloid.emplace(e.label, e.id);
+            for (const std::string & scientific_name : scientific_names)
+            {
+                model.seqid_to_phyloid.emplace(scientific_name, i);
+            }
+        }
+    }
+}

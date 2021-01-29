@@ -1,12 +1,15 @@
 #pragma once
-#include <string>
-#include <map>
-#include <list>
+
+#include <cfloat>
 #include <stdio.h>
-#include <algorithm>
 #include <random>       // std::default_random_engine
 #include <cstdint>
 #include <string.h>
+
+#include <string>
+#include <map>
+#include <list>
+#include <algorithm>
 
 struct hmm_parameter{
     double coding_prior;

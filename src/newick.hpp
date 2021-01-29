@@ -95,6 +95,7 @@ void _newick_parse(std::string& str, newick_node* node)
 void newick_parse(std::string str, newick_node* node)
 {
     _newick_parse(str, node);
+    assert(node->branch_length == 0.0);
 }
 
 inline void newick_annotate_nodes(newick_node * node, int16_t & leaf_id, int16_t & inner_node_id)
@@ -162,6 +163,8 @@ inline newick_node* newick_open(const char * const file_path)
     root->parent = NULL;
 
     newick_parse(str, root);
+
+    assert(root->branch_length == 0.0);
 
     return root;
 }
@@ -253,14 +256,14 @@ inline void newick_free(newick_node* n)
     delete n;
 }
 
-bool newick_is_leaf(newick_node* node)
+bool newick_is_leaf(const newick_node* node)
 {
     assert((node->left == NULL) == (node->right == NULL));
     return node->left == NULL;
 }
 
 // cannot be called on NULL!
-uint16_t newick_overlap_size(newick_node* node, const std::unordered_set<std::string> & subset)
+uint16_t newick_overlap_size(const newick_node* node, const std::unordered_set<std::string> & subset)
 {
     if (newick_is_leaf(node))
         return subset.find(node->label) != subset.end();

@@ -786,7 +786,7 @@ void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and insta
     }
 }
 
-void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm, std::vector<newick_elem> & tree_array)
+void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm, const std::vector<newick_elem> & tree_array)
 {
     instance.p14n.q_domains = {};
     instance.p14n.tree_shape = tree_array;

@@ -262,14 +262,14 @@ public:
         return it->value;
     }
 
-    int get_int(std::string && s) const
+    int64_t get_int(std::string && s) const
     {
         auto it = find(args, s);
         assert(it != args.end());
 
         try
         {
-            return std::stoi(it->value);
+            return std::stoll(it->value);
         }
         catch (const std::exception& ia)
         {
