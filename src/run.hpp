@@ -113,88 +113,14 @@ struct Options
 
 struct Data
 {
-//    empirical_codon_model c_model;
-//    empirical_codon_model nc_model;
     instance_t c_instance;
     instance_t nc_instance;
-//    newick_node * phylo_tree = NULL;
-//
-//    std::vector<newick_elem> phylo_array;
-//
-//    std::unordered_set<std::string> selected_species;
 
     void clear()
     {
         c_instance.clear();
         nc_instance.clear();
     }
-
-//    void load_model(const char * dataset_or_path, const bool only_phylo_tree)
-//    {
-//        auto dataset = models.find(dataset_or_path);
-//        // load model from included dataset
-//        if (dataset != models.end())
-//        {
-//            if (!only_phylo_tree)
-//            {
-//                c_model.load(dataset->second, 1);
-//                nc_model.load(dataset->second, 0);
-//            }
-//
-//            phylo_tree = new newick_node;
-//            phylo_tree->parent = NULL;
-//
-//            newick_parse(*dataset->second.tree, phylo_tree);
-//        }
-//            // load model from files
-//        else // TODO: check and validate files
-//        {
-//            if (!only_phylo_tree)
-//            {
-//                c_model.open((std::string(dataset_or_path) + "_coding.ECM").c_str());
-//                nc_model.open((std::string(dataset_or_path) + "_noncoding.ECM").c_str());
-//            }
-//            phylo_tree = newick_open((std::string(dataset_or_path) + ".nh").c_str());
-//        }
-//        // print error message
-////        else
-////        {
-////            printf("ERROR: The model \"23flies\" does not exist. Please choose one from the following set or give a path to your model:\n");
-////            for (const auto & m : models)
-////                printf("\t- %s\n", m.first.c_str());
-////        }
-//        assert(phylo_tree->branch_length == 0.0);
-//
-//        // reduce tree when --species is passed
-//        // std::cout << newick_print(root) << '\n';
-//        if (selected_species.size() > 0)
-//        {
-//            std::unordered_set<std::string> missing_species = selected_species; // merge into one set with bool
-//            newick_check_missing_species(phylo_tree, missing_species);
-//            if (missing_species.size() > 0)
-//            {
-//                printf("ERROR: The following selected species are missing in the phylogenetic tree (TODO: output filename):\n");
-//                for (const std::string & sp : missing_species)
-//                    printf("\t- %s\n", sp.c_str());
-//                exit(-1);
-//            }
-//
-//            newick_reduce(phylo_tree, selected_species);
-//            // std::cout << newick_print(tree) << '\n';
-//            assert(phylo_tree->branch_length == 0.0);
-//        }
-//
-//        // get array representation of tree
-//        newick_flatten(phylo_tree, phylo_array);
-//        //    for (const auto & elem : newick_flattened)
-//        //        std::cout << elem << '\n';
-//    }
-//
-//    ~Data()
-//    {
-//        if (phylo_tree != NULL)
-//            newick_free(phylo_tree);
-//    }
 };
 
 std::tuple<double, double, double> run(Data & data, const Model & model, alignment_t & alignment, algorithm_t algo, std::vector<double> & lpr_per_codon, std::vector<double> & /*bls_per_codon*/)
@@ -353,7 +279,7 @@ std::tuple<double, double, double> run(Data & data, const Model & model, alignme
         const double phylocsf_score = (10.0 * (lpr_H1 - lpr_H0) / log(10.0));
         const double anchestral_score = NAN;
         std::vector<double> TODO_deleteme;
-        const double bls_score = compute_bls_score(model.phylo_tree, alignment, TODO_deleteme);
+        const double bls_score = compute_bls_score(model.phylo_tree, alignment, model, TODO_deleteme);
 //        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
         return std::make_tuple(phylocsf_score, bls_score, anchestral_score);
     }
@@ -386,7 +312,7 @@ std::tuple<double, double, double> run(Data & data, const Model & model, alignme
 
         const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
         const double anchestral_score = NAN; // 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
-        const double bls_score = NAN; // compute_bls_score(data.phylo_tree, alignment, bls_per_codon);
+        const double bls_score = NAN; // compute_bls_score(data.phylo_tree, alignment, model, bls_per_codon);
 
         for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
         {
@@ -400,48 +326,23 @@ std::tuple<double, double, double> run(Data & data, const Model & model, alignme
     }
 }
 
-struct comp_result
+int print_model_info(const std::string & model_name)
 {
-    double fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls;
+    Model model;
+    load_model(model, model_name, "", false, 0, "");
 
-    comp_result(double fixed_score, double fixed_anc, double mle_score, double mle_anc, double omega_score, double bls)
+    printf("The model %s contains the following species.\n\n", model_name.c_str());
+    printf("%35s\t%s\n", "Species name", "Alternative name(s)");
+    for (const auto & elem : model.phylo_array)
     {
-        this->fixed_score = fixed_score;
-        this->fixed_anc = fixed_anc;
-        this->mle_score = mle_score;
-        this->mle_anc = mle_anc;
-        this->omega_score = omega_score;
-        this->bls = bls;
+        if (elem.label != "")
+        {
+            std::string scientific_names;
+            for (const auto & sn : sequence_name_mapping[elem.label])
+                scientific_names += sn + " ";
+            printf("%35s\t%s\n", elem.label.c_str(), scientific_names.c_str());
+        }
     }
 
-    void print() const noexcept
-    {
-        printf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", fixed_score, fixed_anc, mle_score, mle_anc, omega_score, bls);
-    }
-};
-
-//int print_model_info(const std::string & model_name)
-//{
-//    if (models.find(model_name) == models.end())
-//    {
-//        print_error_msg("Could not find the model " + model_name + ".");
-//        return -1;
-//    }
-//
-//    Data data;
-//    data.load_model(model_name.c_str(), true);
-//    printf("The model %s contains the following species.\n\n", model_name.c_str());
-//    printf("%35s\t%s\n", "Common name", "Scientific name(s)");
-//    for (const auto & elem : data.phylo_array)
-//    {
-//        if (elem.label != "")
-//        {
-//            std::string scientific_names;
-//            for (const auto & sn : sequence_name_mapping[elem.label])
-//                scientific_names += sn + " ";
-//            printf("%35s\t%s\n", elem.label.c_str(), scientific_names.c_str());
-//        }
-//    }
-//
-//    return 0;
-//}
+    return 0;
+}

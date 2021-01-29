@@ -19,21 +19,16 @@ struct alignment_t
 {
     uint64_t start_pos = 0;
     std::string chrom;
-    std::vector<std::string> ids;
     std::vector<std::string> seqs;
     std::vector<std::vector<uint8_t> > peptides;
 
     char strand;
     unsigned skip_bases = 0;
 
-    alignment_t(const std::vector<newick_elem> & phylo_array)
+    alignment_t(const uint16_t leaves)
     {
-        const uint16_t leaves = (phylo_array.size() + 1)/2;
-        ids.resize(leaves);
         seqs.resize(leaves, "");
         peptides.resize(leaves, {});
-        for (uint16_t i = 0; i < leaves; ++i)
-            ids[i] = phylo_array[i].label;
     }
 
     size_t length() const noexcept
@@ -84,10 +79,9 @@ struct alignment_t
             peptides[i].resize((seqs[i].size() - skip_bases) / 3);
             for (uint64_t aa_pos = 0; aa_pos < peptides[i].size(); ++aa_pos)
             {
-                peptides[i][aa_pos] = get_amino_acid_id(
-                                        seqs[i][skip_bases + 3 * aa_pos],
-                                        seqs[i][skip_bases + 3 * aa_pos + 1],
-                                        seqs[i][skip_bases + 3 * aa_pos + 2]);
+                peptides[i][aa_pos] = get_amino_acid_id(seqs[i][skip_bases + 3 * aa_pos],
+                                                        seqs[i][skip_bases + 3 * aa_pos + 1],
+                                                        seqs[i][skip_bases + 3 * aa_pos + 2]);
             }
         }
     }

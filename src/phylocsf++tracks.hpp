@@ -43,7 +43,7 @@ void merge_job_output_files(const std::string & base_name, const unsigned jobs)
 
 void run_tracks(const std::string & alignment_path, const Model & model, const TrackCLIParams & params)
 {
-    unsigned jobs = params.threads * 10;
+    unsigned jobs = (params.threads > 1) ? params.threads * 10 : 1;
 
     std::vector<Data> data(params.threads);
 
@@ -60,9 +60,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
     // prepare alignment
     std::vector<alignment_t> alignments;
+    const uint16_t leaves = (model.phylo_array.size() + 1)/2;
     for (unsigned i = 0; i < params.threads; ++i)
     {
-        alignments.emplace_back(model.phylo_array); // TODO: remove id's outside of aln struct because they are read-only
+        alignments.emplace_back(leaves);
     }
 
     std::vector<std::vector<double> > lpr_per_codon(params.threads), bls_per_bp(params.threads);
@@ -90,15 +91,27 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
         {
             char strand = (i < 3) ? '+' : '-';
             unsigned frame = (i % 3) + 1;
-            const std::string filename_score_raw = output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
-            const std::string filename_score     = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
-            file_score_raw[i] = fopen(filename_score_raw.c_str(), "w");
-            file_score[i] = fopen(filename_score.c_str(), "w");
 
-            if (file_score_raw[i] == NULL || file_score[i] == NULL)
+            if (params.phylo_raw)
             {
-                printf("Error creating file!");
-                exit(1);
+                const std::string filename_score_raw = output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
+                file_score_raw[i] = fopen(filename_score_raw.c_str(), "w");
+                if (file_score_raw[i] == NULL)
+                {
+                    printf("Error creating file!");
+                    exit(1);
+                }
+            }
+
+            if (params.phylo_smooth)
+            {
+                const std::string filename_score     = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
+                file_score[i] = fopen(filename_score.c_str(), "w");
+                if (file_score[i] == NULL)
+                {
+                    printf("Error creating file!");
+                    exit(1);
+                }
             }
         }
 
@@ -109,8 +122,8 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 //            printf("%10ld\t10%ld\n", aln.start_pos, aln.seqs[0].size());
 
             // on first iteration, compute bls scores (used by all 6 frames then!)
-            bls_per_bp[thread_id].clear(); // TODO: should all be thread_id not job_id
-            compute_bls_score(model.phylo_tree, aln, bls_per_bp[thread_id]);
+            bls_per_bp[thread_id].clear();
+            compute_bls_score(model.phylo_tree, aln, model, bls_per_bp[thread_id]);
 
             const uint64_t orig_start_pos = aln.start_pos;
 
@@ -133,7 +146,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         aln.start_pos += excess_basepairs;
                     }
 
-                    if (frame == 3 && strand == '+')
+                    if (params.phylo_power && frame == 3 && strand == '+')
                     {
                         // since we iterate over a codon array, there must be 3 bp for each codon
                         // the last 0-2 remaining basepairs in the bls array do not have a codon entry
@@ -166,7 +179,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                                                     + bls_per_bp[thread_id][bls_pos + 2];
                         if (bls_codon_sum < 0.1f * 3)
                         {
-                            if (scores.empty())
+                            if (params.phylo_smooth && scores.empty())
                                 startBlockPos = aln.start_pos + ((xx + 1) * 3);
                             continue;
                         }
@@ -175,8 +188,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
                         if (prevPos + 3 != newPos)
                         {
-                            fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), newPos);
-                            if (!scores.empty())
+                            if (params.phylo_raw)
+                                fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), newPos);
+
+                            if (params.phylo_smooth && !scores.empty())
                             {
                                 fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
 
@@ -194,11 +209,15 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         }
 
                         prevPos = newPos;
-                        my_fprintf(file_score_raw[file_index], "%.3f", lpr_per_codon[thread_id][xx]);
-                        scores.push_back(lpr_per_codon[thread_id][xx]);
+
+                        if (params.phylo_raw)
+                            my_fprintf(file_score_raw[file_index], "%.3f", lpr_per_codon[thread_id][xx]);
+
+                        if (params.phylo_smooth)
+                            scores.push_back(lpr_per_codon[thread_id][xx]);
                     }
 
-                    if (!scores.empty())
+                    if (params.phylo_smooth && !scores.empty())
                     {
                         fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
                         process_scores(model._hmm, scores, startBlockPos, region, SCORE_CODON);
@@ -228,25 +247,33 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                 seq = "";
         }
 
-        fclose(file_power);
+        if (params.phylo_power)
+            fclose(file_power);
+
         for (uint8_t i = 0; i < 6; ++i)
         {
-            fclose(file_score_raw[i]);
-            fclose(file_score[i]);
+            if (params.phylo_raw)
+                fclose(file_score_raw[i]);
+
+            if (params.phylo_smooth)
+                fclose(file_score[i]);
         }
     }
 
     // merge power file
-    merge_job_output_files(output_folder + "/PhyloCSFpower.wig", jobs);
+    if (params.phylo_power)
+        merge_job_output_files(output_folder + "/PhyloCSFpower.wig", jobs);
 
     // merge 6 frame files for scores and raw scores
     for (char strand = '+'; strand <= '-'; strand += 2)
     {
         for (unsigned frame = 1; frame <= 3; ++frame)
         {
-            merge_job_output_files(output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs);
+            if (params.phylo_raw)
+                merge_job_output_files(output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs);
 
-            merge_job_output_files(output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs);
+            if (params.phylo_smooth)
+                merge_job_output_files(output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs);
         }
     }
 }
@@ -268,7 +295,7 @@ int main_tracks(int argc, char **argv)
     args.add_option("output-power", ArgParse::Type::BOOL, "Output confidence track (branch length score). Default: " + std::to_string(params.phylo_power), ArgParse::Level::GENERAL, false);
     args.add_option("power-threshold", ArgParse::Type::FLOAT, "Minimum confidence score to output PhyloCSF score. Default: " + std::to_string(params.phylo_threshold), ArgParse::Level::GENERAL, false);
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
-    args.add_option("coding-exons", ArgParse::Type::STRING, "TODO file with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
+    args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Defaut: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
     args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
     args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
@@ -285,7 +312,7 @@ int main_tracks(int argc, char **argv)
     if (args.is_set("model-info"))
     {
         const std::string & model_name = args.get_string("model-info");
-//        TODO: return print_model_info(model_name);
+        return print_model_info(model_name);
     }
 
     // retrieve flags/options that were set
@@ -325,7 +352,6 @@ int main_tracks(int argc, char **argv)
         return -1;
     }
 
-    const std::string model_name_or_path = args.get_positional_argument("model");
     const std::string alignment_path = args.get_positional_argument("alignments");
 
     // load and prepare model
@@ -338,7 +364,7 @@ int main_tracks(int argc, char **argv)
         coding_exons_path = args.get_string("coding-exons");
 
     Model model;
-    load_model(model, model_name_or_path, args.get_string("species"),
+    load_model(model, args.get_positional_argument("model"), args.get_string("species"),
                params.phylo_smooth, genome_length, coding_exons_path);
 
     // TODO: run it for each alignment
@@ -346,3 +372,24 @@ int main_tracks(int argc, char **argv)
 
     return 0;
 }
+
+// genome_length        = 2870184193
+// model_str            = 100vertebrates
+// selected_species_str = Rat,Frog_X._tropicalis,Zebrafish,Platypus,Chicken,Turkey,Panda,Mouse,Prairie_vole,Rhesus,Rabbit,Cat,Opossum,Cow,Human,Chimp,Dog,Guinea_pig
+// aln_path             = /ccb/salz4-2/pocki/PhyloCSF++data/rn6/rn6.20way.chr20.maf
+// hmm_data_path        = /ccb/salz4-2/pocki/PhyloCSF++data/rn6/RatCodingExons.txt
+// output_folder        = /ccb/salz4-2/pocki/PhyloCSF++data/rn6/out_chr20_30_times_100jobs
+
+// genome_length        = 1065365434
+// model_str            = 53birds
+// selected_species_str =
+// aln_path             = /home/chris/dev-uni/PhyloCSF++/phylo_galgal/galGal6_chrM.maf
+// hmm_data_path        = /home/chris/dev-uni/PhyloCSF++/phylo_galgal/ChickenCodingExonsV2.txt
+// output_folder        = /home/chris/dev-uni/PhyloCSF++/galgal_out
+
+// genome_length        = 12157105
+// model_str            = 7yeast
+// selected_species_str =
+// aln_path             = /home/chris/dev-uni/PhyloCSF++/phylo_yeast/chrI.maf
+// hmm_data_path        = /home/chris/dev-uni/PhyloCSF++/phylo_yeast/YeastCodingExons.txt
+// output_folder        = /home/chris/dev-uni/PhyloCSF++/yeast_out_test
