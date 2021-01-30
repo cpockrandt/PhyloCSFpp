@@ -99,18 +99,25 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
             // TODO: only compute phylocsf score and/or anc score if necessary
             if (params.comp_phylo || params.comp_anc)
             {
-                auto result = run(data[thread_id], model, aln, params.strategy);
+                try {
+                    std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy);
 
-                if (params.comp_phylo)
-                {
-                    results.back().phylo = std::get<0>(result);
-                    printf("\t%.6f", std::get<0>(result));
+                    if (params.comp_phylo)
+                    {
+                        results.back().phylo = std::get<0>(result);
+                        printf("\t%.6f", std::get<0>(result));
+                    }
+
+                    if (params.comp_anc)
+                    {
+                        results.back().anc = std::get<1>(result);
+                        printf("\t%.6f", std::get<1>(result));
+                    }
                 }
-
-                if (params.comp_anc)
+                catch (const std::runtime_error &)
                 {
-                    results.back().anc = std::get<1>(result);
-                    printf("\t%.6f", std::get<1>(result));
+                    if (params.comp_phylo)
+                        printf("\t%.6f", NAN);
                 }
             }
 

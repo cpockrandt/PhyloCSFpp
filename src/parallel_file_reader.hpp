@@ -408,7 +408,7 @@ public:
                 char *id = nullptr, *seq = nullptr;
                 uint64_t start_pos = 0;
                 uint64_t tmp_len_wo_ref_gaps = 0;
-                char ref_strand;
+                char ref_strand = '.';
                 get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
 
                 // cut id starting after "."
