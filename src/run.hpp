@@ -123,7 +123,28 @@ struct Data
     }
 };
 
-std::tuple<double, double, double> run(Data & data, const Model & model, alignment_t & alignment, algorithm_t algo, std::vector<double> & lpr_per_codon, std::vector<double> & /*bls_per_codon*/)
+void run_tracks(Data & data, const Model & model, const alignment_t & alignment, std::vector<double> & lpr_per_codon/*, std::vector<double> & bls_per_codon*/)
+{
+    // initialize model
+    PhyloCSFModel_make(data.c_instance, model.c_model, model.phylo_array);
+    PhyloCSFModel_make(data.nc_instance, model.nc_model, model.phylo_array);
+
+    double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
+
+    std::vector<double> nc_lpr_per_codon;
+    nc_lpr_per_codon.reserve(alignment.length() / 3);
+
+    // TODO: skip triplets with PhyloPower < 0.1 to speed up computation!
+    lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, lpr_per_codon);
+    lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
+
+    for (uint32_t i = 0; i < lpr_per_codon.size(); ++i)
+    {
+        lpr_per_codon[i] = 10.0 * (lpr_per_codon[i] - nc_lpr_per_codon[i]) / log(10.0);
+    }
+}
+
+std::tuple<float, float> run(Data & data, const Model & model, const alignment_t & alignment, const algorithm_t algo)
 {
     if (algo == algorithm_t::OMEGA)
     {
@@ -278,10 +299,8 @@ std::tuple<double, double, double> run(Data & data, const Model & model, alignme
 
         const double phylocsf_score = (10.0 * (lpr_H1 - lpr_H0) / log(10.0));
         const double anchestral_score = NAN;
-        std::vector<double> TODO_deleteme;
-        const double bls_score = compute_bls_score(model.phylo_tree, alignment, model, TODO_deleteme);
 //        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
-        return std::make_tuple(phylocsf_score, bls_score, anchestral_score);
+        return std::make_tuple(phylocsf_score, anchestral_score);
     }
     else
     {
@@ -303,26 +322,15 @@ std::tuple<double, double, double> run(Data & data, const Model & model, alignme
         }
         else // if (algo == algorithm_t::FIXED)
         {
-            // TODO: skip triplets with PhyloPower < 0.1 to speed up computation!
             lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, c_lpr_per_codon);
             lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
         }
 
-        lpr_per_codon.resize(c_lpr_per_codon.size());
-
         const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
-        const double anchestral_score = NAN; // 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
-        const double bls_score = NAN; // compute_bls_score(data.phylo_tree, alignment, model, bls_per_codon);
-
-        for (uint32_t xx = 0; xx < c_lpr_per_codon.size(); ++xx)
-        {
-            const double _score = 10.0 * (c_lpr_per_codon[xx] - nc_lpr_per_codon[xx]) / log(10.0);
-            lpr_per_codon[xx] = _score;
-//            printf("Codon %d\t%f\t%f\n", xx, _score, bls_per_codon[xx]);
-        }
+        const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
 
 //        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
-        return std::make_tuple(phylocsf_score, bls_score, anchestral_score);
+        return std::make_tuple(phylocsf_score, anchestral_score);
     }
 }
 

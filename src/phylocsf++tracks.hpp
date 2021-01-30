@@ -68,7 +68,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
     std::vector<std::vector<double> > lpr_per_codon(params.threads), bls_per_bp(params.threads);
 
-    parallel_maf_reader maf_rd(alignment_path.c_str(), jobs, &model.seqid_to_phyloid);
+    parallel_maf_reader maf_rd(alignment_path.c_str(), jobs, &model.seqid_to_phyloid, true);
     jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
 
     #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1) default(none) shared(jobs, alignments, maf_rd, data, model, params, output_folder, lpr_per_codon, bls_per_bp)
@@ -105,7 +105,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
             if (params.phylo_smooth)
             {
-                const std::string filename_score     = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
+                const std::string filename_score = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
                 file_score[i] = fopen(filename_score.c_str(), "w");
                 if (file_score[i] == NULL)
                 {
@@ -135,7 +135,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     aln.update_seqs(orig_start_pos, strand, frame);
 
                     lpr_per_codon[thread_id].clear();
-                    run(data[thread_id], model, aln, algorithm_t::FIXED, lpr_per_codon[thread_id], bls_per_bp[thread_id]);
+                    run_tracks(data[thread_id], model, aln, lpr_per_codon[thread_id]/*, bls_per_bp[thread_id]*/);
                     data[thread_id].clear();
 
                     if (strand == '-')
@@ -296,7 +296,7 @@ int main_tracks(int argc, char **argv)
     args.add_option("power-threshold", ArgParse::Type::FLOAT, "Minimum confidence score to output PhyloCSF score. Default: " + std::to_string(params.phylo_threshold), ArgParse::Level::GENERAL, false);
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
-    args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Defaut: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
+    args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
     args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
     args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
     args.add_option("species", ArgParse::Type::STRING, "Comma separated list of species to reduce <model> to a subset of species to improve running time, e.g., \"Human,Chimp,Seaturtle\"", ArgParse::Level::GENERAL, false);
@@ -304,8 +304,10 @@ int main_tracks(int argc, char **argv)
     // TODO: add dry-run option (to check whether all species names can be mapped and it doesn't fail after 2 days of runtime)
     // or even better: continue where the tool left off!
 
-    args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", false);
-    args.add_positional_argument("alignments", ArgParse::Type::STRING, "One or more files containing multiple sequence alignments. Formats: MAF and multi FASTA. Multiple MSAs can be stored in a single file separated by empty lines.", false);
+    // TODO: ignore sequences not occuring in model (instead of failing)
+
+    args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", true);
+    args.add_positional_argument("alignments", ArgParse::Type::STRING, "One or more files containing multiple sequence alignments. Formats: MAF and multi FASTA. Multiple MSAs can be stored in a single file separated by empty lines.", true);
     args.parse_args(argc, argv);
 
     // additional help strings
@@ -314,6 +316,8 @@ int main_tracks(int argc, char **argv)
         const std::string & model_name = args.get_string("model-info");
         return print_model_info(model_name);
     }
+
+    args.check_args(); // check here because if "--model-info" is set, we don't want to require mandatory arguments
 
     // retrieve flags/options that were set
     if (args.is_set("threads"))
@@ -367,8 +371,12 @@ int main_tracks(int argc, char **argv)
     load_model(model, args.get_positional_argument("model"), args.get_string("species"),
                params.phylo_smooth, genome_length, coding_exons_path);
 
-    // TODO: run it for each alignment
-     run_tracks(alignment_path, model, params);
+    // run for every alignment file
+    for (uint16_t i = 1; i < args.positional_argument_size(); ++i)
+    {
+        // printf("%d, %s\n", i, args.get_positional_argument(i).c_str());
+        run_tracks(args.get_positional_argument(i).c_str(), model, params);
+    }
 
     return 0;
 }

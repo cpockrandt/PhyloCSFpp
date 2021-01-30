@@ -117,6 +117,8 @@ class parallel_maf_reader
 
     const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid;
 
+    const bool concatenate_alignments;
+
     void *file_mem = nullptr;
     size_t *file_range_pos = nullptr;
     size_t *file_range_pos_orig = nullptr;
@@ -206,7 +208,8 @@ public:
         return *((char*) file_mem + file_range_pos[job_id]);
     }
 
-    parallel_maf_reader(const char * file_path, const unsigned jobs, const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid)
+    parallel_maf_reader(const char * file_path, const unsigned jobs, const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid, const bool concatenate_alignments)
+        : concatenate_alignments(concatenate_alignments)
     {
         fd = open(file_path, O_RDONLY);
         if (fd < 0)
@@ -271,7 +274,7 @@ public:
             file_range_pos[i] = file_range_from;
             file_range_end[i] = file_range_to;
 
-            printf("STRICT SPLITTING: Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_pos[i], file_range_end[i], file_range_end[i] - file_range_pos[i]);
+//            printf("STRICT SPLITTING: Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_pos[i], file_range_end[i], file_range_end[i] - file_range_pos[i]);
 
             // go to beginning of alignment (i.e., go to first page with beginning of a new alignment block and set offset_in_page accordingly)
             // - alignment could start at the very beginning of the current page (or next page). note that except the very first thread, the first page
@@ -295,7 +298,7 @@ public:
 
             file_range_pos_orig[i] = file_range_pos[i];
 
-            printf("SEARCH ALN BEGIN: Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_pos[i], file_range_end[i], file_range_end[i] - file_range_pos[i]);
+//            printf("SEARCH ALN BEGIN: Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n", i, file_range_pos[i], file_range_end[i], file_range_end[i] - file_range_pos[i]);
 
             file_range_from = file_range_to;
         }
@@ -357,7 +360,7 @@ public:
             }
         }
 
-        printf("AFTER SKIPPING  : Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n\n", job_id, file_range_pos[job_id], file_range_end[job_id], file_range_end[job_id] - file_range_pos[job_id]);
+//        printf("AFTER SKIPPING  : Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n\n", job_id, file_range_pos[job_id], file_range_end[job_id], file_range_end[job_id] - file_range_pos[job_id]);
     }
 
     // in practice aln.ids will already be set and only
@@ -457,7 +460,7 @@ public:
             }
         }
 
-        bool abort_next_alignment = false;
+        bool abort_next_alignment = !this->concatenate_alignments;
 
         // check whether we can extend the alignment (i.e., next alignment starts on the next base where the last one ended)
         while (!abort_next_alignment && file_range_pos[job_id] < (size_t)file_size)

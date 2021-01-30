@@ -53,6 +53,7 @@ private:
     std::vector<std::tuple<std::string, std::string> > subprograms;
 	std::string selected_subprogram = "";
 
+	bool allow_more_pos_arguments = false;
     uint16_t longest_opt_arg = 0; // for printing help page
 
     std::vector<Arg>::iterator find(std::vector<Arg> & v, const std::string & name) const
@@ -93,7 +94,7 @@ public:
 		this->program_name = program_name;
     }
 
-    void parse_args(int argc, char **argv)
+    void parse_args(int argc, char **argv) noexcept
     {
         if (argc == 1)
         {
@@ -164,20 +165,33 @@ public:
 				}
                 if (pos_arg_i >= pos_args.size())
                 {
-                    error_message("More positional arguments passed than allowed!");
-                    exit(-1);
+                    if (allow_more_pos_arguments)
+                    {
+                        pos_args.emplace_back();
+                    }
+                    else
+                    {
+                        error_message("More positional arguments passed than allowed!");
+                        exit(-1);
+                    }
                 }
                 pos_args[pos_arg_i].is_set = true;
                 pos_args[pos_arg_i].value = argv[i];
                 ++pos_arg_i;
             }
         }
+    }
 
+    void check_args() const noexcept
+    {
         // check whether the required positional arguments are given
-        if (pos_arg_i < pos_args.size() && pos_args[pos_arg_i].is_required)
+        for (size_t pos_arg_i = 0; pos_arg_i < pos_args.size() && pos_args[pos_arg_i].is_required; ++pos_arg_i)
         {
-            error_message("Positional argument for '" + pos_args[pos_arg_i].name + "' missing!");
-            exit(-1);
+            if (!pos_args[pos_arg_i].is_set)
+            {
+                error_message("Positional argument for '" + pos_args[pos_arg_i].name + "' missing!");
+                exit(-1);
+            }
 
             // if (argc == 1) // no arguments/options passed
             // {
@@ -191,7 +205,7 @@ public:
         {
             if (a.is_required && !a.is_set)
             {
-                error_message("Option --" + a.name + "required!");
+                error_message("Option --" + a.name + " required!");
                 exit(-1);
             }
         }
@@ -200,7 +214,7 @@ public:
     void add_option(std::string && name, /*const char short_name,*/ const Type type, std::string && description, const Level level, const bool required)
     {
 #if defined _DEBUG
-        if (find(args, name) != args.end()) // option already existed
+        if (find(args, name) != args.end()) // option already exists
         {
             error_message("Option '" + name + "' cannot be defined twice!");
             exit(-1);
@@ -224,10 +238,10 @@ public:
         // pos_args.emplace_back(Arg({name, type, Level::GENERAL, required, false, description, ""}));
     }
 
-    void add_positional_argument(std::string && name, const Type type, std::string && description, const bool required)
+    void add_positional_argument(std::string && name, const Type type, std::string && description, const bool required, const bool allow_more_pos_arguments = false)
     {
 #if defined _DEBUG
-        if (find(pos_args, name) != pos_args.end()) // option already existed
+        if (find(pos_args, name) != pos_args.end()) // option already exists
         {
             error_message("Argument '" + name + "' cannot be defined twice!");
             exit(-1);
@@ -239,6 +253,9 @@ public:
             exit(-1);
         }
 #endif
+
+        assert(!this->allow_more_pos_arguments); // allow_more_pos_arguments can only be true for the last positional argument
+        this->allow_more_pos_arguments = allow_more_pos_arguments;
 
         if (name.size() + 2 > longest_opt_arg) // account for < and > prefix/suffix
             longest_opt_arg = name.size() + 2;
@@ -321,6 +338,18 @@ public:
         return it->value;
     }
 
+    std::string get_positional_argument(size_t index) const noexcept
+    {
+        assert(index < pos_args.size());
+
+        return pos_args[index].value;
+    }
+
+    size_t positional_argument_size() const noexcept
+    {
+        return pos_args.size();
+    }
+
 	void print_desc(const std::string & desc, uint16_t padding) const noexcept
 	{
 		uint32_t pos = 0;
@@ -353,21 +382,25 @@ public:
         std::cout << "\033[0m";
 		std::cout << desc_ << "\n\n";
 
-        std::cout << "Usage: " << program_name << " [OPTIONS] ";
+        std::cout << "Usage: " << program_name << " [OPTIONS]";
 
 		if (!subprograms.empty())
 		{
-	        std::cout << "<tool>";
+	        std::cout << " <tool>";
 		}
 
         for (const auto & pa : pos_args)
         {
 			assert(subprograms.empty());
             if (pa.is_required)
-                std::cout << '<' << pa.name << "> ";
+                std::cout << " <" << pa.name << ">";
             else
-                std::cout << "[<" << pa.name << ">] ";
+                std::cout << " [<" << pa.name << ">]";
         }
+
+        if (allow_more_pos_arguments)
+            std::cout << "...";
+
         std::cout << "\n\n";
 
 		if (!subprograms.empty())
@@ -393,7 +426,6 @@ public:
 				print_desc(pa.desc, longest_opt_arg - pa.name.size());
 				std::cout << "\n\n";
 	        }
-	        std::cout << '\n';
 		}
 
         std::cout << "Options:\n\n";
