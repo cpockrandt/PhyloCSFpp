@@ -77,6 +77,7 @@ double newick_sum_branch_lengths(const newick_node* node, const std::unordered_s
 //    return n;
 //}
 
+template <bool score_per_base>
 double compute_bls_score(const newick_node* node, const alignment_t & alignment, const Model & model, std::vector<double> & score_per_codon)
 {
     const uint64_t lo = 0;
@@ -90,8 +91,6 @@ double compute_bls_score(const newick_node* node, const alignment_t & alignment,
 
     const double all_species_branch_length = newick_sum_branch_lengths(node, all_species); // TODO: not necessary to compare species names when counting all branch lengths
 
-    score_per_codon.clear();
-
     for (uint64_t i = lo; i < hi; ++i)
     {
         // determine subspecies set that has A,C,G or T at position i
@@ -101,27 +100,22 @@ double compute_bls_score(const newick_node* node, const alignment_t & alignment,
             if (alignment.seqs[species_id].size() > 0 && get_dna_id(alignment.seqs[species_id][i]) <= 3)
                 subset.insert(model.phylo_array[species_id].label/*alignment.ids[species_id]*/);
         }
-//        printf("%ld %f\n", subset.size(), newick_sum_branch_lengths(node, subset));
+
         if (subset.size() >= 2) // NOTE: if only one sequence has a DNA4 base, Ocaml produces an (empty?) subtree, and we seem to produce a tree with some branch length! that's why we have this if statement here!
         {
             const double bl = newick_sum_branch_lengths(node, subset);
             bl_total += bl;
-            score_per_codon.push_back(bl / all_species_branch_length);
-            if (isinf(bl / all_species_branch_length))
-            {
-                exit(13);
-            }
-//            printf("BLS push_back(%f, %f) = %f\n", newick_sum_branch_lengths(node, subset), all_species_branch_length, score_per_codon.back());
+
+            if (score_per_base)
+                score_per_codon.push_back(bl / all_species_branch_length);
         }
-        else
+        else if (score_per_base)
         {
             score_per_codon.push_back(0.0);
         }
     }
 
     const double divisor = all_species_branch_length * (hi - lo);
-//    printf("sum: %f\n", bl_total);
-//    printf("divisor: %f\n", newick_sum_branch_lengths(node, all_species));
 
     return bl_total / divisor;
 }

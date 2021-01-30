@@ -79,7 +79,6 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
         alignments.emplace_back(leaves);
     }
 
-    // TODO: do not concatenate alignments
     parallel_maf_reader maf_rd(alignment_path.c_str(), jobs, &model.seqid_to_phyloid, false);
     jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
 
@@ -92,33 +91,35 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
         alignment_t & aln = alignments[thread_id];
         std::vector<region_result> & results = all_results[job_id];
 
-//        maf_rd.skip_partial_alignment(aln, job_id);
-
         while (maf_rd.get_next_alignment(aln, job_id))
         {
-//            compute_bls_score(model.phylo_tree, aln, model, bls_per_bp[thread_id]);
-
-            auto result = run(data[thread_id], model, aln, params.strategy/*, lpr_per_codon[thread_id], bls_per_bp[thread_id]*/);
+            aln.translate();
 
             printf("%s\t%ld\t%ld", aln.chrom.c_str(), aln.start_pos, aln.start_pos + aln.length() - 1);
-            results.emplace_back(aln.chrom, aln.start_pos, aln.start_pos + aln.length() - 1, 0.0, 0.0, 0.0);
+            results.emplace_back(aln.chrom, aln.start_pos, aln.start_pos + aln.length() - 1, NAN, NAN, NAN);
 
-            if (params.comp_phylo)
+            // TODO: only compute phylocsf score and/or anc score if necessary
+            if (params.comp_phylo || params.comp_anc)
             {
-                results.back().phylo = std::get<0>(result);
-                printf("\t%.6f", std::get<0>(result));
-            }
+                auto result = run(data[thread_id], model, aln, params.strategy);
 
-            if (params.comp_anc)
-            {
-                results.back().anc = std::get<1>(result);
-                printf("\t%.6f", std::get<1>(result));
+                if (params.comp_phylo)
+                {
+                    results.back().phylo = std::get<0>(result);
+                    printf("\t%.6f", std::get<0>(result));
+                }
+
+                if (params.comp_anc)
+                {
+                    results.back().anc = std::get<1>(result);
+                    printf("\t%.6f", std::get<1>(result));
+                }
             }
 
             if (params.comp_bls)
             {
-                std::vector<double> TODO_deleteme; // TODO: delete me
-                const float bls_score = compute_bls_score(model.phylo_tree, aln, model, TODO_deleteme);
+                std::vector<double> bls_scores_per_base;
+                const float bls_score = compute_bls_score<false>(model.phylo_tree, aln, model, bls_scores_per_base);
                 results.back().bls = bls_score;
                 printf("\t%.6f", bls_score);
             }
@@ -133,7 +134,6 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
     }
 
     // merge and write output
-
     for (const auto & job_results : all_results)
     {
         for (const auto & result : job_results)
@@ -147,9 +147,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
                 fprintf(output_file, "\t%.6f", result.bls);
             fprintf(output_file, "\n");
         }
-        printf("--------------\n");
     }
-
     fclose(output_file);
 }
 

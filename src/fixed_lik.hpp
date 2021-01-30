@@ -334,11 +334,11 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
 // BEGIN - THIS IS FOR ANC SCORE
-//    gsl_vector * anc_lprior = gsl_vector_alloc(64);
-//    gsl_vector_memcpy(anc_lprior, get_prior(instance));
-//    for (uint8_t i = 0; i < 64; ++i)
-//        gsl_vector_set(anc_lprior, i, log(gsl_vector_get(anc_lprior, i)));
-//    const uint16_t root_node_id = instance.model.tree.size() - 1;
+    gsl_vector * anc_lprior = gsl_vector_alloc(64);
+    gsl_vector_memcpy(anc_lprior, get_prior(instance));
+    for (uint8_t i = 0; i < 64; ++i)
+        gsl_vector_set(anc_lprior, i, log(gsl_vector_get(anc_lprior, i)));
+    const uint16_t root_node_id = instance.model.tree.size() - 1;
 // END - THIS IS FOR ANC SCORE
 
     gsl_vector * tmp_prior = get_prior(instance); // TODO: move this out of the for loop below!
@@ -389,17 +389,17 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         lpr_per_codon.push_back(log_z);
 
 // BEGIN - THIS IS FOR ANC SCORE
-//        gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
-//        assert(pr_root->size == anc_lprior->size);
-//        for (uint16_t xx = 0; xx < anc_lprior->size; ++xx)
-//        {
-//            elpr_anc += gsl_vector_get(anc_lprior, xx) * gsl_vector_get(pr_root, xx);
-//        }
-//        gsl_vector_free(pr_root);
+        gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
+        assert(pr_root->size == anc_lprior->size);
+        for (uint16_t xx = 0; xx < anc_lprior->size; ++xx)
+        {
+            elpr_anc += gsl_vector_get(anc_lprior, xx) * gsl_vector_get(pr_root, xx);
+        }
+        gsl_vector_free(pr_root);
 // END - THIS IS FOR ANC SCORE
     }
 // BEGIN - THIS IS FOR ANC SCORE
-//    gsl_vector_free(anc_lprior);
+    gsl_vector_free(anc_lprior);
 // END - THIS IS FOR ANC SCORE
 }
 

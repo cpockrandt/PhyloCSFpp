@@ -123,7 +123,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
             // on first iteration, compute bls scores (used by all 6 frames then!)
             bls_per_bp[thread_id].clear();
-            compute_bls_score(model.phylo_tree, aln, model, bls_per_bp[thread_id]);
+            compute_bls_score<true>(model.phylo_tree, aln, model, bls_per_bp[thread_id]);
 
             const uint64_t orig_start_pos = aln.start_pos;
 

@@ -41,6 +41,21 @@ struct alignment_t
         return seqs[0].size() - skip_bases;
     }
 
+    void translate() noexcept
+    {
+        // translate nucleotides
+        for (uint16_t i = 0; i < seqs.size(); ++i)
+        {
+            peptides[i].resize(seqs[i].size() / 3);
+            for (uint64_t aa_pos = 0; aa_pos < peptides[i].size(); ++aa_pos)
+            {
+                peptides[i][aa_pos] = get_amino_acid_id(seqs[i][3 * aa_pos],
+                                                        seqs[i][3 * aa_pos + 1],
+                                                        seqs[i][3 * aa_pos + 2]);
+            }
+        }
+    }
+
     void update_seqs(const uint64_t orig_start_pos, const char strand, const unsigned frame) noexcept
     {
         skip_bases = 0;
