@@ -71,7 +71,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
     parallel_maf_reader maf_rd(alignment_path.c_str(), jobs, &model.seqid_to_phyloid, true);
     jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
 
-    #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1) default(none) shared(jobs, alignments, maf_rd, data, model, params, output_folder, lpr_per_codon, bls_per_bp)
+    #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1)
     for (unsigned job_id = 0; job_id < jobs; ++job_id)
     {
         unsigned thread_id = omp_get_thread_num();

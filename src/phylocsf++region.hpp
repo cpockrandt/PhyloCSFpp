@@ -84,7 +84,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
 
     std::vector<std::vector<region_result> > all_results(jobs);
 
-    #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1) default(none) shared(jobs, alignments, maf_rd, all_results, data, model, params)
+    #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1)
     for (unsigned job_id = 0; job_id < jobs; ++job_id)
     {
         unsigned thread_id = omp_get_thread_num();

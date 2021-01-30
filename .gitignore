@@ -1,4 +1,4 @@
 .idea
-rev_eng
+venv
 build
-cmake-build-debug
+cmake-build-*
