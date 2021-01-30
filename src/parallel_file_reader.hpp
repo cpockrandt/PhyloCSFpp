@@ -102,7 +102,7 @@ struct alignment_t
     }
 };
 
-char* rstrstr(char *haystack_end, char *haystack_begin, char *needle)
+char* rstrstr(char *haystack_end, char *haystack_begin, const char *needle)
 {
     size_t needle_length = strlen(needle);
 

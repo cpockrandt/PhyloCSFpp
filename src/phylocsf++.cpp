@@ -12,10 +12,10 @@ int main(int argc, char **argv)
                   "Please consider citing: Harry Frankfurt: On Bullshit. Princeton University Press,\n"
                   "                        Princeton, New Jersey 2005");
 
-    args.set_subprograms("tool", {
+    args.set_subprograms({
             { "region", "Computes PhyloCSF scores, ancestral sequence composition sores and branch length scores for entire alignments from MAF and FASTA files. Outputs them in BED format." },
             { "tracks", "Computes PhyloCSF and Power tracks for each codon and all 6 frames from alignments from MAF and FASTA files. Outputs them in wig files." },
-    }, "Path to nessie database", false);
+    });
 
     args.add_option("help" , /*'e',*/ ArgParse::Type::FLAG, "Prints this help message. Run `phylocsf++ tracks --help` for help messages on the tools", ArgParse::Level::GENERAL, false);
 

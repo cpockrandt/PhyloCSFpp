@@ -40,7 +40,7 @@ void append(FILE * file_dest, const char path_src[])
 
 bool create_directory(const std::string & path)
 {
-    struct stat st = {0};
+    struct stat st;
 
     if (stat(path.c_str(), &st) == -1)
     {
@@ -50,7 +50,7 @@ bool create_directory(const std::string & path)
     return false;
 }
 
-void my_fprintf(FILE* f, char *format_str, const float d)
+void my_fprintf(FILE* f, const char *format_str, const float d)
 {
     char buf[12];
     sprintf(buf, format_str, d);

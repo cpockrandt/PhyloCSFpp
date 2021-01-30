@@ -10,12 +10,16 @@
 #include <algorithm>
 
 #if !defined(GIT_HASH)
-	#define GIT_HASH "UNKNOWN"
+	#define GIT_HASH UNKNOWN
 #endif
 
 #if !defined(GIT_DATE)
-	#define GIT_DATE "UNKNOWN"
+	#define GIT_DATE UNKNOWN
 #endif
+
+// Stringizing, see https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html
+#define xstr(s) mstr(s)
+#define mstr(s) #s
 
 class ArgParse {
 public:
@@ -45,8 +49,8 @@ private:
     char type_str[5][7] = {"", "BOOL", "INT", "FLOAT", "STRING"};
 
     std::string program_name;
-    const std::string git_hash = std::string(GIT_HASH).substr(0, 8);
-    const std::string git_date = GIT_DATE;
+    const std::string git_hash = xstr(GIT_HASH);
+    const std::string git_date = xstr(GIT_DATE);
     std::string desc_;
     std::vector<Arg> args;
     std::vector<Arg> pos_args;
@@ -228,7 +232,7 @@ public:
             longest_opt_arg = length_help_opt;
     }
 
-    void set_subprograms(std::string && name, const std::vector<std::tuple<std::string, std::string> > & subprograms, std::string && description, const bool required)
+    void set_subprograms(const std::vector<std::tuple<std::string, std::string> > & subprograms)
     {
         // if (name.size() + 2 > longest_opt_arg) // account for < and > prefix/suffix
         //     longest_opt_arg = name.size() + 2;

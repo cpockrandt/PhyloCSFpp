@@ -472,7 +472,7 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
 {
     const double accuracy = 0.01;
 
-    minimizer_params_t params {instance, alignment};
+    minimizer_params_t params {instance, alignment, 0.0, 0.0, 0.0};
     fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params);
 //    std::cout << "good init: " << params.x << " => " << params.lpr << '\n';
     if (lo < params.x && params.x < hi)
