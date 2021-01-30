@@ -7,8 +7,8 @@ PhyloCSF++: A fast and easy-to-use implementation of PhyloCSF
 .. image:: https://img.shields.io/github/downloads/cpockrandt/phylocsfpp/total.svg
     :target: https://github.com/cpockrandt/PhyloCSFpp/releases/latest
     :alt: Github All Releases
-.. image:: https://travis-ci.org/cpockrandt/phylocsfpp.svg?branch=master
-    :target: https://travis-ci.org/cpockrandt/PhyloCSFpp
+.. image:: https://travis-ci.com/cpockrandt/phylocsfpp.svg?branch=master
+    :target: https://travis-ci.com/cpockrandt/PhyloCSFpp
     :alt: Travis CI
 .. image:: https://img.shields.io/badge/License-AGPLv3-blue.svg
     :target: https://opensource.org/licenses/AGPL-3.0
