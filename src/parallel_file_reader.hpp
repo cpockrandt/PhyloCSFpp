@@ -445,6 +445,7 @@ public:
                 {
                     aln.start_pos = start_pos + 1; // maf file is to be 0-indexed
                     aln.chrom = chrom;
+                    aln.strand = ref_strand;
                     ref_seq_id = alnid->second;
                     prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
                     assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix

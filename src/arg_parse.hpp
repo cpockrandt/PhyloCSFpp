@@ -232,14 +232,12 @@ public:
             longest_opt_arg = length_help_opt;
     }
 
-    void set_subprograms(const std::vector<std::tuple<std::string, std::string> > & subprograms)
+    void add_subprogram(const std::string & name, const std::string & desc)
     {
         // if (name.size() + 2 > longest_opt_arg) // account for < and > prefix/suffix
         //     longest_opt_arg = name.size() + 2;
 
-		this->subprograms = subprograms;
-
-        // pos_args.emplace_back(Arg({name, type, Level::GENERAL, required, false, description, ""}));
+		this->subprograms.emplace_back(name, desc);
     }
 
     void add_positional_argument(std::string && name, const Type type, std::string && description, const bool required, const bool allow_more_pos_arguments = false)

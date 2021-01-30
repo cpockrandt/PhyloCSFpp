@@ -116,6 +116,7 @@ matrix:
         homebrew:
           packages:
             - gsl
+          update: true
 
     - os: osx
       osx_image: xcode8.3
@@ -124,6 +125,7 @@ matrix:
         homebrew:
           packages:
             - gsl
+          update: true
 
     - os: osx
       osx_image: xcode9.4
@@ -132,6 +134,7 @@ matrix:
         homebrew:
           packages:
             - gsl
+          update: true
 
     - os: osx
       osx_image: xcode10.1
@@ -140,6 +143,7 @@ matrix:
         homebrew:
           packages:
             - gsl
+          update: true
 
     ##########################################################################
     # GCC on OSX
@@ -216,6 +220,6 @@ matrix:
 
 script:
   - mkdir -p build && cd build
-  - cmake .. ${CMAKE_ARGS} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"
+  - cmake .. ${CMAKE_ARGS} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror"
   - make VERBOSE=1
 #  - travis_wait 90 sleep infinity & ctest . -j2 --output-on-failure

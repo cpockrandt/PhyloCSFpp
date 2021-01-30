@@ -1,14 +1,17 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(PhyloCSF++ CXX)
 
-find_package(OpenMP)
+find_package(OpenMP REQUIRED)
+
+if (OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 # Pass git hash and git date to C++ compiler as macros to include them into the help string.
-# If this fails, just comment out the entire block. The C++ code does not require the macros to be passed.
 # Source: https://stackoverflow.com/a/21028226 (by Drew Noakes)
 find_package(Git)
 
-if(GIT_FOUND)
+if (GIT_FOUND)
     execute_process(COMMAND
         "${GIT_EXECUTABLE}" describe --match=NeVeRmAtCh --always --abbrev=8 --dirty
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
@@ -24,7 +27,7 @@ endif()
 
 # -static -fsanitize=address -fno-omit-frame-pointer
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -march=native -Wall -Wextra -pedantic -fopenmp")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pedantic")
 
 add_executable(phylocsf++ src/phylocsf++.cpp)
 target_link_libraries(phylocsf++ gsl gslcblas)

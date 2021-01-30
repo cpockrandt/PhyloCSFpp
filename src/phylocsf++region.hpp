@@ -20,16 +20,14 @@ struct region_result
     std::string seq;
     uint64_t start;
     uint64_t end;
+    char strand;
     float phylo;
     float anc;
     float bls;
 
-    region_result(const std::string & seq, const uint64_t start, const uint64_t end,
+    region_result(const std::string & seq, const uint64_t start, const uint64_t end, const char strand,
                   const float phylo, const float anc, const float bls)
-                  : seq(seq), start(start), end(end), phylo(phylo), anc(anc), bls(bls)
-    {
-
-    }
+        : seq(seq), start(start), end(end), strand(strand), phylo(phylo), anc(anc), bls(bls) { }
 };
 
 void run_regions(const std::string & alignment_path, const Model & model, const RegionCLIParams & params)
@@ -95,8 +93,8 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
         {
             aln.translate();
 
-            printf("%s\t%ld\t%ld", aln.chrom.c_str(), aln.start_pos, aln.start_pos + aln.length() - 1);
-            results.emplace_back(aln.chrom, aln.start_pos, aln.start_pos + aln.length() - 1, NAN, NAN, NAN);
+            printf("%s\t%ld\t%ld\t%c", aln.chrom.c_str(), aln.start_pos, aln.start_pos + aln.length() - 1, aln.strand);
+            results.emplace_back(aln.chrom, aln.start_pos, aln.start_pos + aln.length() - 1, aln.strand, NAN, NAN, NAN);
 
             // TODO: only compute phylocsf score and/or anc score if necessary
             if (params.comp_phylo || params.comp_anc)
@@ -138,7 +136,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
     {
         for (const auto & result : job_results)
         {
-            fprintf(output_file, "%s\t%ld\t%ld", result.seq.c_str(), result.start, result.end);
+            fprintf(output_file, "%s\t%ld\t%ld\t%c", result.seq.c_str(), result.start, result.end, result.strand);
             if (params.comp_phylo)
                 fprintf(output_file, "\t%.6f", result.phylo);
             if (params.comp_anc)
