@@ -255,7 +255,7 @@ public:
         {
             // there have to be at least as many pages as jobs
             this->jobs = pages;
-            printf("Info: Using %ld jobs instead of %d.\n", pages, jobs);
+//            printf("Info: Using %ld jobs instead of %d.\n", pages, jobs);
         }
         else
         {

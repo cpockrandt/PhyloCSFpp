@@ -27,11 +27,11 @@ It allows you to easily create browser tracks for any genome to identify coding 
 
 If you find our implementation useful, please consider citing it:
 
-Christopher Pockrandt, Martin Steinegger, Steven Salzberg. **PhyloCSF++: Making PhyloCSF available for more species to improve gene annotation pipelines**. `Bioinformatics`_, 2021.
+    Christopher Pockrandt, Martin Steinegger, Steven Salzberg. **PhyloCSF++: Making PhyloCSF available for more species to improve gene annotation pipelines**. `Bioinformatics`_, 2021.
 
 Please also consider citing the original method paper:
 
-Lin MF, Jungreis I, and Kellis M. PhyloCSF: a comparative genomics method to distinguish protein-coding and non-coding regions. Bioinformatics, 2011.
+    Lin MF, Jungreis I, and Kellis M. PhyloCSF: a comparative genomics method to distinguish protein-coding and non-coding regions. Bioinformatics, 2011.
 
 .. _Bioinformatics: https://doi.org/10.1093/bioinformatics/btaa222
 
@@ -135,7 +135,7 @@ Training my own model
 """""""""""""""""""""
 
 For training your own model, a phylogenetic tree with evolutionary distances, as well as codon frequencies and codon substitution rates for both coding and non-coding regions are required.
-At the moment neither PhyloCSF, nor PhyloCSF++ has a tool to compute this model, but we are planning to include it into PhyloCSF++ in the near future.
+At the moment neither PhyloCSF nor PhyloCSF++ have a tool to compute this model, but we are planning to include it into PhyloCSF++ in the near future.
 
 Motivation
 ^^^^^^^^^^
