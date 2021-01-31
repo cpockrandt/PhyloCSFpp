@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <string>
 #include <algorithm>
 #include <unordered_set>
@@ -156,7 +155,6 @@ inline newick_node* newick_open(const char * const file_path)
 
     // remove any newlines, spaces, etc.
     str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
-//    std::cout << str << '\n';
 
     // TODO: remove trailing semicolon
     newick_node* root = new newick_node;

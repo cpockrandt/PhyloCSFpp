@@ -7,13 +7,12 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cassert>
 
 #include <string>
 #include <vector>
 
 #include "translation.hpp"
-
-#include <cassert>
 
 struct alignment_t
 {
@@ -386,11 +385,6 @@ public:
         if (file_range_pos[job_id] >= file_range_end[job_id])
             return false;
 
-//        char buf[61];
-//        memcpy(buf, (char*)file_mem + file_range_pos[job_id], 60);
-//        buf[60] = 0;
-//        printf("aln: %s\n", buf);
-
         // points to the beginning of "a score=....\n"
         skip(job_id);
 
@@ -449,11 +443,9 @@ public:
                     ref_seq_id = alnid->second;
                     prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
                     assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
-//                    printf("Ref_seq_id: %ld\n", ref_seq_id);
                 }
                 else
                 {
-//                    printf("%ld\t%ld\n", aln.seqs[ref_seq_id].size(), aln.seqs[alnid->second].size());
                     assert(aln.seqs[ref_seq_id].size() == aln.seqs[alnid->second].size()); // all seqs same length
                 }
 

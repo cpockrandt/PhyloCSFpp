@@ -100,17 +100,6 @@ enum algorithm_t
     OMEGA
 };
 
-struct Options
-{
-    algorithm_t algorithm = algorithm_t::FIXED;
-
-    bool remove_gaps = false;
-    bool compute_ancestor_score = false;
-    bool compute_branch_length_score = false;
-
-    size_t threads = 1; // TODO: default value
-};
-
 struct Data
 {
     instance_t c_instance;
@@ -240,7 +229,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
 
 //            std::cout << *inst.q_settings << '\n';
 
-//            std::cout << "----------------------------------\n";
             inst.instantiate_qs();
             PhyloModel_make(inst, NULL, true);
 
@@ -297,10 +285,9 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             }
         }
 
-        const double phylocsf_score = (10.0 * (lpr_H1 - lpr_H0) / log(10.0));
-        const double anchestral_score = NAN;
-//        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
-        return std::make_tuple(phylocsf_score, anchestral_score);
+        const float phylocsf_score = (10.0 * (lpr_H1 - lpr_H0) / log(10.0));
+
+        return std::make_tuple(phylocsf_score, NAN);
     }
     else
     {
@@ -313,8 +300,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
 
         double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
 
-        std::vector<double> c_lpr_per_codon, nc_lpr_per_codon;
-
         if (algo == algorithm_t::MLE)
         {
             max_lik_lpr_leaves(data.c_instance, alignment, lpr_c, elpr_anc_c, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves);
@@ -322,14 +307,17 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
         }
         else // if (algo == algorithm_t::FIXED)
         {
+            std::vector<double> c_lpr_per_codon, nc_lpr_per_codon; // TODO: get rid of it
+            c_lpr_per_codon.reserve(alignment.length() / 3);
+            nc_lpr_per_codon.reserve(alignment.length() / 3);
+
             lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, c_lpr_per_codon);
             lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
         }
 
-        const double phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
-        const double anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
+        const float phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
+        const float anchestral_score = 10.0 * (elpr_anc_c - elpr_anc_nc) / log(10.0);
 
-//        printf("%f\t%f\t%f\n", phylocsf_score, bls_score, anchestral_score);
         return std::make_tuple(phylocsf_score, anchestral_score);
     }
 }

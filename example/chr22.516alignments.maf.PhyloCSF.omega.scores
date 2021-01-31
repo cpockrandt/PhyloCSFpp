@@ -1,4 +1,4 @@
-seq	start	end	phylocsf-score	OMEGA	BLS
+seq	start	end	strand	phylocsf-score	bls-score
 chr22	16050001	16051627	+	-111.525748	0.002847
 chr22	16051628	16051636	+	-0.816719	0.000645
 chr22	16051637	16051645	+	-14.264783	0.002873

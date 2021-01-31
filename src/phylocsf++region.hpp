@@ -60,7 +60,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
         exit(1);
     }
     // write header
-    fprintf(output_file, "seq\tstart\tend");
+    fprintf(output_file, "seq\tstart\tend\tstrand");
     if (params.comp_phylo)
         fprintf(output_file, "\tphylocsf-score");
     if (params.comp_anc)
@@ -93,7 +93,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
         {
             aln.translate();
 
-            printf("%s\t%ld\t%ld\t%c", aln.chrom.c_str(), aln.start_pos, aln.start_pos + aln.length() - 1, aln.strand);
+//            printf("%s\t%ld\t%ld\t%c", aln.chrom.c_str(), aln.start_pos, aln.start_pos + aln.length() - 1, aln.strand);
             results.emplace_back(aln.chrom, aln.start_pos, aln.start_pos + aln.length() - 1, aln.strand, NAN, NAN, NAN);
 
             // TODO: only compute phylocsf score and/or anc score if necessary
@@ -105,19 +105,19 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
                     if (params.comp_phylo)
                     {
                         results.back().phylo = std::get<0>(result);
-                        printf("\t%.6f", std::get<0>(result));
+//                        printf("\t%.6f", std::get<0>(result));
                     }
 
                     if (params.comp_anc)
                     {
                         results.back().anc = std::get<1>(result);
-                        printf("\t%.6f", std::get<1>(result));
+//                        printf("\t%.6f", std::get<1>(result));
                     }
                 }
                 catch (const std::runtime_error &)
                 {
-                    if (params.comp_phylo)
-                        printf("\t%.6f", NAN);
+//                    if (params.comp_phylo)
+//                        printf("\t%.6f", NAN);
                 }
             }
 
@@ -126,10 +126,10 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
                 std::vector<double> bls_scores_per_base;
                 const float bls_score = compute_bls_score<false>(model.phylo_tree, aln, model, bls_scores_per_base);
                 results.back().bls = bls_score;
-                printf("\t%.6f", bls_score);
+//                printf("\t%.6f", bls_score);
             }
 
-            printf("\n");
+//            printf("\n");
 
             data[thread_id].clear();
 

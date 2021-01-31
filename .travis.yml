@@ -222,4 +222,6 @@ script:
   - mkdir -p build && cd build
   - cmake .. ${CMAKE_ARGS} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror"
   - make VERBOSE=1
+  - cd ..
+  - test/tests.sh
 #  - travis_wait 90 sleep infinity & ctest . -j2 --output-on-failure
