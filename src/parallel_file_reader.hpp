@@ -138,7 +138,23 @@ class parallel_maf_reader
     size_t *file_range_pos_orig = nullptr;
     size_t *file_range_end = nullptr;
 
+    uint64_t *bytes_processing = nullptr;
+    uint64_t total_bytes_processed = 0;
+
+    float progress_bar_dimensions_divisor = 1.0;
+    char progress_bar_format_str[40];
+
 public:
+
+    uint64_t get_total_bytes_processed() const noexcept
+    {
+        return total_bytes_processed;
+    }
+
+    uint64_t get_filesize() const noexcept
+    {
+        return file_size;
+    }
 
     unsigned get_jobs() const noexcept { return this->jobs; }
 
@@ -147,10 +163,15 @@ public:
     {
         char *newline_begin = strchr((char*) file_mem + file_range_pos[job_id], '\n');
 
+        size_t new_file_range_pos;
         if (newline_begin == nullptr)
-            file_range_pos[job_id] = file_size;
+            new_file_range_pos = file_size;
         else
-            file_range_pos[job_id] = newline_begin - (char*) file_mem + 1; // skip \n
+            new_file_range_pos = newline_begin - (char*) file_mem + 1; // skip \n
+
+        bytes_processing[job_id] += new_file_range_pos - file_range_pos[job_id];
+
+        file_range_pos[job_id] = new_file_range_pos;
     }
 
     // this function is only called on lines starting with "s "
@@ -159,7 +180,7 @@ public:
         assert(file_range_pos[job_id] < (size_t) file_size);
         assert(*((char*) file_mem + file_range_pos[job_id]) == 's');
 
-        char *newline_begin = strchr((char*) file_mem + file_range_pos[job_id], '\n'); // TODO: replace all occurrences with strchr()
+        char *newline_begin = strchr((char*) file_mem + file_range_pos[job_id], '\n');
 
         size_t new_file_range_pos;
         if (newline_begin == nullptr)
@@ -211,6 +232,8 @@ public:
 
         file_range_pos[job_id] = new_file_range_pos + 1; // skip \n
 
+        bytes_processing[job_id] += len + 1; // counting the skipped \n
+
         assert(id != nullptr && seq != nullptr);
         free(res);
     }
@@ -222,7 +245,8 @@ public:
         return *((char*) file_mem + file_range_pos[job_id]);
     }
 
-    parallel_maf_reader(const char * file_path, const unsigned jobs, const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid, const bool concatenate_alignments)
+    parallel_maf_reader(const char * file_path, const unsigned jobs, const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid,
+                        const bool concatenate_alignments)
         : concatenate_alignments(concatenate_alignments)
     {
         fd = open(file_path, O_RDONLY);
@@ -273,6 +297,8 @@ public:
         file_range_end = (size_t*) calloc(sizeof(size_t), this->jobs);
         file_range_pos_orig = (size_t*) calloc(sizeof(size_t), this->jobs);
 
+        bytes_processing = (size_t*) calloc(sizeof(uint64_t), this->jobs);
+
         size_t file_range_from = 0;
         for (unsigned i = 0; i < this->jobs; ++i)
         {
@@ -317,7 +343,46 @@ public:
             file_range_from = file_range_to;
         }
 
+        total_bytes_processed += file_range_pos[0]; // skip the bytes that are skipped by the first job
+                                                    // subsequent jobs are not considered because the bytes that they skipped here,
+                                                    // will be processed (and counted) by previous jobs.
+
         this->fastaid_to_alnid = fastaid_to_alnid;
+    }
+
+    void setup_progressbar(const uint32_t file_id, const uint32_t files)
+    {
+        uint8_t progress_bar_dimensions_label_index = 0;
+        char const *size_dimensions_labels[4] = {"B", "KB", "MB", "GB"};
+
+        double formatted_filesize = file_size;
+        while (formatted_filesize > 1024)
+        {
+            progress_bar_dimensions_divisor *= 1024;
+            formatted_filesize /= 1024;
+            ++progress_bar_dimensions_label_index;
+        }
+
+
+        if (files == 1)
+        {
+            sprintf(progress_bar_format_str, "%%.2f / %.2f %s (%%3.2f %%)\r",
+                        formatted_filesize, size_dimensions_labels[progress_bar_dimensions_label_index]);
+        }
+        else
+        {
+            sprintf(progress_bar_format_str, "File %d of %d: %%.2f / %.2f %s (%%3.2f %%)\r",
+                        file_id,
+                        files,
+                        formatted_filesize,
+                        size_dimensions_labels[progress_bar_dimensions_label_index]);
+        }
+    }
+
+    void print_progress()
+    {
+        printf(progress_bar_format_str, total_bytes_processed / progress_bar_dimensions_divisor, 100.0f * total_bytes_processed / file_size);
+        fflush(stdout);
     }
 
     // call this at the beginning of a job, before first alignment is accessed (not for very first job)
@@ -355,12 +420,6 @@ public:
             for (auto & seq : aln.seqs)
                 seq = "";
 
-
-//            printf("after prev alignment read: %ld\n", file_range_pos[job_id]);
-//            memcpy(buf, (char*)file_mem +file_range_pos[job_id], 60);
-//            buf[60] = 0;
-//            printf("buf: %s\n", buf);
-
             // it either cannot be concatenated with the fist alignment of this job
             if (orig_file_range_pos == file_range_pos[job_id])
             {
@@ -382,6 +441,11 @@ public:
     // if "\na" is at the end of the range for a thread, process it
     bool get_next_alignment(alignment_t & aln, const unsigned job_id)
     {
+        #pragma omp atomic
+        total_bytes_processed += bytes_processing[job_id];
+
+        bytes_processing[job_id] = 0;
+
         if (file_range_pos[job_id] >= file_range_end[job_id])
             return false;
 

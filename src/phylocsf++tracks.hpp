@@ -1,3 +1,5 @@
+#include "common.hpp"
+
 #include "arg_parse.hpp"
 #include "models.hpp"
 
@@ -41,7 +43,8 @@ void merge_job_output_files(const std::string & base_name, const unsigned jobs)
     fclose(merged_file);
 }
 
-void run_tracks(const std::string & alignment_path, const Model & model, const TrackCLIParams & params)
+void run_tracks(const std::string & alignment_path, const Model & model, const TrackCLIParams & params,
+                const uint32_t file_id, const uint32_t files)
 {
     unsigned jobs = (params.threads > 1) ? params.threads * 10 : 1;
 
@@ -70,6 +73,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
     parallel_maf_reader maf_rd(alignment_path.c_str(), jobs, &model.seqid_to_phyloid, true);
     jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
+    maf_rd.setup_progressbar(file_id, files);
 
     #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1)
     for (unsigned job_id = 0; job_id < jobs; ++job_id)
@@ -119,7 +123,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
         while (maf_rd.get_next_alignment(aln, job_id))
         {
-//            printf("%10ld\t10%ld\n", aln.start_pos, aln.seqs[0].size());
+            maf_rd.print_progress();
 
             // on first iteration, compute bls scores (used by all 6 frames then!)
             bls_per_bp[thread_id].clear();
@@ -260,6 +264,8 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
         }
     }
 
+    printf("Merging temporary output files ...\r");
+
     // merge power file
     if (params.phylo_power)
         merge_job_output_files(output_folder + "/PhyloCSFpower.wig", jobs);
@@ -374,9 +380,10 @@ int main_tracks(int argc, char **argv)
     // run for every alignment file
     for (uint16_t i = 1; i < args.positional_argument_size(); ++i)
     {
-        // printf("%d, %s\n", i, args.get_positional_argument(i).c_str());
-        run_tracks(args.get_positional_argument(i).c_str(), model, params);
+        run_tracks(args.get_positional_argument(i).c_str(), model, params, i, args.positional_argument_size() - 1);
     }
+
+    printf("Done!\n");
 
     return 0;
 }
