@@ -83,9 +83,9 @@ matrix:
       compiler: clang-5.0
       addons:
         apt:
-          sources: ['llvm-toolchain-trusty-5.0', 'ubuntu-toolchain-r-test']
-          packages: ['cmake', 'clang-5.0', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
-      install: export CXX="clang++-5.0"
+#          sources: ['llvm-toolchain-trusty-5.0', 'ubuntu-toolchain-r-test']    
+          packages: ['*default_packages', 'libc++-dev', 'libomp-dev', 'clang-5.0', 'libgsl0-dev'] # g++ required for newer libstdc++
+      env: CC=clang-5.0 CXX=clang++-5.0
 
     - os: linux
       dist: trusty
