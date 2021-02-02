@@ -38,6 +38,10 @@ ExternalProject_Add(libBigWig
     BUILD_COMMAND ${MAKE}
     INSTALL_COMMAND ""
 )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lBigWig")
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/libBigWig-prefix/src/libBigWig)
+link_directories(${CMAKE_CURRENT_BINARY_DIR}/libBigWig-prefix/src/libBigWig)
 
 # -static -fsanitize=address -fno-omit-frame-pointer
 

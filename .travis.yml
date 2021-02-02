@@ -222,5 +222,6 @@ script:
   - cmake .. ${CMAKE_ARGS} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror"
   - make VERBOSE=1
   - cd ..
-  - ${CXX} -std=c++11 test.cpp && ./a.out
-#  - travis_wait 90 sleep infinity & test/tests.sh
+  - ./build/phylocsf++
+  #- ${CXX} -std=c++11 test.cpp && ./a.out
+  #- travis_wait 90 sleep infinity & test/tests.sh
