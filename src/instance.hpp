@@ -658,7 +658,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
             // non-real-part
         else
         {
-            std::cout << "NON_REAL!!!\n";
+            printf("NOT REAL!!!!!\n");
             exit(77);
             // NOTE: we just create all q's (exept the very first one). the arrays should all have 0s!
             //assert(q.eig.r_l == NULL && q.eig.r_s == NULL && q.eig.r_s2 == NULL);

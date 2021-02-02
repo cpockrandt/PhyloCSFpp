@@ -347,7 +347,7 @@ int main_tracks(int argc, char **argv)
     // this has to hold true: phylo_smooth => (args.is_set("genome-length") && args.is_set("coding-exons"))
     if (params.phylo_smooth && (!args.is_set("genome-length") || !args.is_set("coding-exons")))
     {
-        print_error_msg("For smoothened tracks (--output-phylo) you need to provide --genome-length and --coding-exons.");
+        printf(OUT_ERROR "For smoothened tracks (--output-phylo) you need to provide --genome-length and --coding-exons.\n" OUT_RESET);
         return -1;
     }
 
@@ -356,7 +356,7 @@ int main_tracks(int argc, char **argv)
         params.output_path = args.get_string("output");
         // create a directory if it doesn't exist yet
         if (create_directory(params.output_path))
-            print_info_msg("Created the output directory.");
+            printf(OUT_INFO "Created the output directory.\n" OUT_RESET);
     }
 
     if (args.is_set("mapping"))
@@ -367,7 +367,7 @@ int main_tracks(int argc, char **argv)
 
     if (!args.is_set_positional("model") || !args.is_set_positional("alignments"))
     {
-        print_error_msg("No model or alignments provided.");
+        printf(OUT_ERROR "No model or alignments provided.\n" OUT_RESET);
         return -1;
     }
 
@@ -392,7 +392,7 @@ int main_tracks(int argc, char **argv)
         run_tracks(args.get_positional_argument(i).c_str(), model, params, i, args.positional_argument_size() - 1);
     }
 
-    printf("\x1b[KDone!\n");
+    printf("Done!\n");
 
     return 0;
 }

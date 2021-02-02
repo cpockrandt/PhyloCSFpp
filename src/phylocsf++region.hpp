@@ -86,6 +86,8 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
 
     std::vector<std::vector<region_result> > all_results(jobs);
 
+    std::mt19937 gen(42);
+
     #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1)
     for (unsigned job_id = 0; job_id < jobs; ++job_id)
     {
@@ -105,7 +107,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
             if (params.comp_phylo || params.comp_anc)
             {
                 try {
-                    std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy);
+                    std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy, gen);
 
                     if (params.comp_phylo)
                     {
@@ -166,8 +168,7 @@ int main_region(int argc, char **argv)
                   "written to bed file(s). Other scores such as the ancestral sequence composition \n"
                   "sores and branch length scores can be computed as well. Only one forward frame \n"
                   "is computed, i.e., for other frames reverse the alignments and/or remove the \n"
-                  "first one or two bases."); // For ORF finding and scoring of transcripts in GTF/GFF "
-                  // "files, check out PhyloCSF++Anno: https://github.com/cpockrandt/phylocsfppanno");
+                  "first one or two bases.");
 
     RegionCLIParams params;
 
@@ -230,7 +231,7 @@ int main_region(int argc, char **argv)
             params.strategy = OMEGA;
         else
         {
-            print_error_msg("Please choose a valid strategy (MLE, FIXED or OMEGA)");
+            printf(OUT_ERROR "Please choose a valid strategy (MLE, FIXED or OMEGA)!\n" OUT_RESET);
             return -1;
         }
     }
@@ -244,13 +245,13 @@ int main_region(int argc, char **argv)
 
     if (params.strategy == OMEGA && params.comp_anc)
     {
-        print_error_msg("The ancestral sequence composition cannot be computed in the Omega mode!");
+        printf(OUT_ERROR "The ancestral sequence composition cannot be computed in the Omega mode!\n" OUT_RESET);
         return -1;
     }
 
     if (!params.comp_phylo && !params.comp_anc && !params.comp_bls)
     {
-        print_error_msg("At least one score needs to be computed (phylo, anc or bls)!");
+        printf(OUT_ERROR "At least one score needs to be computed (phylo, anc or bls)!\n" OUT_RESET);
         return -1;
     }
 
@@ -259,7 +260,7 @@ int main_region(int argc, char **argv)
         params.output_path = args.get_string("output");
         // create a directory if it doesn't exist yet
         if (create_directory(params.output_path))
-            print_info_msg("Created the output directory.");
+            printf(OUT_ERROR "Created the output directory.\n" OUT_RESET);
     }
 
     if (args.is_set("mapping"))
@@ -270,7 +271,7 @@ int main_region(int argc, char **argv)
 
     if (!args.is_set_positional("model") || !args.is_set_positional("alignments"))
     {
-        print_error_msg("No model or alignments provided.");
+        printf(OUT_ERROR "No model or alignments provided.\n" OUT_RESET);
         return -1;
     }
 
@@ -286,7 +287,7 @@ int main_region(int argc, char **argv)
          run_regions(args.get_positional_argument(i), model, params, i, args.positional_argument_size() - 1);
     }
 
-    printf("Done!\n");
+    printf(OUT_DEL "Done!\n");
 
     return 0;
 }

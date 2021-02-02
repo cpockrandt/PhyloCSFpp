@@ -72,13 +72,13 @@ int main_annotate(int argc, char** argv)
         params.output_path = args.get_string("output");
         // create a directory if it doesn't exist yet
         if (create_directory(params.output_path))
-            print_info_msg("Created the output directory.");
+            printf(OUT_INFO "Created the output directory.\n" OUT_RESET);
     }
 
     // load tracks
     if (bwInit(1 << 17) != 0)
     {
-        print_error_msg("Something failed in bwInit().\n");
+        printf(OUT_ERROR "Something failed in bwInit().\n" OUT_RESET);
         return -1;
     }
 
@@ -86,7 +86,7 @@ int main_annotate(int argc, char** argv)
     const size_t bw_path_suffix_pos = bw_path.find("+1");
     if (bw_path_suffix_pos == std::string::npos)
     {
-        print_error_msg("Could not find '+1' in tracks file name. Expecting a name like 'PhyloCSF+1.bw'.\n");
+        printf(OUT_ERROR "Could not find '+1' in tracks file name. Expecting a name like 'PhyloCSF+1.bw'.\n" OUT_RESET);
         return -1;
     }
     for (uint16_t i = 0; i < 7; ++i)
@@ -102,7 +102,7 @@ int main_annotate(int argc, char** argv)
         params.bw_files[i] = bwOpen(const_cast<char * >(bw_path.c_str()), NULL, "r");
         if (!params.bw_files[i])
         {
-            printf("An error occurred while opening the PhyloCSF file '%s'\n", bw_path.c_str());
+            printf(OUT_ERROR "An error occurred while opening the PhyloCSF file '%s'.\n" OUT_RESET, bw_path.c_str());
             return -1;
         }
     }
@@ -113,6 +113,8 @@ int main_annotate(int argc, char** argv)
     {
          run_annotate(args.get_positional_argument(i), params);
     }
+
+    printf(OUT_DEL "Done!\n");
 
     return 0;
 }

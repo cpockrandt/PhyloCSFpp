@@ -8,17 +8,11 @@
 
 #include <string>
 
-void print_info_msg(std::string && msg)
-{
-    printf("\033[1;34mINFO: %s\033[0m\n", msg.c_str());
-    // std::cerr << "\033[1;31m" << "ERROR: " << msg << "\033[0m" << '\n';
-}
-
-void print_error_msg(std::string && msg)
-{
-    printf("\033[1;31mERROR: %s\033[0m\n", msg.c_str());
-    // std::cerr << "\033[1;31m" << "ERROR: " << msg << "\033[0m" << '\n';
-}
+#define OUT_INFO    "\033[1;34m"
+#define OUT_ERROR   "\033[1;34m"
+#define OUT_RESET   "\033[0m"
+#define OUT_DEL     "\x1b[K"
+#define OUT_BOLD    "\033[1m"
 
 void append(FILE * file_dest, const char path_src[])
 {
@@ -70,4 +64,10 @@ void my_fprintf(FILE* f, const char *format_str, const float d)
         }
     }
     fprintf(f, "%s\n", buf);
+}
+
+int system_with_return(const char * cmd)
+{
+    int ret = system(cmd);
+    return WEXITSTATUS(ret);
 }

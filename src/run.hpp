@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <vector>
 #include <string>
 #include <unordered_set>
@@ -9,37 +8,37 @@
 #include "models.hpp"
 #include "parallel_file_reader.hpp"
 
-std::ostream& operator<<(std::ostream & os, const newick_elem & e)
-{
-    os  << e.id << '\t'
-        << e.label << '\t'
-        << e.parent_id << '\t'
-        << '(' << e.child1_id << ", " << e.child2_id << ")\t"
-        << e.sibling_id << '\t'
-        << e.branch_length;
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const std::vector<newick_elem> & v)
-{
-    for (uint32_t i = 0; i < v.size(); ++i)
-    {
-        os << v[i] << '\n';
-    }
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const std::vector<double> & v)
-{
-    for (uint32_t i = 0; i < v.size(); ++i)
-    {
-        char buf[10];
-        sprintf (buf, "%f\t", v[i]);
-        os << buf;
-    }
-    os << '\n';
-    return os;
-}
+//std::ostream& operator<<(std::ostream & os, const newick_elem & e)
+//{
+//    os  << e.id << '\t'
+//        << e.label << '\t'
+//        << e.parent_id << '\t'
+//        << '(' << e.child1_id << ", " << e.child2_id << ")\t"
+//        << e.sibling_id << '\t'
+//        << e.branch_length;
+//    return os;
+//}
+//
+//std::ostream& operator<<(std::ostream & os, const std::vector<newick_elem> & v)
+//{
+//    for (uint32_t i = 0; i < v.size(); ++i)
+//    {
+//        os << v[i] << '\n';
+//    }
+//    return os;
+//}
+//
+//std::ostream& operator<<(std::ostream & os, const std::vector<double> & v)
+//{
+//    for (uint32_t i = 0; i < v.size(); ++i)
+//    {
+//        char buf[10];
+//        sprintf (buf, "%f\t", v[i]);
+//        os << buf;
+//    }
+//    os << '\n';
+//    return os;
+//}
 
 //std::ostream& operator<<(std::ostream & os, const std::vector<std::vector<double> > & v)
 //{
@@ -56,23 +55,23 @@ std::ostream& operator<<(std::ostream & os, const std::vector<double> & v)
 //    return os;
 //}
 
-template <typename T>
-std::ostream& operator<<(std::ostream & os, const std::vector<T> & v)
-{
-    os << '[';
-    for (uint32_t i = 0; i < v.size(); ++i)
-    {
-        os << v[i] << ' ';
-    }
-    os << ']';
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, double> & t)
-{
-    os << '(' << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ')';
-    return os;
-}
+//template <typename T>
+//std::ostream& operator<<(std::ostream & os, const std::vector<T> & v)
+//{
+//    os << '[';
+//    for (uint32_t i = 0; i < v.size(); ++i)
+//    {
+//        os << v[i] << ' ';
+//    }
+//    os << ']';
+//    return os;
+//}
+//
+//std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, double> & t)
+//{
+//    os << '(' << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ')';
+//    return os;
+//}
 
 #include "ecm.hpp"
 #include "instance.hpp"
@@ -133,7 +132,8 @@ void run_tracks(Data & data, const Model & model, const alignment_t & alignment,
     }
 }
 
-std::tuple<float, float> run(Data & data, const Model & model, const alignment_t & alignment, const algorithm_t algo)
+// NOTE: make a copy of the random number generator, so parallelization does not affect results
+std::tuple<float, float> run(Data & data, const Model & model, const alignment_t & alignment, const algorithm_t algo, std::mt19937 gen)
 {
     if (algo == algorithm_t::OMEGA)
     {
@@ -236,7 +236,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
         }
 
         // STATUS 2020-12-03 02:40 pms and qms are identical here with Ocaml version!!!! :)
-//        std::cout.precision(6);
         // kr_map leaves inst
         double lpr_H0 = 0.0, lpr_H1 = 0.0;
         {
@@ -248,12 +247,12 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 {
                     const double init_rho = inst.tree_settings;
 //                    std::cout << "init rho: " << init_rho << '\n';
-                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
 //                    std::cout << "lpr after min_rho: " << lpr_H0 << " ---\n";
 //            print(inst);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
-                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
 //                    std::cout << "lpr after min_kappa: " << lpr_H0 << " ---\n";
                 }
 //                printf("lpr_H0: %f\n", lpr_H0);
@@ -272,12 +271,12 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 {
                     const double init_rho = inst.tree_settings;
 //                    std::cout << "init rho: " << init_rho << '\n';
-                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
 //                    std::cout << "lpr after min_rho: " << lpr_H1 << " ---\n";
 //            print(inst);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
-                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
 //                    std::cout << "lpr after min_kappa: " << lpr_H1 << " ---\n";
 //                print(inst);
                 }
@@ -302,8 +301,8 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
 
         if (algo == algorithm_t::MLE)
         {
-            max_lik_lpr_leaves(data.c_instance, alignment, lpr_c, elpr_anc_c, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves);
-            max_lik_lpr_leaves(data.nc_instance, alignment, lpr_nc, elpr_anc_nc, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves);
+            max_lik_lpr_leaves(data.c_instance, alignment, lpr_c, elpr_anc_c, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves, gen);
+            max_lik_lpr_leaves(data.nc_instance, alignment, lpr_nc, elpr_anc_nc, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves, gen);
         }
         else // if (algo == algorithm_t::FIXED)
         {

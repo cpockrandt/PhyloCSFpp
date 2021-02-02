@@ -115,7 +115,6 @@ void ensure_alpha(const instance_t & instance, workspace_t & workspace, const al
 void ensure_beta(const instance_t & instance, workspace_t & workspace, const alignment_t & alignment, const uint32_t codon_pos)
 {
     ensure_alpha(instance, workspace, alignment, codon_pos);
-//    std::cout << "zzzzz\n";
     if (!workspace.have_beta)
     {
         const uint16_t k = workspace.beta.matrix.size2;
@@ -123,7 +122,7 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
         gsl_vector * ps_colb = gsl_vector_alloc(k);
         for (int16_t i = ((instance.model.tree.size() + 1) / 2) - 1; i >= 0; --i) // for i = (T.root x.tree)-1 downto 0 do
         {
-            std::cout << "XXXXXXXXX\n";
+            printf("XXXXXXXXXXXXXX\n");
             const int16_t p = instance.model.tree[i].parent_id;
             assert(p > i);
             // TODO: update siblings on reduce!
@@ -240,13 +239,11 @@ gsl_vector * get_prior(instance_t & instance)
         // qms is instance.model.qms
         const uint16_t root = instance.model.tree.size() - 1;
         const uint16_t child2 = instance.model.tree[root].child2_id;
-//        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!! equilibrium " << child2 << "\n";
         auto & q = instance.model.qms[child2];
 
         // equilibrium
         if (!q.have_pi)
         {
-//            std::cout << "Has no PI!\n";
             gsl_vector * real_eig_l;
             gsl_matrix * real_eig_s2;
             assert((
@@ -307,8 +304,6 @@ gsl_vector * get_prior(instance_t & instance)
                 gsl_matrix_free(real_eig_s2);
             }
         }
-//        else
-//            std::cout << "Has PI already!\n";
 
         return q.pi;
     }
@@ -421,7 +416,7 @@ double minimizer_lpr_leaves(const double x, void * params)
 }
 
 template <typename function_t>
-void fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t * f, minimizer_params_t * params)
+void fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t * f, minimizer_params_t * params, std::mt19937 & gen)
 {
     assert(lo < hi && lo > 0.0);
 
@@ -437,15 +432,15 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
     uint32_t i = 0;
     while (i < max_tries && (fx <= flo || fx <= fhi))
     {
-        const double r = width * ((float) rand()/RAND_MAX);
-//        const double r = my_ocaml_rand();
-//        std::cout << "RANDOM: " << r << '\n';
+        std::uniform_real_distribution<> dis(0.0, width); // width * ((float) rand()/RAND_MAX);
+        const double r = dis(gen);
+//        printf("width: %f, random: %f\n", width, r);
         x = exp(log(lo) + r);
         fx = (-1) * (*f)(x, params);
 //        std::cout << "xxx: " << x << " ||| " << fx << '\n';
         ++i;
     }
-//    std::cout << "------------------------------------------------\n";
+
     if (i == max_tries)
     {
         if (flo > fhi)
@@ -458,22 +453,21 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
             params->x = hi;
             params->lpr = fhi;
         }
-//        return (flo > fhi) ? flo : fhi;
     }
     else
     {
-//        return fx; // NOTE: x and lpr in params already set by call to (*f)(x, params)
+        // NOTE: x and lpr in params already set by call to (*f)(x, params)
     }
     (*f)(params->x, params); // NOTE: this is suuuuper improtant! (maybe!) we need to set stuff like tree_settings and pms to the values for the x that we eventually chose!
 }
 
 template <typename function_t>
-void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, double &lpr, double &elpr_anc, const double init, double lo, double hi, function_t * min_func)
+void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, double &lpr, double &elpr_anc, const double init, double lo, double hi, function_t * min_func, std::mt19937 & gen)
 {
     const double accuracy = 0.01;
 
     minimizer_params_t params {instance, alignment, 0.0, 0.0, 0.0};
-    fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params);
+    fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params, gen);
 //    std::cout << "good init: " << params.x << " => " << params.lpr << '\n';
     if (lo < params.x && params.x < hi)
     {

@@ -96,43 +96,43 @@ gsl_matrix * comp_q_p14n(const gsl_vector * const variables, const gsl_vector * 
     return sq;
 }
 
-void print(instance_t & i)
-{
-
-    for (uint16_t k = 0; k < i.model.qms.size(); ++k)
-    {
-        std::cout << "q[" << k << "]: " << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
-//        std::cout << "q[" << k << "]:\n" << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
-        std::cout << "eig[" << k << "] r_s: " << (gsl_matrix_row(i.model.qms[k].eig.r_s, 0)).vector << '\n';
-        std::cout << "eig[" << k << "] r_s': " << (gsl_matrix_row(i.model.qms[k].eig.r_s2, 0)).vector << '\n';
-        std::cout << "eig[" << k << "] r_l: " << *i.model.qms[k].eig.r_l << '\n';
-        std::cout << "pi[" << k << "]: " << *i.model.qms[k].pi << '\n';
-    }
-
-    for (uint16_t k = 0; k < i.model.pms.size(); ++k)
-        std::cout << "pms[" << k << "]: " << (gsl_matrix_row(i.model.pms[k], 0)).vector << '\n'; // TODO: not identical!!!
-
-//    // identical
-//    std::cout << i.model.tree << '\n';
-    if (i.model.prior != NULL)
-        std::cout << "PRIOR: " << *i.model.prior << '\n';
-    else
-        std::cout << "PRIOR: No inst.model.prior" << '\n';
-
-//    // identical
-//    std::cout << *i.p14n.q_p14ns << '\n'; // is correct (after new_instance and after initial update)
-//    std::cout << i.p14n.q_scale_p14ns << '\n'; // is correct (after new_instance and after initial update)
-//    std::cout << i.p14n.q_domains << '\n';
-//    std::cout << i.p14n.tree_shape << '\n';
-//    std::cout << i.p14n.tree_p14n << '\n';
-//    std::cout << i.p14n.tree_domains << '\n';
+//void print(instance_t & i)
+//{
 //
-//    // identical
-    std::cout << "q_settings: " << *i.q_settings << '\n';
-    char buf[10];
-    sprintf(buf, "%f ", i.tree_settings);
-    std::cout << "tree_settings: [" << buf << ']' << '\n';
-}
+//    for (uint16_t k = 0; k < i.model.qms.size(); ++k)
+//    {
+//        std::cout << "q[" << k << "]: " << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
+////        std::cout << "q[" << k << "]:\n" << (gsl_matrix_row(i.model.qms[k].q, 0)).vector << '\n'; // TODO: not identical!!!
+//        std::cout << "eig[" << k << "] r_s: " << (gsl_matrix_row(i.model.qms[k].eig.r_s, 0)).vector << '\n';
+//        std::cout << "eig[" << k << "] r_s': " << (gsl_matrix_row(i.model.qms[k].eig.r_s2, 0)).vector << '\n';
+//        std::cout << "eig[" << k << "] r_l: " << *i.model.qms[k].eig.r_l << '\n';
+//        std::cout << "pi[" << k << "]: " << *i.model.qms[k].pi << '\n';
+//    }
+//
+//    for (uint16_t k = 0; k < i.model.pms.size(); ++k)
+//        std::cout << "pms[" << k << "]: " << (gsl_matrix_row(i.model.pms[k], 0)).vector << '\n'; // TODO: not identical!!!
+//
+////    // identical
+////    std::cout << i.model.tree << '\n';
+//    if (i.model.prior != NULL)
+//        std::cout << "PRIOR: " << *i.model.prior << '\n';
+//    else
+//        std::cout << "PRIOR: No inst.model.prior" << '\n';
+//
+////    // identical
+////    std::cout << *i.p14n.q_p14ns << '\n'; // is correct (after new_instance and after initial update)
+////    std::cout << i.p14n.q_scale_p14ns << '\n'; // is correct (after new_instance and after initial update)
+////    std::cout << i.p14n.q_domains << '\n';
+////    std::cout << i.p14n.tree_shape << '\n';
+////    std::cout << i.p14n.tree_p14n << '\n';
+////    std::cout << i.p14n.tree_domains << '\n';
+////
+////    // identical
+//    std::cout << "q_settings: " << *i.q_settings << '\n';
+//    char buf[10];
+//    sprintf(buf, "%f ", i.tree_settings);
+//    std::cout << "tree_settings: [" << buf << ']' << '\n';
+//}
 
 double comp_q_scale(const gsl_vector * const pi, const gsl_matrix * const q_p14n) noexcept
 {

@@ -1,12 +1,13 @@
 #pragma once
 
+#include "common.hpp"
+
 #include <cassert>
 #include <string.h>
 
 #include <string>
 #include <vector>
 #include <tuple>
-#include <iostream>
 #include <algorithm>
 
 #if !defined(GIT_HASH)
@@ -86,8 +87,8 @@ private:
 
     void error_message(std::string && msg) const
     {
-        std::cerr << "\033[1;31m" << "ERROR: " << msg << "\033[0m" << '\n'
-                  << "Run `" << program_name << " --help` for more information!\n";
+        printf(OUT_ERROR "ERROR: %s\n" OUT_RESET, msg.c_str());
+        printf("Run `%s --help` for more information!\n", program_name.c_str());
     }
 
 public:
@@ -102,7 +103,7 @@ public:
     {
         if (argc == 1)
         {
-            std::cout << "Run `" << program_name << " --help` for more information!\n";
+            printf("Run `%s --help` for more information!\n", program_name.c_str());
         }
 
         size_t pos_arg_i = 0;
@@ -360,9 +361,9 @@ public:
 		while (pos < desc.size())
 		{
 			if (pos > 0)
-				std::cout << '\n' << std::string(longest_opt_arg + 4, ' ');
+                printf("\n%s", std::string(longest_opt_arg + 4, ' ').c_str());
 			else
-				std::cout << std::string(padding, ' ');
+				printf("%s", std::string(padding, ' ').c_str());
 
 			uint16_t last_space_pos = pos + space_for_desc;
 			while (last_space_pos > pos && last_space_pos < desc.size() && desc[last_space_pos] != ' ')
@@ -370,7 +371,7 @@ public:
 			if (last_space_pos == pos)
 				last_space_pos = pos + space_for_desc; // just split in the middle of a word.
 
-			std::cout << desc.substr(pos, last_space_pos - pos);
+			printf("%s", desc.substr(pos, last_space_pos - pos).c_str());
 			pos = last_space_pos;
 			if (desc[last_space_pos] == ' ')
 				++pos;
@@ -379,74 +380,72 @@ public:
 
     void print_help() const
     {
-        std::cout << "\033[1m";
-        std::cout << "PhyloCSF++ v1.0.0 (build date: " << git_date << ", git commit: " << git_hash << ")\n\n";
-        std::cout << "\033[0m";
-		std::cout << desc_ << "\n\n";
+        printf(OUT_BOLD "PhyloCSF++ v1.0.0 (build date: %s, git commit: %s)\n\n" OUT_RESET, git_date.c_str(), git_hash.c_str());
+        printf("%s\n\n", desc_.c_str());
 
-        std::cout << "Usage: " << program_name << " [OPTIONS]";
+        printf("Usage: %s [OPTIONS]", program_name.c_str());
 
 		if (!subprograms.empty())
 		{
-	        std::cout << " <tool>";
+		    printf(" <tool>");
 		}
 
         for (const auto & pa : pos_args)
         {
 			assert(subprograms.empty());
             if (pa.is_required)
-                std::cout << " <" << pa.name << ">";
+                printf(" <%s>", pa.name.c_str());
             else
-                std::cout << " [<" << pa.name << ">]";
+                printf(" [<%s>]", pa.name.c_str());
         }
 
         if (allow_more_pos_arguments)
-            std::cout << "...";
+            printf("...");
 
-        std::cout << "\n\n";
+        printf("\n\n");
 
 		if (!subprograms.empty())
 		{
-	        std::cout << "Tools:\n\n";
+            printf("Tools:\n\n");
 	        for (const auto & p : subprograms)
 	        {
 				const std::string & name = std::get<0>(p);
 				const std::string & desc = std::get<1>(p);
-	            std::cout << "  " << name;
+                printf("  %s", name.c_str());
 				print_desc(desc, longest_opt_arg - name.size() + 2);
-				std::cout << "\n\n";
+                printf("\n\n");
 	        }
-	        std::cout << '\n';
+            printf("\n");
 		}
 
 		if (!pos_args.empty())
 		{
-	        std::cout << "Arguments:\n\n";
+            printf("Arguments:\n\n");
 	        for (const auto & pa : pos_args)
 	        {
-	            std::cout << "  <" << pa.name << '>';
+                printf("  <%s>", pa.name.c_str());
 				print_desc(pa.desc, longest_opt_arg - pa.name.size());
-				std::cout << "\n\n";
+                printf("\n\n");
 	        }
 		}
 
-        std::cout << "Options:\n\n";
+        printf("Options:\n\n");
         for (const auto & a : args)
         {
             if (a.level == GENERAL)
 			{
-                std::cout << "  --" << a.name << ' ' << type_str[a.type];
+                printf("  --%s %s", a.name.c_str(), type_str[a.type]);
 				print_desc(a.desc, longest_opt_arg - a.name.size() - strlen(type_str[a.type]) - 1);
-				std::cout << '\n';
+                printf("\n");
 			}
         }
-        std::cout << '\n';
+        printf("\n");
 
-        // std::cout << "Expert options:\n\n";
-        // for (const auto & a : args)
-        // {
-        //     if (a.level == EXPERT)
-        //         std::cout << "  --" << a.name << ' ' << type_str[a.type] << std::string(longest_opt_arg - a.name.size() - strlen(type_str[a.type]) - 1, ' ') << a.desc << '\n';
-        // }
+//        printf("Expert options:\n\n");
+//        for (const auto & a : args)
+//        {
+//        if (a.level == EXPERT)
+//        printf("  --%s %s%s%s\n", a.name.c_str(), type_str[a.type], std::string(longest_opt_arg - a.name.size() - strlen(type_str[a.type]) - 1, ' ').c_str(), a.desc.c_str());
+//        }
     }
 };
