@@ -8,52 +8,58 @@ matrix:
     ##########################################################################
 
     - os: linux
+      dist: xenial
       compiler: gcc-4.9
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['cmake', 'g++-4.9', 'libgsl0-dev']
-      install: export CXX="g++-4.9"
+      env: CXX=g++-4.9
 
     - os: linux
+      dist: bionic
       compiler: gcc-5
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['cmake', 'g++-5', 'libgsl0-dev']
-      install: export CXX="g++-5"
+      env: CXX=g++-5
 
     - os: linux
+      dist: bionic
       compiler: gcc-6
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['cmake', 'g++-6', 'libgsl0-dev']
-      install: export CXX="g++-6"
+      env: CXX=g++-6
 
     - os: linux
+      dist: bionic
       compiler: gcc-7
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['cmake', 'g++-7', 'libgsl0-dev']
-      install: export CXX="g++-7"
+      env: CXX=g++-7
 
     - os: linux
+      dist: bionic
       compiler: gcc-8
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['cmake', 'g++-8', 'libgsl0-dev']
-      install: export CXX="g++-8"
+      env: CXX=g++-8
 
     - os: linux
+      dist: bionic
       compiler: gcc-9
       addons:
         apt:
           sources: [ 'ubuntu-toolchain-r-test' ]
           packages: [ 'cmake', 'g++-9', 'libgsl0-dev' ]
-      install: export CXX="g++-9"
+      env: CXX=g++-9
 
     - os: linux
       dist: bionic
@@ -62,7 +68,7 @@ matrix:
         apt:
           sources: [ 'ubuntu-toolchain-r-test' ]
           packages: [ 'cmake', 'g++-10', 'libgsl0-dev' ]
-      install: export CXX="g++-10"
+      env: CXX=g++-10
 
     ##########################################################################
     # Clang on Linux
@@ -74,7 +80,7 @@ matrix:
       addons:
         apt:
           packages: ['cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-3.8', 'libgsl0-dev']
-          env: CC=clang-3.8 CXX=clang++-3.8
+      env: CXX=clang++-3.8
 
     - os: linux
       dist: xenial
@@ -82,23 +88,23 @@ matrix:
       addons:
         apt:
           packages: ['cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-4.0', 'libgsl0-dev']
-          env: CC=clang-4.0 CXX=clang++-4.0
+      env: CXX=clang++-4.0
 
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: clang-5.0
       addons:
         apt:
           packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-5.0', 'libgsl0-dev' ]
-      env: CC=clang-5.0 CXX=clang++-5.0
+      env: CXX=clang++-5.0
 
     - os: linux
-      dist: xenial
+      dist: bionic
       compiler: clang-6.0
       addons:
         apt:
           packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-6.0', 'libgsl0-dev' ]
-      env: CC=clang-6.0 CXX=clang++-6.0
+      env: CXX=clang++-6.0
 
     - os: linux
       dist: bionic
@@ -106,7 +112,7 @@ matrix:
       addons:
         apt:
           packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-7', 'libgsl0-dev' ]
-      env: CC=clang-7 CXX=clang++-7
+      env: CXX=clang++-7
 
     - os: linux
       dist: bionic
@@ -114,7 +120,7 @@ matrix:
       addons:
         apt:
           packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-8', 'libgsl0-dev' ]
-      env: CC=clang-8 CXX=clang++-8
+      env: CXX=clang++-8
 
     ##########################################################################
     # Clang on OSX (with Xcode)
@@ -208,14 +214,14 @@ matrix:
 
     # Debug builds on linux (gcc) with sanitizer, TODO: add coverage
     - os: linux
+      dist: bionic
       compiler: gcc-7
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['cmake', 'g++-7', 'libgsl0-dev']
-      install: export CXX="g++-7"
       # ubuntu toolchain does not contain the latest bugfixes for /usr/bin/ld
-      env: CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fuse-ld=gold"
+      env: CXX=g++-7 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fuse-ld=gold"
 
 script:
   - mkdir -p build && cd build
@@ -223,5 +229,4 @@ script:
   - make VERBOSE=1
   - cd ..
   - ./build/phylocsf++
-  #- ${CXX} -std=c++11 test.cpp && ./a.out
-  #- travis_wait 90 sleep infinity & test/tests.sh
+  - test/tests.sh # travis_wait 90 sleep infinity &
