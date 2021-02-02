@@ -142,7 +142,7 @@ class parallel_maf_reader
     uint64_t total_bytes_processed = 0;
 
     float progress_bar_dimensions_divisor = 1.0;
-    char progress_bar_format_str[40];
+    char progress_bar_format_str[50];
 
 public:
 
@@ -353,7 +353,7 @@ public:
     void setup_progressbar(const uint32_t file_id, const uint32_t files)
     {
         uint8_t progress_bar_dimensions_label_index = 0;
-        char const *size_dimensions_labels[4] = {"B", "KB", "MB", "GB"};
+        char const *size_dimensions_labels[5] = {"B", "KB", "MB", "GB", "TB"};
 
         double formatted_filesize = file_size;
         while (formatted_filesize > 1024)
@@ -366,12 +366,12 @@ public:
 
         if (files == 1)
         {
-            sprintf(progress_bar_format_str, "%%.2f / %.2f %s (%%3.2f %%)\r",
+            sprintf(progress_bar_format_str, "\x1b[K%%.2f / %.2f %s (%%3.2f %%)\r",
                         formatted_filesize, size_dimensions_labels[progress_bar_dimensions_label_index]);
         }
         else
         {
-            sprintf(progress_bar_format_str, "File %d of %d: %%.2f / %.2f %s (%%3.2f %%)\r",
+            sprintf(progress_bar_format_str, "\x1b[KFile %d of %d: %%.2f / %.2f %s (%%3.2f %%)\r",
                         file_id,
                         files,
                         formatted_filesize,
@@ -416,6 +416,9 @@ public:
             // get the previous alignment (last one from previous job)
             file_range_pos[job_id] = prev_aln_begin - (char*)file_mem;
             get_next_alignment(aln, job_id);
+
+            // make sure the "progress" (in bytes) is not counted on the next call of get_next_alignment() from reading the previous alignment
+            bytes_processing[job_id] = 0;
 
             for (auto & seq : aln.seqs)
                 seq = "";

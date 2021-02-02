@@ -24,17 +24,26 @@ struct TrackCLIParams
     std::string output_path = "";
 };
 
-void merge_job_output_files(const std::string & base_name, const unsigned jobs)
+void merge_job_output_files(const std::string & base_name, const unsigned jobs, const bool final_file_exists)
 {
-    std::string job_output_file = base_name + ".0";
-    if (rename(job_output_file.c_str(), base_name.c_str()) == -1)
+    std::string job_output_file;
+
+    // the first file processed: rename .wig.0 to .wig and append .wig.1, .wig.2, etc. to it
+    // for every subsequent file: append .wig.0, .wig.1, .wig.2, etc. to (already) existing .wig
+
+    if (!final_file_exists)
     {
-        printf("Could not rename file %s to %s (error code: %d, %s)\n", job_output_file.c_str(), base_name.c_str(), errno, strerror(errno));
-        exit(-1);
+        job_output_file = base_name + ".0";
+        if (rename(job_output_file.c_str(), base_name.c_str()) == -1)
+        {
+            printf("Could not rename file %s to %s (error code: %d, %s)\n", job_output_file.c_str(), base_name.c_str(), errno, strerror(errno));
+            exit(-1);
+        }
     }
 
     FILE *merged_file = fopen(base_name.c_str(), "ab");
-    for (unsigned job_id = 1; job_id < jobs; ++job_id)
+    unsigned job_id = (final_file_exists) ? 0 : 1;
+    for (; job_id < jobs; ++job_id)
     {
         job_output_file = base_name + "." + std::to_string(job_id);
         append(merged_file, job_output_file.c_str());
@@ -264,11 +273,11 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
         }
     }
 
-    printf("Merging temporary output files ...\r");
+    printf("\x1b[KMerging temporary output files ...\r");
 
     // merge power file
     if (params.phylo_power)
-        merge_job_output_files(output_folder + "/PhyloCSFpower.wig", jobs);
+        merge_job_output_files(output_folder + "/PhyloCSFpower.wig", jobs, file_id > 1);
 
     // merge 6 frame files for scores and raw scores
     for (char strand = '+'; strand <= '-'; strand += 2)
@@ -276,10 +285,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
         for (unsigned frame = 1; frame <= 3; ++frame)
         {
             if (params.phylo_raw)
-                merge_job_output_files(output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs);
+                merge_job_output_files(output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs, file_id > 1);
 
             if (params.phylo_smooth)
-                merge_job_output_files(output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs);
+                merge_job_output_files(output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs, file_id > 1);
         }
     }
 }
@@ -313,7 +322,7 @@ int main_tracks(int argc, char **argv)
     // TODO: ignore sequences not occuring in model (instead of failing)
 
     args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", true);
-    args.add_positional_argument("alignments", ArgParse::Type::STRING, "One or more files containing multiple sequence alignments. Formats: MAF and multi FASTA. Multiple MSAs can be stored in a single file separated by empty lines.", true);
+    args.add_positional_argument("alignments", ArgParse::Type::STRING, "One or more files containing multiple sequence alignments. Formats: MAF and multi FASTA. Multiple MSAs can be stored in a single file separated by empty lines.", true, true);
     args.parse_args(argc, argv);
 
     // additional help strings
@@ -383,7 +392,7 @@ int main_tracks(int argc, char **argv)
         run_tracks(args.get_positional_argument(i).c_str(), model, params, i, args.positional_argument_size() - 1);
     }
 
-    printf("Done!\n");
+    printf("\x1b[KDone!\n");
 
     return 0;
 }
