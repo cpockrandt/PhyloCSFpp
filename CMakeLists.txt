@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(PhyloCSF++ CXX)
 
+include(ExternalProject)
+
 find_package(OpenMP REQUIRED)
 
 if (OPENMP_FOUND)
@@ -25,12 +27,25 @@ if (GIT_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGIT_HASH=\"${GIT_HASH}\" -DGIT_DATE=\"${GIT_DATE}\"")
 endif()
 
+ExternalProject_Add(libBigWig
+    GIT_REPOSITORY "https://github.com/dpryan79/libBigWig"
+#    DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}
+#    URL
+    UPDATE_COMMAND ""
+#    SOURCE_DIR ${qt_source}
+    BUILD_IN_SOURCE 1
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ${MAKE}
+    INSTALL_COMMAND ""
+)
+
 # -static -fsanitize=address -fno-omit-frame-pointer
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pedantic")
 
 add_executable(phylocsf++ src/phylocsf++.cpp)
-target_link_libraries(phylocsf++ gsl gslcblas)
+add_dependencies(phylocsf++ libBigWig)
+target_link_libraries(phylocsf++ gsl gslcblas) # libBigWig
 
 #add_executable(tests automatic_tests.cpp)
 #target_link_libraries(tests gsl gslcblas)

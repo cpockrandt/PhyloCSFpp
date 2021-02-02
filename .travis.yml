@@ -7,149 +7,154 @@ matrix:
     # GCC on Linux
     ##########################################################################
 
-#    - os: linux
-#      compiler: gcc-4.9
-#      addons:
-#        apt:
-#          sources: ['ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'g++-4.9', 'libgsl0-dev']
-#      install: export CXX="g++-4.9"
-#
-#    - os: linux
-#      compiler: gcc-5
-#      addons:
-#        apt:
-#          sources: ['ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'g++-5', 'libgsl0-dev']
-#      install: export CXX="g++-5"
-#
-#    - os: linux
-#      compiler: gcc-6
-#      addons:
-#        apt:
-#          sources: ['ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'g++-6', 'libgsl0-dev']
-#      install: export CXX="g++-6"
-#
-#    - os: linux
-#      compiler: gcc-7
-#      addons:
-#        apt:
-#          sources: ['ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'g++-7', 'libgsl0-dev']
-#      install: export CXX="g++-7"
-#
-#    - os: linux
-#      compiler: gcc-8
-#      addons:
-#        apt:
-#          sources: ['ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'g++-8', 'libgsl0-dev']
-#      install: export CXX="g++-8"
+    - os: linux
+      compiler: gcc-4.9
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['cmake', 'g++-4.9', 'libgsl0-dev']
+      install: export CXX="g++-4.9"
+
+    - os: linux
+      compiler: gcc-5
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['cmake', 'g++-5', 'libgsl0-dev']
+      install: export CXX="g++-5"
+
+    - os: linux
+      compiler: gcc-6
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['cmake', 'g++-6', 'libgsl0-dev']
+      install: export CXX="g++-6"
+
+    - os: linux
+      compiler: gcc-7
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['cmake', 'g++-7', 'libgsl0-dev']
+      install: export CXX="g++-7"
+
+    - os: linux
+      compiler: gcc-8
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['cmake', 'g++-8', 'libgsl0-dev']
+      install: export CXX="g++-8"
+
+    - os: linux
+      compiler: gcc-9
+      addons:
+        apt:
+          sources: [ 'ubuntu-toolchain-r-test' ]
+          packages: [ 'cmake', 'g++-9', 'libgsl0-dev' ]
+      install: export CXX="g++-9"
+
+    - os: linux
+      dist: bionic
+      compiler: gcc-10
+      addons:
+        apt:
+          sources: [ 'ubuntu-toolchain-r-test' ]
+          packages: [ 'cmake', 'g++-10', 'libgsl0-dev' ]
+      install: export CXX="g++-10"
 
     ##########################################################################
     # Clang on Linux
     ##########################################################################
 
-#    - os: linux
-#      dist: trusty
-#      compiler: clang-3.8g
-#      addons:
-#        apt:
-#          sources: ['llvm-toolchain-precise-3.8', 'ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'clang-3.8', 'g++-7', 'libgsl0-dev'] # g++ required for newer libstdc++#
-#      install: export CXX="clang++-3.8"
+    - os: linux
+      dist: xenial
+      compiler: clang-3.8
+      addons:
+        apt:
+          packages: ['cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-3.8', 'libgsl0-dev']
+          env: CC=clang-3.8 CXX=clang++-3.8
 
-#    - os: linux
-#      dist: trusty
-#      compiler: clang-3.9
-#      addons:
-#        apt:
-#          sources: ['llvm-toolchain-trusty-3.9', 'ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'clang-3.9', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
-#      install: export CXX="clang++-3.9"
-
-#    - os: linux
-#      dist: trusty
-#      compiler: clang-4.0
-#      addons:
-#        apt:
-#          sources: ['llvm-toolchain-trusty-4.0', 'ubuntu-toolchain-r-test']
-#          packages: ['cmake', 'clang-4.0', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
-#      install: export CXX="clang++-4.0"
+    - os: linux
+      dist: xenial
+      compiler: clang-4.0
+      addons:
+        apt:
+          packages: ['cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-4.0', 'libgsl0-dev']
+          env: CC=clang-4.0 CXX=clang++-4.0
 
     - os: linux
       dist: xenial
       compiler: clang-5.0
       addons:
         apt:
-#          sources: ['llvm-toolchain-trusty-5.0', 'ubuntu-toolchain-r-test']    
-          packages: 
-          - cmake
-          - make
-          - libc++-dev
-          - libomp-dev
-          - clang-5.0
-          - libgsl0-dev
+          packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-5.0', 'libgsl0-dev' ]
       env: CC=clang-5.0 CXX=clang++-5.0
 
     - os: linux
-      dist: trusty
+      dist: xenial
       compiler: clang-6.0
       addons:
         apt:
-          sources: ['llvm-toolchain-trusty-6.0', 'ubuntu-toolchain-r-test']
-          packages: ['cmake', 'clang-6.0', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
-      install: export CXX="clang++-6.0"
+          packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-6.0', 'libgsl0-dev' ]
+      env: CC=clang-6.0 CXX=clang++-6.0
 
     - os: linux
-      dist: trusty
+      dist: bionic
       compiler: clang-7.0
       addons:
         apt:
-          sources: ['llvm-toolchain-trusty-7', 'ubuntu-toolchain-r-test']
-          packages: ['cmake', 'clang-7', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
-      install: export CXX="clang++-7"
+          packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-7', 'libgsl0-dev' ]
+      env: CC=clang-7 CXX=clang++-7
+
+    - os: linux
+      dist: bionic
+      compiler: clang-8.0
+      addons:
+        apt:
+          packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-8', 'libgsl0-dev' ]
+      env: CC=clang-8 CXX=clang++-8
 
     ##########################################################################
     # Clang on OSX (with Xcode)
     ##########################################################################
 
-    - os: osx
-      osx_image: xcode7.3
-      compiler: clang
-      addons:
-        homebrew:
-          packages:
-            - gsl
-          update: true
-
-    - os: osx
-      osx_image: xcode8.3
-      compiler: clang
-      addons:
-        homebrew:
-          packages:
-            - gsl
-          update: true
-
-    - os: osx
-      osx_image: xcode9.4
-      compiler: clang
-      addons:
-        homebrew:
-          packages:
-            - gsl
-          update: true
-
-    - os: osx
-      osx_image: xcode10.1
-      compiler: clang
-      addons:
-        homebrew:
-          packages:
-            - gsl
-          update: true
+#    - os: osx
+#      osx_image: xcode7.3
+#      compiler: clang
+#      addons:
+#        homebrew:
+#          packages:
+#            - gsl
+#          update: true
+#
+#    - os: osx
+#      osx_image: xcode8.3
+#      compiler: clang
+#      addons:
+#        homebrew:
+#          packages:
+#            - gsl
+#          update: true
+#
+#    - os: osx
+#      osx_image: xcode9.4
+#      compiler: clang
+#      addons:
+#        homebrew:
+#          packages:
+#            - gsl
+#          update: true
+#
+#    - os: osx
+#      osx_image: xcode10.1
+#      compiler: clang
+#      addons:
+#        homebrew:
+#          packages:
+#            - gsl
+#          update: true
 
     ##########################################################################
     # GCC on OSX
@@ -212,22 +217,10 @@ matrix:
       # ubuntu toolchain does not contain the latest bugfixes for /usr/bin/ld
       env: CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fuse-ld=gold"
 
-    # - os: linux
-    #   dist: trusty
-    #   compiler: clang-5.0
-    #   addons:
-    #     apt:
-    #       sources: ['llvm-toolchain-trusty-5.0', 'ubuntu-toolchain-r-test']
-    #       packages: ['cmake', 'clang-5.0', 'g++-7'] # g++ required for newer libstdc++
-    #   install: export CXX="clang++-5.0"
-    #   env: CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address"
-
-    # TODO: native_build (4x OS+CXX)
-
 script:
   - mkdir -p build && cd build
   - cmake .. ${CMAKE_ARGS} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror"
   - make VERBOSE=1
   - cd ..
-  - test/tests.sh
-#  - travis_wait 90 sleep infinity & ctest . -j2 --output-on-failure
+  - ${CXX} -std=c++11 test.cpp && ./a.out
+#  - travis_wait 90 sleep infinity & test/tests.sh
