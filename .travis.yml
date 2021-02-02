@@ -51,41 +51,42 @@ matrix:
     # Clang on Linux
     ##########################################################################
 
-    - os: linux
-      dist: trusty
-      compiler: clang-3.8g
-      addons:
-        apt:
-          sources: ['llvm-toolchain-precise-3.8', 'ubuntu-toolchain-r-test']
-          packages: ['cmake', 'clang-3.8', 'g++-7', 'libgsl0-dev'] # g++ required for newer libstdc++
-      install: export CXX="clang++-3.8"
+#    - os: linux
+#      dist: trusty
+#      compiler: clang-3.8g
+#      addons:
+#        apt:
+#          sources: ['llvm-toolchain-precise-3.8', 'ubuntu-toolchain-r-test']
+#          packages: ['cmake', 'clang-3.8', 'g++-7', 'libgsl0-dev'] # g++ required for newer libstdc++#
+#      install: export CXX="clang++-3.8"
+
+#    - os: linux
+#      dist: trusty
+#      compiler: clang-3.9
+#      addons:
+#        apt:
+#          sources: ['llvm-toolchain-trusty-3.9', 'ubuntu-toolchain-r-test']
+#          packages: ['cmake', 'clang-3.9', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
+#      install: export CXX="clang++-3.9"
+
+#    - os: linux
+#      dist: trusty
+#      compiler: clang-4.0
+#      addons:
+#        apt:
+#          sources: ['llvm-toolchain-trusty-4.0', 'ubuntu-toolchain-r-test']
+#          packages: ['cmake', 'clang-4.0', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
+#      install: export CXX="clang++-4.0"
 
     - os: linux
-      dist: trusty
-      compiler: clang-3.9
-      addons:
-        apt:
-          sources: ['llvm-toolchain-trusty-3.9', 'ubuntu-toolchain-r-test']
-          packages: ['cmake', 'clang-3.9', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
-      install: export CXX="clang++-3.9"
-
-    - os: linux
-      dist: trusty
-      compiler: clang-4.0
-      addons:
-        apt:
-          sources: ['llvm-toolchain-trusty-4.0', 'ubuntu-toolchain-r-test']
-          packages: ['cmake', 'clang-4.0', 'g++-7', 'libgsl0-dev', 'libomp-dev'] # g++ required for newer libstdc++
-      install: export CXX="clang++-4.0"
-
-    - os: linux
-      dist: trusty
+      dist: xenial
       compiler: clang-5.0
       addons:
         apt:
 #          sources: ['llvm-toolchain-trusty-5.0', 'ubuntu-toolchain-r-test']    
           packages: 
-          - *default_packages
+          - cmake
+          - make
           - libc++-dev
           - libomp-dev
           - clang-5.0
