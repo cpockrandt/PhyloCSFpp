@@ -107,6 +107,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
             if (params.comp_phylo || params.comp_anc)
             {
                 try {
+                    gen.seed(42); // NOTE: make sure that parallelization does not affect results
                     std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy, gen);
 
                     if (params.comp_phylo)

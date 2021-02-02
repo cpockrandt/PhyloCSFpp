@@ -132,8 +132,7 @@ void run_tracks(Data & data, const Model & model, const alignment_t & alignment,
     }
 }
 
-// NOTE: make a copy of the random number generator, so parallelization does not affect results
-std::tuple<float, float> run(Data & data, const Model & model, const alignment_t & alignment, const algorithm_t algo, std::mt19937 gen)
+std::tuple<float, float> run(Data & data, const Model & model, const alignment_t & alignment, const algorithm_t algo, std::mt19937 & gen)
 {
     if (algo == algorithm_t::OMEGA)
     {
