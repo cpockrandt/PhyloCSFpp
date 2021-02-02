@@ -38,10 +38,10 @@ ExternalProject_Add(libBigWig
     BUILD_COMMAND ${MAKE}
     INSTALL_COMMAND ""
 )
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lBigWig")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/libBigWig-prefix/src/libBigWig)
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/libBigWig-prefix/src/libBigWig)
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lBigWig")
 
 # -static -fsanitize=address -fno-omit-frame-pointer
 
@@ -49,7 +49,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pedantic")
 
 add_executable(phylocsf++ src/phylocsf++.cpp)
 add_dependencies(phylocsf++ libBigWig)
-target_link_libraries(phylocsf++ gsl gslcblas) # libBigWig
+target_link_libraries(phylocsf++ gsl gslcblas BigWig) # libBigWig
 
 #add_executable(tests automatic_tests.cpp)
 #target_link_libraries(tests gsl gslcblas)
