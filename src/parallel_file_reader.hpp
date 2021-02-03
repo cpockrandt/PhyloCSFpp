@@ -366,12 +366,12 @@ public:
 
         if (files == 1)
         {
-            sprintf(progress_bar_format_str, "\x1b[K%%.2f / %.2f %s (%%3.2f %%)\r",
+            sprintf(progress_bar_format_str, "\x1b[K%%.2f / %.2f %s (%%3.2f %%%%)\r",
                         formatted_filesize, size_dimensions_labels[progress_bar_dimensions_label_index]);
         }
         else
         {
-            sprintf(progress_bar_format_str, "\x1b[KFile %d of %d: %%.2f / %.2f %s (%%3.2f %%)\r",
+            sprintf(progress_bar_format_str, "\x1b[KFile %d of %d: %%.2f / %.2f %s (%%3.2f %%%%)\r",
                         file_id,
                         files,
                         formatted_filesize,

@@ -18,7 +18,7 @@ echo -e "${DIFF_MLE}"
 
 echo "OMEGA mode"
 $PhyloCSFpp scores --threads $THREADS --strategy omega --comp-phylo 1 --comp-anc 0 --comp-bls 1 100vertebrates example/small/chr22.50alignments.maf
-DIFF_OMEGA=$(awk -F$'\t' '($1 != $7 || $2 != $8 || $3 != $9 || $4 != $10 || ($5-$11)^2 > 0.001 || $6 != $12)' <(paste example/small/chr22.50alignments.maf.scores example/small/PhyloCSFpp-results/chr22.50alignments.omega.scores))
+DIFF_OMEGA=$(awk -F$'\t' '($1 != $7 || $2 != $8 || $3 != $9 || $4 != $10 || ($5-$11)^2 > 0.1 || $6 != $12)' <(paste example/small/chr22.50alignments.maf.scores example/small/PhyloCSFpp-results/chr22.50alignments.omega.scores))
 #DIFF_OMEGA=$(diff example/small/chr22.50alignments.maf.scores example/small/PhyloCSFpp-results/chr22.50alignments.omega.scores)
 echo -e "${DIFF_OMEGA}"
 
