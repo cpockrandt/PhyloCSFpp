@@ -416,7 +416,7 @@ double minimizer_lpr_leaves(const double x, void * params)
 }
 
 template <typename function_t>
-void fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t * f, minimizer_params_t * params, std::mt19937 & /*gen*/)
+void fit_find_init(const uint32_t max_tries, const double init, const double lo, const double hi, function_t * f, minimizer_params_t * params, std::mt19937 & gen)
 {
     assert(lo < hi && lo > 0.0);
 
@@ -429,13 +429,12 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
     double fx = (-1) * (*f)(init, params);
 //    std::cout << "xxx: " << x << " ||| " << fx << '\n';
 
-    std::mt19937 gen2(42);
     std::uniform_real_distribution<> dis(0.0, width);
 
     uint32_t i = 0;
     while (i < max_tries && (fx <= flo || fx <= fhi))
     {
-        const double r = dis(gen2); // width * ((float) rand()/RAND_MAX);
+        const double r = dis(gen); // width * ((float) rand()/RAND_MAX);
 //        printf("width: %f, random: %f\n", width, r);
         x = exp(log(lo) + r);
         fx = (-1) * (*f)(x, params);

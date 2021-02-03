@@ -20,6 +20,8 @@ int main(int argc, char **argv)
 
     args.parse_args(argc, argv);
 
+    // TODO: warn if files are going to be overwritten
+
     if (args.get_selected_subprogram() == "tracks")
     {
         return main_tracks(argc - 1, argv + 1);

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_randist.h>
@@ -140,17 +138,6 @@ double comp_q_scale(const gsl_vector * const pi, const gsl_matrix * const q_p14n
     for (uint8_t i = 0; i < 64; ++i)
         factor -= gsl_vector_get(pi, i) * gsl_matrix_get(q_p14n, i, i);
     return factor;
-}
-
-
-gsl_vector * vector2gsl(const std::vector<double> & v)
-{
-    gsl_vector * gv = gsl_vector_alloc(v.size());
-    for (uint8_t i = 0; i < v.size(); ++i)
-    {
-        gsl_vector_set(gv, i, v[i]);
-    }
-    return gv;
 }
 
 // see instantiate_q and instantiate_qs,

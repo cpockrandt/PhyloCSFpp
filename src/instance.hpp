@@ -591,14 +591,12 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
 
     if (instance.model.pms.size() != instance.p14n.tree_p14n.size() - 1)
     {
-//        std::cout << "LOOOOOOOOL\n";
         instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
     }
 
     // pms = Array.init (T.size t - 1) (fun br -> Q.Diag.to_Pt qms.(br) (T.branch t br))
     for (uint16_t i = 0; i < instance.p14n.tree_shape.size() - 1; ++i)
     {
-//        std::cout << "make.t = " << instance.p14n.tree_p14n[i].branch_length << '\n';
         // to_Pt:
         // TODO: here is memoization happening with q.memoized_to_Pt
         // especially inefficient since for initialization all qms[i] are identical!
@@ -645,7 +643,6 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
 
             gsl_matrix_free(diagm_c);
 
-            // results are equal with ocaml until here!!!! :)
 //            for (uint8_t tmp_i = 0; tmp_i < 64; ++tmp_i)
 //            {
 //                for (uint8_t tmp_j = 0; tmp_j < 64; ++tmp_j)
@@ -660,7 +657,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
         {
             printf("NOT REAL!!!!!\n");
             exit(77);
-            // NOTE: we just create all q's (exept the very first one). the arrays should all have 0s!
+            // NOTE: we just create all q's (except the very first one). the arrays should all have 0s!
             //assert(q.eig.r_l == NULL && q.eig.r_s == NULL && q.eig.r_s2 == NULL);
             //assert(q.eig.nr_l != NULL && q.eig.nr_s != NULL && q.eig.nr_s2 != NULL);
 
