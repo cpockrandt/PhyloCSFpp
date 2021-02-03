@@ -127,7 +127,6 @@ class parallel_maf_reader
     size_t page_size;
 
     size_t pages_per_thread;
-    size_t last_thread_with_extra_page;
 
     const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid;
 
@@ -145,16 +144,6 @@ class parallel_maf_reader
     char progress_bar_format_str[50];
 
 public:
-
-    uint64_t get_total_bytes_processed() const noexcept
-    {
-        return total_bytes_processed;
-    }
-
-    uint64_t get_filesize() const noexcept
-    {
-        return file_size;
-    }
 
     unsigned get_jobs() const noexcept { return this->jobs; }
 
@@ -290,7 +279,7 @@ public:
         // every thread will process at least floor(pages / this->jobs) pages.
         // the first (pages % this->jobs) jobs will also process an additional page.
         pages_per_thread = pages / this->jobs;
-        last_thread_with_extra_page = pages % this->jobs; // excl
+        size_t last_thread_with_extra_page = pages % this->jobs; // excl
 //        printf("Pages per thread: %ld\nLast page (excl.) with excess page: %ld\n\n", pages_per_thread, last_thread_with_extra_page);
 
         file_range_pos = (size_t*) calloc(sizeof(size_t), this->jobs);
@@ -362,7 +351,6 @@ public:
             formatted_filesize /= 1024;
             ++progress_bar_dimensions_label_index;
         }
-
 
         if (files == 1)
         {
