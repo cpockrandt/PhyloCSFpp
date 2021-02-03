@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 
 PhyloCSFpp="build/phylocsf++"
-THREADS=1
+THREADS=$1
 species=""
 # --species Lizard,Dolphin,Orangutan,Platypus,Opossum,Weddell_seal,Human,Gibbon,Stickleback,Baboon,Chimp
 # --species anoCar,gasAcu,hg,lepWed,monDom,nomLeu,ornAna,panTro,papHam,ponAbe,turTru

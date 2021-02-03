@@ -229,4 +229,5 @@ script:
   - make VERBOSE=1
   - cd ..
   - ./build/phylocsf++
-  - test/tests.sh # travis_wait 90 sleep infinity &
+  - test/tests.sh 2
+  # travis_wait 90 sleep infinity & cmd
