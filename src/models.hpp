@@ -1667,6 +1667,11 @@ struct Model
     std::vector<newick_elem> phylo_array;
     std::unordered_map<std::string, uint16_t> seqid_to_phyloid;
     hmm _hmm;
+
+    ~Model()
+    {
+        newick_free(phylo_tree);
+    }
 };
 
 void load_model(Model & model, const std::string & model_name_or_path, const std::string & selected_species,

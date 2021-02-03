@@ -687,5 +687,6 @@ public:
         free(file_range_pos);
         free(file_range_end);
         free(file_range_pos_orig);
+        free(bytes_processing);
     }
 };
