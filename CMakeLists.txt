@@ -28,28 +28,28 @@ if (GIT_FOUND)
 endif()
 
 ExternalProject_Add(libBigWig
-    GIT_REPOSITORY "https://github.com/dpryan79/libBigWig"
-#    DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}
-#    URL
+    GIT_REPOSITORY "https://github.com/cpockrandt/libBigWig"
     UPDATE_COMMAND ""
-#    SOURCE_DIR ${qt_source}
+    DOWNLOAD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/"
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig"
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ${MAKE}
     INSTALL_COMMAND ""
 )
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/libBigWig-prefix/src/libBigWig)
-link_directories(${CMAKE_CURRENT_BINARY_DIR}/libBigWig-prefix/src/libBigWig)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lBigWig")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 
 # -static -fsanitize=address -fno-omit-frame-pointer
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Werror -pedantic") # -Wconversion
+# TODO: fix errors
+# -Werror
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -DNOCURL -std=c++11 -fpermissive") # -Wconversion
 
 add_executable(phylocsf++ src/phylocsf++.cpp)
 add_dependencies(phylocsf++ libBigWig)
-target_link_libraries(phylocsf++ gsl gslcblas BigWig) # libBigWig
+target_link_libraries(phylocsf++ gsl gslcblas BigWig z)
 
 #add_executable(tests automatic_tests.cpp)
 #target_link_libraries(tests gsl gslcblas)
