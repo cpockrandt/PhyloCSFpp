@@ -61,15 +61,17 @@ struct alignment_t
         skip_bases = 0;
         start_pos = orig_start_pos;
 
+        // NOTE: start_pos is 1-indexed (1 is added after extracting it from the maf-file which is 0-indexed)
+
         // get into right frame / strand
         if (strand == '+')
         {
             // != 1 for +1,   != 2 for +2,   != 0 for +3
-//            while (start_pos % 3 != (frame % 3) && length() > 0)
-//            {
-//                ++skip_bases;
-//                ++start_pos;
-//            }
+            // while (start_pos % 3 != (frame % 3) && length() > 0)
+            // {
+            //     ++skip_bases;
+            //     ++start_pos;
+            // }
             int64_t tmp_skip_bases = ((int64_t)(frame - start_pos)) % 3;
             if (tmp_skip_bases < 0)
                 tmp_skip_bases += 3;
@@ -81,12 +83,7 @@ struct alignment_t
         }
         else
         {
-            unsigned frame2;
-            if (frame == 1) frame2 = 3;
-            if (frame == 2) frame2 = 1;
-            if (frame == 3) frame2 = 2;
-
-            while (length() > 0 && (chrom_len - (start_pos + length())) % 3 != (frame2 - 1))
+            while (length() > 0 && (chrom_len - (start_pos + length()) - 1) % 3 != (frame % 3))
             {
                 ++skip_bases;
             }
