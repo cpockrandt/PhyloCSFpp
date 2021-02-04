@@ -259,6 +259,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
             for (auto & seq : aln.seqs)
                 seq = "";
         }
+        maf_rd.print_progress();
 
         if (params.phylo_power)
             fclose(file_power);
