@@ -83,7 +83,7 @@ struct alignment_t
         }
         else
         {
-            while (length() > 0 && (chrom_len - (start_pos + length() - 1)) % 3 != (frame % 3))
+            while (length() > 0 && ((chrom_len - (start_pos + length() - 1) + 1) % 3 != (frame % 3)))
             {
                 ++skip_bases;
             }

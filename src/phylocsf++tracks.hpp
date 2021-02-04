@@ -144,7 +144,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
             {
                 for (unsigned frame = 1; frame <= 3; ++frame)
                 {
-                    const uint8_t file_index = frame - 1 + (strand == '+' ? 0 : 3);
+                    const uint8_t file_index = (frame - 1) + (strand == '+' ? 0 : 3);
                     aln.update_seqs(orig_start_pos, strand, frame);
 
                     lpr_per_codon[thread_id].clear();
@@ -155,6 +155,8 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     {
                         std::reverse(lpr_per_codon[thread_id].begin(), lpr_per_codon[thread_id].end());
 
+                        // aminoacids are translated from right to left, i.e., remove the remaining 0-2 dna bases from
+                        // the left, i.e., increase the start_pos
                         const size_t excess_basepairs = aln.length() % 3;
                         aln.start_pos += excess_basepairs;
                     }
