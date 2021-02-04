@@ -102,8 +102,8 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
         for (uint8_t i = 0; i < 6; ++i)
         {
-            char strand = (i < 3) ? '+' : '-';
-            unsigned frame = (i % 3) + 1;
+            const char strand = (i < 3) ? '+' : '-';
+            const unsigned frame = (i % 3) + 1;
 
             if (params.phylo_raw)
             {

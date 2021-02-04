@@ -17,12 +17,13 @@
 struct alignment_t
 {
     uint64_t start_pos = 0;
+    uint64_t chrom_len = 0;
+    unsigned skip_bases = 0;
+    char strand;
+
     std::string chrom;
     std::vector<std::string> seqs;
     std::vector<std::vector<uint8_t> > peptides;
-
-    char strand;
-    unsigned skip_bases = 0;
 
     alignment_t(const uint16_t leaves)
     {
@@ -72,15 +73,7 @@ struct alignment_t
         }
         else
         {
-            size_t required_mod = 0;
-            if (frame == 3) // -3
-                required_mod = 1;
-            else if (frame == 2) // -2
-                required_mod = 2;
-            else // if (frame == 1) // -1
-                required_mod = 0;
-
-            while ((start_pos + length()) % 3 != required_mod && length() > 0)
+            while (length() > 0 && (chrom_len - (start_pos + length())) % 3 != (frame - 1))
             {
                 ++skip_bases;
             }
@@ -164,7 +157,7 @@ public:
     }
 
     // this function is only called on lines starting with "s "
-    void get_line(const unsigned job_id, char ** id, char ** seq, uint64_t & start_pos, uint64_t & len_wo_ref_gaps, char & strand)
+    void get_line(const unsigned job_id, char ** id, char ** seq, uint64_t & start_pos, uint64_t & len_wo_ref_gaps, char & strand, uint64_t & chrom_len)
     {
         assert(file_range_pos[job_id] < (size_t) file_size);
         assert(*((char*) file_mem + file_range_pos[job_id]) == 's');
@@ -206,6 +199,10 @@ public:
             else if (token_id == 4)
             {
                 strand = *token;
+            }
+            else if (token_id == 5)
+            {
+                chrom_len = atoi(token);
             }
             else if (token_id == 6)
             {
@@ -458,7 +455,7 @@ public:
                 uint64_t start_pos = 0;
                 uint64_t tmp_len_wo_ref_gaps = 0;
                 char ref_strand = '.';
-                get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
+                get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, aln.chrom_len);
 
                 // cut id starting after "."
                 char *ptr = strchr(id, '.');
@@ -544,7 +541,7 @@ public:
                     uint64_t tmp_len_wo_ref_gaps = 0;
                     char ref_strand;
 
-                    get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand);
+                    get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, aln.chrom_len);
 
                     // cut id starting after "."
                     char *ptr = strchr(id, '.');
