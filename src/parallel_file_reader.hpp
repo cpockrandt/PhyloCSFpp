@@ -82,9 +82,9 @@ struct alignment_t
         else
         {
             unsigned frame2;
-            if (frame == 1) frame2 = 2;
-            if (frame == 2) frame2 = 3;
-            if (frame == 3) frame2 = 1;
+            if (frame == 1) frame2 = 3;
+            if (frame == 2) frame2 = 1;
+            if (frame == 3) frame2 = 2;
 
             while (length() > 0 && (chrom_len - (start_pos + length())) % 3 != (frame2 - 1))
             {
