@@ -61,7 +61,7 @@ private:
 	bool allow_more_pos_arguments = false;
     uint16_t longest_opt_arg = 0; // for printing help page
 
-    std::vector<Arg>::iterator find(std::vector<Arg> & v, const std::string & name) const
+    static std::vector<Arg>::iterator find(std::vector<Arg> & v, const std::string & name)
     {
         auto it = v.begin();
         while (it != v.end())
@@ -73,7 +73,7 @@ private:
         return it;
     }
 
-    std::vector<Arg>::const_iterator find(const std::vector<Arg> & v, const std::string & name) const
+    static std::vector<Arg>::const_iterator find(const std::vector<Arg> & v, const std::string & name)
     {
         auto it = v.begin();
         while (it != v.end())
@@ -104,6 +104,7 @@ public:
         if (argc == 1)
         {
             printf("Run `%s --help` for more information!\n", program_name.c_str());
+            exit(0);
         }
 
         size_t pos_arg_i = 0;

@@ -9,7 +9,7 @@
 #include <string>
 
 #define OUT_INFO    "\033[1;34m"
-#define OUT_ERROR   "\033[1;34m"
+#define OUT_ERROR   "\033[1;31m"
 #define OUT_RESET   "\033[0m"
 #define OUT_DEL     "\x1b[K"
 #define OUT_BOLD    "\033[1m"

@@ -21,7 +21,7 @@ struct TrackCLIParams
     bool phylo_smooth = false;
     bool phylo_raw = true;
     bool phylo_power = true;
-    std::string output_path = "";
+    std::string output_path;
 };
 
 void merge_job_output_files(const std::string & base_name, const unsigned jobs, const bool final_file_exists)
@@ -305,10 +305,13 @@ int main_tracks(int argc, char **argv)
 
     std::string model_list = get_list_of_models();
 
+    char threshold_default_str[10];
+    sprintf(threshold_default_str, "%.1f", params.phylo_threshold);
+
     args.add_option("output-phylo", ArgParse::Type::BOOL, "Compute all 6 smoothened PhyloCSF tracks. Requires coding exon coordinates and genome length. Default: " + std::to_string(params.phylo_smooth), ArgParse::Level::GENERAL, false);
     args.add_option("output-raw-phylo", ArgParse::Type::BOOL, "Compute all 6 unsmoothened PhyloCSF tracks. Default: " + std::to_string(params.phylo_raw), ArgParse::Level::GENERAL, false);
     args.add_option("output-power", ArgParse::Type::BOOL, "Output confidence track (branch length score). Default: " + std::to_string(params.phylo_power), ArgParse::Level::GENERAL, false);
-    args.add_option("power-threshold", ArgParse::Type::FLOAT, "Minimum confidence score to output PhyloCSF score. Default: " + std::to_string(params.phylo_threshold), ArgParse::Level::GENERAL, false);
+    args.add_option("power-threshold", ArgParse::Type::FLOAT, "Minimum confidence score to output PhyloCSF score. Default: " + std::string(threshold_default_str), ArgParse::Level::GENERAL, false);
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
