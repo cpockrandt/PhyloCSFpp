@@ -111,7 +111,7 @@ struct Data
     }
 };
 
-void run_tracks(Data & data, const Model & model, const alignment_t & alignment, std::vector<double> & lpr_per_codon/*, std::vector<double> & bls_per_codon*/)
+void run_tracks(Data & data, const Model & model, const alignment_t & alignment, std::vector<double> & lpr_per_codon)
 {
     // initialize model
     PhyloCSFModel_make(data.c_instance, model.c_model, model.phylo_array);
@@ -120,6 +120,7 @@ void run_tracks(Data & data, const Model & model, const alignment_t & alignment,
     double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
 
     std::vector<double> nc_lpr_per_codon;
+    lpr_per_codon.reserve(alignment.length() / 3);
     nc_lpr_per_codon.reserve(alignment.length() / 3);
 
     // TODO: skip triplets with PhyloPower < 0.1 to speed up computation!

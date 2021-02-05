@@ -158,7 +158,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     aln.update_seqs(orig_start_pos, strand, frame);
 
                     lpr_per_codon[thread_id].clear();
-                    run_tracks(data[thread_id], model, aln, lpr_per_codon[thread_id]/*, bls_per_bp[thread_id]*/);
+                    run_tracks(data[thread_id], model, aln, lpr_per_codon[thread_id]);
                     data[thread_id].clear();
 
                     if (strand == '-')

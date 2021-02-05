@@ -609,7 +609,6 @@ public:
                     }
                     else
                     {
-//                    printf("%ld\t%ld\n", aln.seqs[ref_seq_id].size(), aln.seqs[alnid->second].size());
                         assert(aln.seqs[ref_seq_id2].size() == aln.seqs[alnid->second].size()); // all seqs same length
                     }
 

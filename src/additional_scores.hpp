@@ -78,7 +78,7 @@ double newick_sum_branch_lengths(const newick_node* node, const std::unordered_s
 //}
 
 template <bool score_per_base>
-double compute_bls_score(const newick_node* node, const alignment_t & alignment, const Model & model, std::vector<double> & score_per_codon)
+double compute_bls_score(const newick_node* node, const alignment_t & alignment, const Model & model, std::vector<double> & scores_per_base)
 {
     const uint64_t lo = 0;
     const uint64_t hi = alignment.seqs[0].size();
@@ -107,11 +107,11 @@ double compute_bls_score(const newick_node* node, const alignment_t & alignment,
             bl_total += bl;
 
             if (score_per_base)
-                score_per_codon.push_back(bl / all_species_branch_length);
+                scores_per_base.push_back(bl / all_species_branch_length);
         }
         else if (score_per_base)
         {
-            score_per_codon.push_back(0.0);
+            scores_per_base.push_back(0.0);
         }
     }
 
