@@ -13,7 +13,7 @@ $PhyloCSFpp build-tracks --genome-length 1065365434 --coding-exons test/ChickenC
   --output-phylo 1 --output-raw-phylo 1 --output-power 1 --threads $THREADS --output ./build/results \
   53birds test/chr22_25_28_each_30k_bases.maf
 
-diff -qr ./build/results ./test/expected_results
+diff -r ./build/results ./test/expected_results
 
 ### score-msa
 
