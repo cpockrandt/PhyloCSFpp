@@ -26267,8 +26267,6 @@ fixedStep chrom=chr28 start=229758 step=3 span=3
 -6.577
 -0.746
 -3.069
-fixedStep chrom=chr28 start=229998 step=3 span=3
--1.884
 fixedStep chrom=chr28 start=240003 step=3 span=3
 25.28
 -13.453
