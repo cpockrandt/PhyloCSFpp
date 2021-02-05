@@ -38,14 +38,12 @@ ExternalProject_Add(libBigWig
     INSTALL_COMMAND ""
 )
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
+include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 
 # -static -fsanitize=address -fno-omit-frame-pointer
 
-# TODO: fix errors
-# -Werror
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -DNOCURL -std=c++11 -fpermissive") # -Wconversion
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -pedantic -DNOCURL -std=c++11 -fpermissive") # -Wconversion
 
 add_executable(phylocsf++ src/phylocsf++.cpp)
 add_dependencies(phylocsf++ libBigWig)

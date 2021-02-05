@@ -72,10 +72,10 @@ struct alignment_t
             //     ++skip_bases;
             //     ++start_pos;
             // }
-            int64_t tmp_skip_bases = ((int64_t)(frame - start_pos)) % 3;
+            int64_t tmp_skip_bases = (static_cast<int64_t>(frame - start_pos)) % 3;
             if (tmp_skip_bases < 0)
                 tmp_skip_bases += 3;
-            if (tmp_skip_bases > length())
+            if (static_cast<uint64_t>(tmp_skip_bases) > length())
                 tmp_skip_bases = length();
 
             skip_bases = tmp_skip_bases;
@@ -87,10 +87,10 @@ struct alignment_t
             // {
             //     ++skip_bases;
             // }
-            int64_t tmp_skip_bases = ((int64_t)(frame - (chrom_len - (start_pos + length()) + 2))) % 3;
+            int64_t tmp_skip_bases = (static_cast<int64_t>(frame - (chrom_len - (start_pos + length()) + 2))) % 3;
             if (tmp_skip_bases < 0)
                 tmp_skip_bases += 3;
-            if (tmp_skip_bases > length())
+            if (static_cast<uint64_t>(tmp_skip_bases) > length())
                 tmp_skip_bases = length();
 
             skip_bases = tmp_skip_bases;
