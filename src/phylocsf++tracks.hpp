@@ -286,7 +286,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
         }
     }
 
-    printf("\x1b[KMerging temporary output files ...\r");
+//    printf("\x1b[KMerging temporary output files ...\r");
 
     // merge power file
     if (params.phylo_power)

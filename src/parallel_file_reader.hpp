@@ -78,15 +78,22 @@ struct alignment_t
             if (tmp_skip_bases > length())
                 tmp_skip_bases = length();
 
-            skip_bases += tmp_skip_bases;
+            skip_bases = tmp_skip_bases;
             start_pos += tmp_skip_bases;
         }
         else
         {
-            while (length() > 0 && ((chrom_len - (start_pos + length() - 1) + 1) % 3 != (frame % 3)))
-            {
-                ++skip_bases;
-            }
+            // while (length() > 0 && ((chrom_len - (start_pos + length() - 1) + 1) % 3 != (frame % 3)))
+            // {
+            //     ++skip_bases;
+            // }
+            int64_t tmp_skip_bases = ((int64_t)(frame - (chrom_len - (start_pos + length()) + 2))) % 3;
+            if (tmp_skip_bases < 0)
+                tmp_skip_bases += 3;
+            if (tmp_skip_bases > length())
+                tmp_skip_bases = length();
+
+            skip_bases = tmp_skip_bases;
         }
 
         // translate nucleotides
@@ -463,9 +470,10 @@ public:
                 // "s ID int int char int SEQ\n"
                 char *id = nullptr, *seq = nullptr;
                 uint64_t start_pos = 0;
+                uint64_t chrom_len = 0;
                 uint64_t tmp_len_wo_ref_gaps = 0;
                 char ref_strand = '.';
-                get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, aln.chrom_len);
+                get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, chrom_len);
 
                 // cut id starting after "."
                 char *ptr = strchr(id, '.');
@@ -501,6 +509,7 @@ public:
                 {
                     aln.start_pos = start_pos + 1; // maf file is to be 0-indexed
                     aln.chrom = chrom;
+                    aln.chrom_len = chrom_len;
                     aln.strand = ref_strand;
                     ref_seq_id = alnid->second;
                     prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
@@ -548,10 +557,11 @@ public:
                     // "s ID int int char int SEQ\n"
                     char *id = nullptr, *seq = nullptr;
                     uint64_t start_pos = 0;
+                    uint64_t chrom_len = 0;
                     uint64_t tmp_len_wo_ref_gaps = 0;
                     char ref_strand;
 
-                    get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, aln.chrom_len);
+                    get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, chrom_len);
 
                     // cut id starting after "."
                     char *ptr = strchr(id, '.');
