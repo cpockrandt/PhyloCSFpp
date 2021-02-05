@@ -3775,7 +3775,7 @@ fixedStep chrom=chr22 start=221315 step=3 span=3
 -26.791
 -158.299
 -13.013
-fixedStep chrom=chr22 start=221345 step=3 span=3
+-6.966
 -14.838
 -9.795
 -29.93
@@ -3797,7 +3797,8 @@ fixedStep chrom=chr22 start=221345 step=3 span=3
 -1.074
 -30.113
 -2.157
-fixedStep chrom=chr22 start=221420 step=3 span=3
+fixedStep chrom=chr22 start=221417 step=3 span=3
+-3.129
 32.241
 -8.378
 -34.029
@@ -4037,7 +4038,7 @@ fixedStep chrom=chr22 start=221576 step=3 span=3
 7.19
 3.258
 -37.272
-fixedStep chrom=chr22 start=222140 step=3 span=3
+-3.493
 -6.4
 -6.333
 -62.699
@@ -4176,7 +4177,6 @@ fixedStep chrom=chr22 start=222368 step=3 span=3
 -15.272
 -12.773
 -15.082
--1.489
 fixedStep chrom=chr22 start=222560 step=3 span=3
 2.871
 -1.832
@@ -4803,7 +4803,7 @@ fixedStep chrom=chr22 start=222560 step=3 span=3
 -18.38
 -19.271
 -39.338
-fixedStep chrom=chr22 start=224438 step=3 span=3
+-2.518
 -3.353
 -5.515
 -8.977
@@ -4920,7 +4920,7 @@ fixedStep chrom=chr22 start=224705 step=3 span=3
 -9.02
 -22.392
 3.736
-fixedStep chrom=chr22 start=224795 step=3 span=3
+-2.766
 -20.836
 -64.568
 -3.275
@@ -5729,7 +5729,7 @@ fixedStep chrom=chr22 start=224795 step=3 span=3
 -31.799
 3.312
 -4.915
--5.753
+fixedStep chrom=chr22 start=227222 step=3 span=3
 4.019
 -16.441
 -41.836
@@ -6148,7 +6148,7 @@ fixedStep chrom=chr22 start=224795 step=3 span=3
 12.088
 -24.409
 -33.597
--4.991
+fixedStep chrom=chr22 start=228479 step=3 span=3
 -10.672
 -6.237
 -7.244
@@ -6674,8 +6674,7 @@ fixedStep chrom=chr22 start=240002 step=3 span=3
 -32.5
 -38.377
 -6.94
-fixedStep chrom=chr22 start=240056 step=3 span=3
--14.331
+fixedStep chrom=chr22 start=240059 step=3 span=3
 2.497
 -8.676
 3.677
@@ -6691,7 +6690,7 @@ fixedStep chrom=chr22 start=240056 step=3 span=3
 -34.827
 -26.915
 -1.355
-fixedStep chrom=chr22 start=240107 step=3 span=3
+-8.085
 0.463
 -3.713
 -18.843
@@ -6790,7 +6789,7 @@ fixedStep chrom=chr22 start=240107 step=3 span=3
 -47.983
 -21.419
 -6.895
--14.032
+fixedStep chrom=chr22 start=240404 step=3 span=3
 14.462
 -21.24
 -23.598
@@ -6803,7 +6802,7 @@ fixedStep chrom=chr22 start=240107 step=3 span=3
 -16.382
 -4.818
 -12.733
-fixedStep chrom=chr22 start=240443 step=3 span=3
+-9.205
 -18.151
 5.868
 -7.895
@@ -7021,7 +7020,7 @@ fixedStep chrom=chr22 start=240443 step=3 span=3
 -31.982
 -16.45
 -1.015
-fixedStep chrom=chr22 start=241097 step=3 span=3
+-1.782
 2.015
 -8.537
 -2.759
@@ -7346,8 +7345,7 @@ fixedStep chrom=chr22 start=241097 step=3 span=3
 -22.567
 -24.155
 -3.86
-fixedStep chrom=chr22 start=242072 step=3 span=3
--1.462
+fixedStep chrom=chr22 start=242075 step=3 span=3
 -15.88
 -45.302
 -22.56
@@ -7384,7 +7382,7 @@ fixedStep chrom=chr22 start=242072 step=3 span=3
 -16.728
 -8.527
 -32.566
-fixedStep chrom=chr22 start=242186 step=3 span=3
+-1.559
 -6.192
 -58.815
 -11.289
@@ -7511,17 +7509,18 @@ fixedStep chrom=chr22 start=242186 step=3 span=3
 -13.346
 -19.312
 -1.557
+1.893
 fixedStep chrom=chr22 start=242570 step=3 span=3
 -1.38
 -8.622
 -9.207
-fixedStep chrom=chr22 start=242582 step=3 span=3
-2.662
+-9.782
+fixedStep chrom=chr22 start=242585 step=3 span=3
 -15.142
 -7.117
 -12.395
-fixedStep chrom=chr22 start=242597 step=3 span=3
--6.43
+-19.651
+fixedStep chrom=chr22 start=242600 step=3 span=3
 -17.45
 -0.768
 -6.431
@@ -7679,7 +7678,7 @@ fixedStep chrom=chr22 start=242597 step=3 span=3
 0.124
 -13.618
 3.73
--15.807
+fixedStep chrom=chr22 start=243074 step=3 span=3
 -10.153
 4.934
 -54.186
@@ -8403,8 +8402,8 @@ fixedStep chrom=chr22 start=242597 step=3 span=3
 6.749
 -17.62
 5.355
-fixedStep chrom=chr22 start=245246 step=3 span=3
-2.375
+-1.997
+fixedStep chrom=chr22 start=245249 step=3 span=3
 -41.37
 -31.439
 -20.524
@@ -8603,6 +8602,7 @@ fixedStep chrom=chr22 start=245246 step=3 span=3
 -8.766
 8.312
 5.567
+0.345
 fixedStep chrom=chr22 start=245852 step=3 span=3
 -3.502
 -14.505
@@ -8661,8 +8661,7 @@ fixedStep chrom=chr22 start=245852 step=3 span=3
 -1.074
 -1.672
 1.996
-fixedStep chrom=chr22 start=246143 step=3 span=3
--5.885
+fixedStep chrom=chr22 start=246146 step=3 span=3
 -0.981
 -18.886
 -40.266
@@ -9041,8 +9040,7 @@ fixedStep chrom=chr22 start=246143 step=3 span=3
 -1.335
 -12.61
 -1.599
-fixedStep chrom=chr22 start=247286 step=3 span=3
--1.921
+fixedStep chrom=chr22 start=247289 step=3 span=3
 2.827
 -11.296
 -31.573
@@ -9487,7 +9485,7 @@ fixedStep chrom=chr22 start=247286 step=3 span=3
 -17.162
 -37.477
 -26.504
-fixedStep chrom=chr22 start=248624 step=3 span=3
+-1.738
 -17.956
 -66.823
 -82.839
@@ -10101,7 +10099,8 @@ fixedStep chrom=chr25 start=200001 step=3 span=3
 -36.134
 -26.321
 -1.408
-fixedStep chrom=chr25 start=200484 step=3 span=3
+fixedStep chrom=chr25 start=200481 step=3 span=3
+-15.738
 -39.911
 -6.024
 -16.698
@@ -10132,8 +10131,8 @@ fixedStep chrom=chr25 start=200520 step=3 span=3
 -35.467
 -5.089
 1.273
-1.032
-fixedStep chrom=chr25 start=200580 step=3 span=3
+fixedStep chrom=chr25 start=200577 step=3 span=3
+6.852
 -23.377
 -33.901
 -17.968
@@ -13160,8 +13159,8 @@ fixedStep chrom=chr25 start=209616 step=3 span=3
 -2.925
 1.487
 -7.58
--1.947
-fixedStep chrom=chr25 start=209676 step=3 span=3
+fixedStep chrom=chr25 start=209673 step=3 span=3
+2.176
 -14.124
 -0.062
 -0.663
@@ -13179,8 +13178,6 @@ fixedStep chrom=chr25 start=209703 step=3 span=3
 -3.131
 -2.275
 -4.982
-fixedStep chrom=chr25 start=209733 step=3 span=3
-1.487
 fixedStep chrom=chr25 start=209739 step=3 span=3
 0.594
 -0.746
@@ -13367,7 +13364,7 @@ fixedStep chrom=chr25 start=220002 step=3 span=3
 4.638
 -4.798
 -3.368
-fixedStep chrom=chr25 start=220452 step=3 span=3
+6.426
 -4.803
 -1.82
 8.069
@@ -13496,8 +13493,7 @@ fixedStep chrom=chr25 start=220452 step=3 span=3
 -5.576
 -2.501
 -2.055
-fixedStep chrom=chr25 start=220845 step=3 span=3
--1.219
+fixedStep chrom=chr25 start=220848 step=3 span=3
 -3.777
 0.023
 -12.848
@@ -13584,8 +13580,8 @@ fixedStep chrom=chr25 start=220929 step=3 span=3
 -8.798
 0.43
 -10.56
-fixedStep chrom=chr25 start=221109 step=3 span=3
--5.463
+1.386
+fixedStep chrom=chr25 start=221112 step=3 span=3
 -3.419
 0.076
 -20.369
@@ -13882,7 +13878,7 @@ fixedStep chrom=chr25 start=221820 step=3 span=3
 -16.3
 -10.275
 -7.964
-fixedStep chrom=chr25 start=222003 step=3 span=3
+0.603
 -7.383
 -4.022
 11.926
@@ -13920,8 +13916,7 @@ fixedStep chrom=chr25 start=222075 step=3 span=3
 -4.68
 -10.564
 -5.143
-fixedStep chrom=chr25 start=222120 step=3 span=3
-0.927
+fixedStep chrom=chr25 start=222123 step=3 span=3
 -3.265
 -10.07
 -8.331
@@ -14008,6 +14003,7 @@ fixedStep chrom=chr25 start=222300 step=3 span=3
 -16.195
 -4.505
 1.918
+-9.77
 fixedStep chrom=chr25 start=222390 step=3 span=3
 -15.093
 1.12
@@ -14032,8 +14028,8 @@ fixedStep chrom=chr25 start=222432 step=3 span=3
 -8.359
 -7.592
 -5.284
-fixedStep chrom=chr25 start=222477 step=3 span=3
--1.072
+-13.975
+fixedStep chrom=chr25 start=222480 step=3 span=3
 3.495
 -3.257
 -5.805
@@ -14048,15 +14044,15 @@ fixedStep chrom=chr25 start=222477 step=3 span=3
 -2.036
 -14.605
 -4.805
-fixedStep chrom=chr25 start=222555 step=3 span=3
--2.222
+12.699
+fixedStep chrom=chr25 start=222558 step=3 span=3
 0.345
 -5.462
 2.81
 3.08
 3.459
 -1.511
--0.999
+fixedStep chrom=chr25 start=222579 step=3 span=3
 5.791
 0.277
 -5.568
@@ -14069,8 +14065,7 @@ fixedStep chrom=chr25 start=222555 step=3 span=3
 -2.474
 -5.382
 -0.033
-fixedStep chrom=chr25 start=222618 step=3 span=3
--1.376
+fixedStep chrom=chr25 start=222621 step=3 span=3
 8.736
 -3.963
 -1.347
@@ -14097,8 +14092,10 @@ fixedStep chrom=chr25 start=222618 step=3 span=3
 0.269
 -9.967
 0.482
-fixedStep chrom=chr25 start=222708 step=3 span=3
--4.778
+0.345
+fixedStep chrom=chr25 start=222705 step=3 span=3
+6.429
+fixedStep chrom=chr25 start=222711 step=3 span=3
 -7.267
 2.953
 -0.312
@@ -14116,7 +14113,7 @@ fixedStep chrom=chr25 start=222708 step=3 span=3
 7.874
 -0.624
 2.049
-fixedStep chrom=chr25 start=222765 step=3 span=3
+0.855
 -3.623
 5.538
 2.542
@@ -14126,15 +14123,15 @@ fixedStep chrom=chr25 start=222765 step=3 span=3
 8.657
 -6.648
 -16.414
-fixedStep chrom=chr25 start=222795 step=3 span=3
--2.289
+-2.348
+fixedStep chrom=chr25 start=222798 step=3 span=3
 -7.79
 -3.499
 4.138
 5.681
 0.708
-fixedStep chrom=chr25 start=222828 step=3 span=3
--2.647
+-2.529
+fixedStep chrom=chr25 start=222831 step=3 span=3
 -2.805
 -0.75
 3.735
@@ -14145,11 +14142,10 @@ fixedStep chrom=chr25 start=222828 step=3 span=3
 4.655
 -1.276
 -11.937
-fixedStep chrom=chr25 start=222864 step=3 span=3
--4.743
+fixedStep chrom=chr25 start=222867 step=3 span=3
 -2.39
 -12.063
-fixedStep chrom=chr25 start=222876 step=3 span=3
+6.186
 -7.939
 5.841
 -1.651
@@ -14165,15 +14161,14 @@ fixedStep chrom=chr25 start=222876 step=3 span=3
 fixedStep chrom=chr25 start=222921 step=3 span=3
 -0.234
 2.593
-fixedStep chrom=chr25 start=222930 step=3 span=3
-12.516
+fixedStep chrom=chr25 start=222933 step=3 span=3
 -3.596
 0.849
 -1.685
 -6.803
 -12.858
 -1.307
-fixedStep chrom=chr25 start=222954 step=3 span=3
+4.606
 0.952
 -8.842
 1.842
@@ -14200,14 +14195,14 @@ fixedStep chrom=chr25 start=222987 step=3 span=3
 -0.346
 -0.44
 -2.158
-2.082
+fixedStep chrom=chr25 start=223038 step=3 span=3
 -14.437
 -3.664
 -0.158
 3.029
 9.023
 9.416
-2.082
+fixedStep chrom=chr25 start=223059 step=3 span=3
 -3.901
 1.364
 -0.982
@@ -14261,8 +14256,7 @@ fixedStep chrom=chr25 start=223164 step=3 span=3
 1.745
 -14.689
 1.699
-fixedStep chrom=chr25 start=223227 step=3 span=3
--2.716
+fixedStep chrom=chr25 start=223230 step=3 span=3
 7.37
 -28.434
 -8.699
@@ -14274,7 +14268,7 @@ fixedStep chrom=chr25 start=223227 step=3 span=3
 -21.554
 -18.906
 -23.208
-fixedStep chrom=chr25 start=223266 step=3 span=3
+-0.613
 3.305
 -9.525
 -13.905
@@ -14418,7 +14412,7 @@ fixedStep chrom=chr25 start=223668 step=3 span=3
 -1.98
 -2.537
 6.765
-fixedStep chrom=chr25 start=223710 step=3 span=3
+-5.438
 -7.932
 -5.799
 -2.635
@@ -14427,7 +14421,7 @@ fixedStep chrom=chr25 start=223710 step=3 span=3
 -0.228
 -3.356
 7.432
-1.273
+fixedStep chrom=chr25 start=223737 step=3 span=3
 -1.731
 fixedStep chrom=chr25 start=223743 step=3 span=3
 -10.999
@@ -15751,7 +15745,7 @@ fixedStep chrom=chr25 start=223854 step=3 span=3
 -12.483
 -11.836
 -11.735
-0.343
+fixedStep chrom=chr25 start=227724 step=3 span=3
 -12.496
 -7.391
 -15.649
@@ -16034,8 +16028,8 @@ fixedStep chrom=chr25 start=223854 step=3 span=3
 1.129
 -45.276
 -18.647
-fixedStep chrom=chr25 start=228573 step=3 span=3
--6.534
+8.891
+fixedStep chrom=chr25 start=228576 step=3 span=3
 -33.77
 -7.138
 -11.425
@@ -16115,8 +16109,8 @@ fixedStep chrom=chr25 start=228783 step=3 span=3
 -13.15
 -2.447
 -2.846
-fixedStep chrom=chr25 start=228816 step=3 span=3
-3.739
+5.618
+fixedStep chrom=chr25 start=228819 step=3 span=3
 21.675
 4.26
 -8.004
@@ -16124,8 +16118,8 @@ fixedStep chrom=chr25 start=228816 step=3 span=3
 -12.375
 -3.922
 -16.187
-fixedStep chrom=chr25 start=228843 step=3 span=3
--6.532
+-12.088
+fixedStep chrom=chr25 start=228846 step=3 span=3
 -21.445
 -6.721
 -13.112
@@ -16159,6 +16153,7 @@ fixedStep chrom=chr25 start=228843 step=3 span=3
 1.295
 11.975
 -16.125
+-2.963
 fixedStep chrom=chr25 start=228954 step=3 span=3
 -2.275
 fixedStep chrom=chr25 start=228960 step=3 span=3
@@ -16172,6 +16167,7 @@ fixedStep chrom=chr25 start=228960 step=3 span=3
 -5.326
 9.138
 -22.629
+0.418
 fixedStep chrom=chr25 start=228996 step=3 span=3
 -6.732
 -1.154
@@ -16237,7 +16233,7 @@ fixedStep chrom=chr25 start=229149 step=3 span=3
 0.509
 -13.267
 -2.443
-3.667
+fixedStep chrom=chr25 start=229191 step=3 span=3
 -0.339
 -13.173
 -14.079
@@ -16248,7 +16244,7 @@ fixedStep chrom=chr25 start=229149 step=3 span=3
 -17.404
 -4.318
 -31.732
-fixedStep chrom=chr25 start=229224 step=3 span=3
+0.537
 -1.202
 -21.185
 -7.893
@@ -16256,13 +16252,14 @@ fixedStep chrom=chr25 start=229224 step=3 span=3
 7.677
 -30.235
 1.258
-fixedStep chrom=chr25 start=229248 step=3 span=3
+-6.271
 -4.49
 -10.376
 -22.042
 16.016
 -16.265
 -16.531
+7.188
 fixedStep chrom=chr25 start=229275 step=3 span=3
 3.093
 -12.162
@@ -16274,6 +16271,7 @@ fixedStep chrom=chr25 start=229275 step=3 span=3
 -17.057
 -21.098
 3.787
+-8.175
 fixedStep chrom=chr25 start=229311 step=3 span=3
 4.785
 -14.776
@@ -16285,10 +16283,10 @@ fixedStep chrom=chr25 start=229311 step=3 span=3
 0.516
 -23.338
 -3.746
-fixedStep chrom=chr25 start=229353 step=3 span=3
--2.232
-fixedStep chrom=chr25 start=229359 step=3 span=3
--12.792
+5.946
+fixedStep chrom=chr25 start=229356 step=3 span=3
+1.837
+fixedStep chrom=chr25 start=229362 step=3 span=3
 -1.52
 2.152
 fixedStep chrom=chr25 start=229371 step=3 span=3
@@ -16299,13 +16297,13 @@ fixedStep chrom=chr25 start=229371 step=3 span=3
 -9.298
 0.714
 8.072
-fixedStep chrom=chr25 start=229395 step=3 span=3
-2.519
+fixedStep chrom=chr25 start=229398 step=3 span=3
 -3.41
 -15.3
 -17.054
 -38.138
 -13.973
+7.058
 fixedStep chrom=chr25 start=229419 step=3 span=3
 4.319
 -4.653
@@ -16318,8 +16316,7 @@ fixedStep chrom=chr25 start=229419 step=3 span=3
 -17.96
 10.406
 1.748
-fixedStep chrom=chr25 start=229455 step=3 span=3
--8.348
+fixedStep chrom=chr25 start=229458 step=3 span=3
 6.711
 7.262
 -11.268
@@ -16328,8 +16325,8 @@ fixedStep chrom=chr25 start=229455 step=3 span=3
 -7.218
 -12.734
 -18.351
-fixedStep chrom=chr25 start=229494 step=3 span=3
--8.015
+2.112
+fixedStep chrom=chr25 start=229497 step=3 span=3
 -2.953
 -3.516
 -9.794
@@ -16352,22 +16349,23 @@ fixedStep chrom=chr25 start=229566 step=3 span=3
 -12.672
 -10.306
 -19.622
-fixedStep chrom=chr25 start=229590 step=3 span=3
+0.343
+fixedStep chrom=chr25 start=229587 step=3 span=3
+-4.693
 -4.09
 -8.044
 -21.788
 -29.985
 -5.129
 -0.81
-fixedStep chrom=chr25 start=229611 step=3 span=3
-6.039
+fixedStep chrom=chr25 start=229614 step=3 span=3
 -1.344
 -15.499
 2.794
 -3.933
 8.021
 0.055
--3.928
+fixedStep chrom=chr25 start=229635 step=3 span=3
 1.145
 -13.867
 -48.239
@@ -16376,7 +16374,7 @@ fixedStep chrom=chr25 start=229611 step=3 span=3
 -14.094
 -9.627
 -1.957
-fixedStep chrom=chr25 start=229662 step=3 span=3
+0.285
 2.022
 -5.296
 -4.542
@@ -16384,8 +16382,7 @@ fixedStep chrom=chr25 start=229662 step=3 span=3
 -12.541
 -7.38
 -8.404
-fixedStep chrom=chr25 start=229692 step=3 span=3
-7.297
+fixedStep chrom=chr25 start=229695 step=3 span=3
 -15.993
 -13.901
 -12.138
@@ -16405,6 +16402,7 @@ fixedStep chrom=chr25 start=229752 step=3 span=3
 -5.416
 8.376
 7.005
+3.894
 fixedStep chrom=chr25 start=229776 step=3 span=3
 -9.075
 -23.939
@@ -16426,8 +16424,7 @@ fixedStep chrom=chr25 start=229776 step=3 span=3
 -17.431
 -1.317
 1.632
-fixedStep chrom=chr25 start=229842 step=3 span=3
--1.372
+fixedStep chrom=chr25 start=229845 step=3 span=3
 3.695
 -15.297
 -6.444
@@ -16437,6 +16434,7 @@ fixedStep chrom=chr25 start=229842 step=3 span=3
 fixedStep chrom=chr25 start=229872 step=3 span=3
 0.49
 -3.155
+-0.184
 fixedStep chrom=chr25 start=229884 step=3 span=3
 1.417
 4.572
@@ -16445,8 +16443,8 @@ fixedStep chrom=chr25 start=229884 step=3 span=3
 -9.724
 -25.497
 -2.717
-fixedStep chrom=chr25 start=229911 step=3 span=3
--7.745
+2.092
+fixedStep chrom=chr25 start=229914 step=3 span=3
 11.268
 -9.885
 3.085
@@ -19947,7 +19945,7 @@ fixedStep chrom=chr28 start=200002 step=3 span=3
 -12.364
 -15.171
 -8.566
-fixedStep chrom=chr28 start=200692 step=3 span=3
+-8.29
 6.173
 -1.788
 -6.417
@@ -20142,7 +20140,7 @@ fixedStep chrom=chr28 start=200692 step=3 span=3
 -17.072
 -8.049
 -12.068
--1.8
+fixedStep chrom=chr28 start=201277 step=3 span=3
 -1.207
 1.37
 -4.901
@@ -20868,7 +20866,7 @@ fixedStep chrom=chr28 start=202099 step=3 span=3
 -7.554
 -17.028
 -18.621
-fixedStep chrom=chr28 start=203458 step=3 span=3
+-1.732
 3.953
 -19.679
 -30.701
@@ -20885,7 +20883,7 @@ fixedStep chrom=chr28 start=203458 step=3 span=3
 -11.154
 -19.816
 2.941
-fixedStep chrom=chr28 start=203509 step=3 span=3
+-7.914
 -7.481
 -14.258
 0.377
@@ -20960,15 +20958,15 @@ fixedStep chrom=chr28 start=203560 step=3 span=3
 -3.844
 -1.185
 3.496
-fixedStep chrom=chr28 start=203734 step=3 span=3
+3.959
 -10.525
 2.915
 2.354
 1.409
 -10.25
 8.091
-fixedStep chrom=chr28 start=203758 step=3 span=3
-1.096
+4.546
+fixedStep chrom=chr28 start=203761 step=3 span=3
 -2.958
 -2.37
 -9.0
@@ -20988,7 +20986,7 @@ fixedStep chrom=chr28 start=203758 step=3 span=3
 -15.592
 0.15
 -2.246
--2.159
+fixedStep chrom=chr28 start=203821 step=3 span=3
 2.1
 -14.271
 -5.74
@@ -21020,7 +21018,7 @@ fixedStep chrom=chr28 start=203758 step=3 span=3
 -7.808
 1.705
 0.511
--8.894
+fixedStep chrom=chr28 start=203917 step=3 span=3
 -8.103
 -10.152
 -13.673
@@ -21127,6 +21125,7 @@ fixedStep chrom=chr28 start=203962 step=3 span=3
 4.222
 -18.771
 -3.308
+-3.23
 fixedStep chrom=chr28 start=204244 step=3 span=3
 -1.219
 fixedStep chrom=chr28 start=204259 step=3 span=3
@@ -21187,6 +21186,7 @@ fixedStep chrom=chr28 start=204259 step=3 span=3
 -32.509
 -18.15
 3.354
+-2.192
 fixedStep chrom=chr28 start=204436 step=3 span=3
 2.314
 -6.724
@@ -21478,12 +21478,12 @@ fixedStep chrom=chr28 start=205297 step=3 span=3
 -17.36
 fixedStep chrom=chr28 start=205309 step=3 span=3
 -15.1
-fixedStep chrom=chr28 start=205324 step=3 span=3
--3.167
+-9.364
+fixedStep chrom=chr28 start=205327 step=3 span=3
 -6.337
 -11.591
-fixedStep chrom=chr28 start=205342 step=3 span=3
--6.604
+0.453
+fixedStep chrom=chr28 start=205345 step=3 span=3
 -4.06
 -9.882
 -18.761
@@ -21508,6 +21508,7 @@ fixedStep chrom=chr28 start=205342 step=3 span=3
 0.251
 5.517
 -3.085
+-15.99
 fixedStep chrom=chr28 start=205429 step=3 span=3
 -5.797
 1.442
@@ -21533,8 +21534,7 @@ fixedStep chrom=chr28 start=205429 step=3 span=3
 -14.317
 1.539
 -15.151
-fixedStep chrom=chr28 start=205507 step=3 span=3
-2.331
+fixedStep chrom=chr28 start=205510 step=3 span=3
 -1.902
 -12.491
 0.565
@@ -21968,7 +21968,7 @@ fixedStep chrom=chr28 start=205585 step=3 span=3
 -17.062
 -26.307
 -0.912
-fixedStep chrom=chr28 start=206812 step=3 span=3
+-1.928
 -4.087
 -40.707
 -40.361
@@ -22036,8 +22036,7 @@ fixedStep chrom=chr28 start=206812 step=3 span=3
 -12.031
 -9.441
 -3.08
-fixedStep chrom=chr28 start=207016 step=3 span=3
--2.556
+fixedStep chrom=chr28 start=207019 step=3 span=3
 2.785
 -19.126
 -65.226
@@ -22509,8 +22508,8 @@ fixedStep chrom=chr28 start=207016 step=3 span=3
 -14.87
 -27.86
 7.257
-fixedStep chrom=chr28 start=208441 step=3 span=3
--9.031
+3.903
+fixedStep chrom=chr28 start=208444 step=3 span=3
 -35.101
 -38.916
 0.026
@@ -22888,8 +22887,8 @@ fixedStep chrom=chr28 start=208441 step=3 span=3
 -57.985
 5.34
 1.97
-fixedStep chrom=chr28 start=209584 step=3 span=3
--1.765
+-1.193
+fixedStep chrom=chr28 start=209587 step=3 span=3
 -20.91
 9.543
 -5.387
@@ -26985,7 +26984,7 @@ fixedStep chrom=chr28 start=240001 step=3 span=3
 -0.893
 0.458
 -8.894
--2.814
+fixedStep chrom=chr28 start=242125 step=3 span=3
 0.108
 -7.458
 -3.055
@@ -27043,28 +27042,24 @@ fixedStep chrom=chr28 start=242215 step=3 span=3
 -0.217
 1.451
 -7.991
-fixedStep chrom=chr28 start=242302 step=3 span=3
-0.697
 fixedStep chrom=chr28 start=242311 step=3 span=3
 -4.185
 -0.134
 4.416
 -11.094
-0.511
-fixedStep chrom=chr28 start=242428 step=3 span=3
--14.328
-fixedStep chrom=chr28 start=242770 step=3 span=3
-1.665
 fixedStep chrom=chr28 start=242818 step=3 span=3
 2.86
-fixedStep chrom=chr28 start=242830 step=3 span=3
+fixedStep chrom=chr28 start=242827 step=3 span=3
+-1.884
 2.634
 -8.498
 -2.512
-fixedStep chrom=chr28 start=242848 step=3 span=3
+fixedStep chrom=chr28 start=242845 step=3 span=3
+2.082
 1.986
 7.196
-fixedStep chrom=chr28 start=242863 step=3 span=3
+fixedStep chrom=chr28 start=242860 step=3 span=3
+-15.243
 -11.122
 -5.889
 -4.295
@@ -27391,7 +27386,7 @@ fixedStep chrom=chr28 start=242941 step=3 span=3
 2.17
 -10.985
 -12.801
--0.749
+fixedStep chrom=chr28 start=243844 step=3 span=3
 2.054
 2.313
 -11.858
@@ -27544,7 +27539,7 @@ fixedStep chrom=chr28 start=242941 step=3 span=3
 -8.31
 -9.92
 0.448
-fixedStep chrom=chr28 start=244303 step=3 span=3
+0.232
 -10.34
 -2.788
 -0.469
@@ -27576,7 +27571,7 @@ fixedStep chrom=chr28 start=244303 step=3 span=3
 -14.156
 3.917
 -4.316
-fixedStep chrom=chr28 start=244399 step=3 span=3
+-0.425
 -5.923
 -20.038
 -9.282
@@ -27627,7 +27622,7 @@ fixedStep chrom=chr28 start=244537 step=3 span=3
 -3.437
 -10.458
 -10.219
-fixedStep chrom=chr28 start=244552 step=3 span=3
+-3.338
 -18.737
 -17.268
 -1.03
@@ -27762,7 +27757,7 @@ fixedStep chrom=chr28 start=244552 step=3 span=3
 -4.142
 -6.391
 -4.533
-fixedStep chrom=chr28 start=244957 step=3 span=3
+-0.133
 2.546
 -4.902
 -3.697
@@ -27843,7 +27838,7 @@ fixedStep chrom=chr28 start=244957 step=3 span=3
 -3.624
 5.899
 -3.686
-2.574
+fixedStep chrom=chr28 start=245200 step=3 span=3
 2.638
 -4.488
 -3.611
@@ -27855,7 +27850,7 @@ fixedStep chrom=chr28 start=244957 step=3 span=3
 -1.368
 -14.733
 2.459
-fixedStep chrom=chr28 start=245236 step=3 span=3
+-1.637
 7.93
 2.708
 -4.771
@@ -28088,7 +28083,7 @@ fixedStep chrom=chr28 start=245281 step=3 span=3
 -16.28
 -25.46
 2.176
-fixedStep chrom=chr28 start=245935 step=3 span=3
+1.347
 -5.643
 -9.9
 -37.206
@@ -28198,9 +28193,9 @@ fixedStep chrom=chr28 start=245935 step=3 span=3
 -41.57
 -37.427
 -15.25
-fixedStep chrom=chr28 start=246265 step=3 span=3
+0.603
 0.396
--7.758
+fixedStep chrom=chr28 start=246271 step=3 span=3
 0.413
 -18.822
 -14.718
@@ -28233,7 +28228,7 @@ fixedStep chrom=chr28 start=246265 step=3 span=3
 -79.269
 -28.039
 -2.246
-fixedStep chrom=chr28 start=246370 step=3 span=3
+-3.879
 -9.392
 -14.503
 -49.906
@@ -28781,7 +28776,6 @@ fixedStep chrom=chr28 start=247558 step=3 span=3
 -19.604
 -3.783
 1.333
--0.27
 fixedStep chrom=chr28 start=248020 step=3 span=3
 -6.361
 -17.676
@@ -28796,8 +28790,8 @@ fixedStep chrom=chr28 start=248020 step=3 span=3
 -3.788
 -7.593
 -8.752
--3.851
-fixedStep chrom=chr28 start=248065 step=3 span=3
+fixedStep chrom=chr28 start=248062 step=3 span=3
+0.343
 -2.599
 -12.674
 -2.517
@@ -28818,7 +28812,7 @@ fixedStep chrom=chr28 start=248113 step=3 span=3
 -17.003
 -3.601
 -1.089
--0.783
+fixedStep chrom=chr28 start=248128 step=3 span=3
 0.071
 7.084
 -9.935
@@ -28837,7 +28831,6 @@ fixedStep chrom=chr28 start=248113 step=3 span=3
 -0.314
 0.854
 -0.187
-3.246
 fixedStep chrom=chr28 start=248206 step=3 span=3
 -0.75
 1.486
@@ -28874,10 +28867,8 @@ fixedStep chrom=chr28 start=248290 step=3 span=3
 -2.864
 2.515
 -3.749
-1.128
 fixedStep chrom=chr28 start=248332 step=3 span=3
 -3.869
--2.588
 fixedStep chrom=chr28 start=248347 step=3 span=3
 0.003
 -1.33
@@ -28887,7 +28878,7 @@ fixedStep chrom=chr28 start=248359 step=3 span=3
 -3.684
 -4.443
 -0.672
--6.8
+fixedStep chrom=chr28 start=248377 step=3 span=3
 -1.67
 -3.154
 -11.841
@@ -28917,7 +28908,7 @@ fixedStep chrom=chr28 start=248434 step=3 span=3
 3.851
 0.444
 -8.857
-3.808
+fixedStep chrom=chr28 start=248473 step=3 span=3
 -4.771
 -0.616
 -24.657
@@ -28939,8 +28930,8 @@ fixedStep chrom=chr28 start=248503 step=3 span=3
 -4.3
 -7.884
 -13.555
-3.662
-fixedStep chrom=chr28 start=248542 step=3 span=3
+fixedStep chrom=chr28 start=248539 step=3 span=3
+-2.676
 -7.729
 -2.949
 1.071
@@ -29038,7 +29029,7 @@ fixedStep chrom=chr28 start=248572 step=3 span=3
 -9.977
 -0.154
 -5.003
-fixedStep chrom=chr28 start=248836 step=3 span=3
+0.727
 -25.594
 10.839
 -22.857
@@ -29083,7 +29074,7 @@ fixedStep chrom=chr28 start=248836 step=3 span=3
 -2.912
 -3.188
 -3.512
--3.23
+fixedStep chrom=chr28 start=248971 step=3 span=3
 -10.947
 -56.817
 -3.911
@@ -29161,8 +29152,8 @@ fixedStep chrom=chr28 start=248836 step=3 span=3
 -4.966
 -59.184
 0.834
--1.736
-fixedStep chrom=chr28 start=249211 step=3 span=3
+fixedStep chrom=chr28 start=249208 step=3 span=3
+-4.964
 -2.536
 -11.215
 -14.48
