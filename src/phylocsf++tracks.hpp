@@ -94,8 +94,18 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
         std::vector<double> scores;
         std::vector<scored_region> region;
 
-        const std::string filename_power = output_folder + "/PhyloCSFpower.wig." + std::to_string(job_id);
-        FILE *file_power = fopen(filename_power.c_str(), "w");
+        FILE *file_power = NULL;
+
+        if (params.phylo_raw)
+        {
+            const std::string filename_power = output_folder + "/PhyloCSFpower.wig." + std::to_string(job_id);
+            file_power = fopen(filename_power.c_str(), "w");
+            if (file_power == NULL)
+            {
+                printf(OUT_ERROR "Error creating file!\n" OUT_RESET);
+                exit(1);
+            }
+        }
 
         FILE *file_score_raw[6];
         FILE *file_score[6];
@@ -111,7 +121,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                 file_score_raw[i] = fopen(filename_score_raw.c_str(), "w");
                 if (file_score_raw[i] == NULL)
                 {
-                    printf("Error creating file!");
+                    printf(OUT_ERROR "Error creating file!\n" OUT_RESET);
                     exit(1);
                 }
             }
@@ -122,7 +132,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                 file_score[i] = fopen(filename_score.c_str(), "w");
                 if (file_score[i] == NULL)
                 {
-                    printf("Error creating file!");
+                    printf(OUT_ERROR "Error creating file!\n" OUT_RESET);
                     exit(1);
                 }
             }
@@ -192,7 +202,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
                                                     + bls_per_bp[thread_id][bls_pos + 1]
                                                     + bls_per_bp[thread_id][bls_pos + 2];
-                        if (bls_codon_sum < 0.1f * 3)
+                        if (bls_codon_sum < params.phylo_threshold * 3)
                         {
                             if (params.phylo_smooth && scores.empty())
                                 startBlockPos = aln.start_pos + ((xx + 1) * 3);
@@ -347,8 +357,10 @@ int main_tracks(int argc, char **argv)
         params.phylo_smooth = args.get_bool("output-phylo");
     if (args.is_set("output-raw-phylo"))
         params.phylo_raw = args.get_bool("output-raw-phylo");
+    if (args.is_set("output-power"))
+        params.phylo_power = args.get_bool("output-power");
     if (args.is_set("power-threshold"))
-        params.phylo_power = args.get_bool("power-threshold");
+        params.phylo_threshold = args.get_bool("power-threshold");
 
     // this has to hold true: phylo_smooth => (args.is_set("genome-length") && args.is_set("coding-exons"))
     if (params.phylo_smooth && (!args.is_set("genome-length") || !args.is_set("coding-exons")))
