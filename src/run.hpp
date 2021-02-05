@@ -192,7 +192,7 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             for (uint8_t i = 0; i < 12; ++i)
                 counts->data[i] = 1.0;
 
-            for (const auto peptide : alignment.peptides)
+            for (const auto & peptide : alignment.peptides)
             {
                 for (uint32_t i = 0; i < peptide.size(); ++i)
                 {
