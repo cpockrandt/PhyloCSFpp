@@ -167,8 +167,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
                         // aminoacids are translated from right to left, i.e., remove the remaining 0-2 dna bases from
                         // the left, i.e., increase the start_pos
-                        const size_t excess_basepairs = aln.length() % 3;
-                        aln.start_pos += excess_basepairs;
+                        aln.start_pos += aln.length() % 3;
                     }
 
                     if (params.phylo_power && frame == 3 && strand == '+')
@@ -178,7 +177,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
 
                         fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
-                        for (uint32_t pos = frame - 1; pos + 2 < bls_per_bp[thread_id].size(); pos += 3)
+                        for (uint32_t pos = 2; pos + 2 < bls_per_bp[thread_id].size(); pos += 3)
                         {
                             const float bls_codon_avg = (bls_per_bp[thread_id][pos]
                                                          +  bls_per_bp[thread_id][pos + 1]
