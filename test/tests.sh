@@ -6,13 +6,14 @@ THREADS=$1
 ### build-tracks
 
 # download data
-wget -m -nd ftp://ftp.ccb.jhu.edu/pub/pocki/phylocsf++/tests/
+#wget -m -nd ftp://ftp.ccb.jhu.edu/pub/pocki/phylocsf++/tests/
+gunzip test/chr22_25_28_each_30k_bases.maf.gz
 
-$PhyloCSFpp build-tracks --genome-length 1065365434 --coding-exons ChickenCodingExons.txt \
-  --output-phylo 1 --output-raw-phylo 1 --output-power 1 --threads $THREADS --output ./results \
-  53birds chr22_25_28_each_30k_bases.maf
+$PhyloCSFpp build-tracks --genome-length 1065365434 --coding-exons test/ChickenCodingExons.txt \
+  --output-phylo 1 --output-raw-phylo 1 --output-power 1 --threads $THREADS --output ./build/results \
+  53birds test/chr22_25_28_each_30k_bases.maf
 
-diff -qr ./results ./expected_results
+diff -qr ./build/results ./test/expected_results
 
 ### score-msa
 
