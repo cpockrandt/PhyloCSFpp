@@ -96,7 +96,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
         FILE *file_power = NULL;
 
-        if (params.phylo_raw)
+        if (params.phylo_power)
         {
             const std::string filename_power = output_folder + "/PhyloCSFpower.wig." + std::to_string(job_id);
             file_power = fopen(filename_power.c_str(), "w");
