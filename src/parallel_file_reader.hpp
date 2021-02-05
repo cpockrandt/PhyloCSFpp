@@ -640,13 +640,7 @@ public:
             }
         }
 
-//        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
-//        {
-//            aln.seqs[i] = aln.seqs[i].substr(0, 200);
-//            printf("%27s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
-//        }
-//        printf("\n\n\n");
-
+        // replace gaps in reference sequence with X
         size_t new_ref_seq_len = aln.seqs[ref_seq_id].size();
         for (uint64_t pos = 0; pos < aln.seqs[ref_seq_id].size(); ++pos)
         {
@@ -657,6 +651,7 @@ public:
             }
         }
 
+        // replace chars in other sequences with X that are gaps/X in reference
         for (uint64_t i = 0; i < aln.seqs.size(); ++i)
         {
             if (i != (size_t) ref_seq_id && aln.seqs[i].size() != 0)
@@ -669,11 +664,7 @@ public:
             }
         }
 
-//        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
-//            printf("%27s: %s\n", aln.ids[i].c_str(), aln.seqs[i].c_str());
-//        printf("\n\n\n");
-//        printf("new_ref_seq_len: %ld\n", new_ref_seq_len);
-
+        // delete all X in all sequences
         for (uint64_t i = 0; i < aln.seqs.size(); ++i)
         {
             std::string & s = aln.seqs[i];
@@ -689,6 +680,8 @@ public:
             }
             s.resize(pos_w);
         }
+
+        aln.skip_bases = 0;
 
         return true;
     }
