@@ -7,6 +7,14 @@ matrix:
     # GCC on Linux
     ##########################################################################
 
+    - os: linux # Test
+      dist: xenial
+      compiler: clang-3.8
+      addons:
+        apt:
+          packages: [ 'cmake', 'make', 'libc++-dev', 'libomp-dev', 'clang-3.8', 'libgsl0-dev' ]
+      env: CXX=clang++-3.8 THREADS=8
+
     - os: linux
       dist: xenial
       compiler: gcc-4.9
