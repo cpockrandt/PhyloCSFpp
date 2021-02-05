@@ -236,9 +236,8 @@ public:
 
     void add_subprogram(const std::string & name, const std::string & desc)
     {
-        // if (name.size() + 2 > longest_opt_arg) // account for < and > prefix/suffix
-        //     longest_opt_arg = name.size() + 2;
-
+        if (name.size() + 2 > longest_opt_arg) // +2 account for -- prefix
+            longest_opt_arg = name.size() + 2;
 		this->subprograms.emplace_back(name, desc);
     }
 

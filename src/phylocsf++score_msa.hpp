@@ -7,7 +7,7 @@
 
 #include <omp.h>
 
-struct RegionCLIParams
+struct ScoreMSACLIParams
 {
     unsigned threads = omp_get_max_threads();
     bool comp_phylo = true;
@@ -17,7 +17,7 @@ struct RegionCLIParams
     algorithm_t strategy = MLE;
 };
 
-struct region_result
+struct scoring_result
 {
     std::string seq;
     uint64_t start;
@@ -27,13 +27,13 @@ struct region_result
     float anc;
     float bls;
 
-    region_result(const std::string & seq, const uint64_t start, const uint64_t end, const char strand,
-                  const float phylo, const float anc, const float bls)
+    scoring_result(const std::string & seq, const uint64_t start, const uint64_t end, const char strand,
+                   const float phylo, const float anc, const float bls)
         : seq(seq), start(start), end(end), strand(strand), phylo(phylo), anc(anc), bls(bls) { }
 };
 
-void run_regions(const std::string & alignment_path, const Model & model, const RegionCLIParams & params,
-                 const uint32_t file_id, const uint32_t files)
+void run_scoring_msa(const std::string & alignment_path, const Model & model, const ScoreMSACLIParams & params,
+                     const uint32_t file_id, const uint32_t files)
 {
     unsigned jobs = (params.threads > 1) ? params.threads * 10 : 1;
 
@@ -84,7 +84,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
     jobs = maf_rd.get_jobs(); // maybe file is too small and a smaller number of jobs is used
     maf_rd.setup_progressbar(file_id, files);
 
-    std::vector<std::vector<region_result> > all_results(jobs);
+    std::vector<std::vector<scoring_result> > all_results(jobs);
 
     #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1)
     for (unsigned job_id = 0; job_id < jobs; ++job_id)
@@ -92,7 +92,7 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
         std::mt19937 gen;
         unsigned thread_id = omp_get_thread_num();
         alignment_t & aln = alignments[thread_id];
-        std::vector<region_result> & results = all_results[job_id];
+        std::vector<scoring_result> & results = all_results[job_id];
 
         while (maf_rd.get_next_alignment(aln, job_id))
         {
@@ -161,16 +161,16 @@ void run_regions(const std::string & alignment_path, const Model & model, const 
     fclose(output_file);
 }
 
-int main_region(int argc, char **argv)
+int main_score_msa(int argc, char **argv)
 {
-    ArgParse args("phylocsf++ region",
+    ArgParse args("phylocsf++ score-msa",
                   "Computes PhyloCSF scores for whole alignments in FASTA or MAF files. Output is \n"
                   "written to bed file(s). Other scores such as the ancestral sequence composition \n"
                   "sores and branch length scores can be computed as well. Only one forward frame \n"
                   "is computed, i.e., for other frames reverse the alignments and/or remove the \n"
                   "first one or two bases.");
 
-    RegionCLIParams params;
+    ScoreMSACLIParams params;
 
     std::string model_list = get_list_of_models();
 
@@ -284,7 +284,7 @@ int main_region(int argc, char **argv)
     // run for every alignment file
     for (uint16_t i = 1; i < args.positional_argument_size(); ++i)
     {
-         run_regions(args.get_positional_argument(i), model, params, i, args.positional_argument_size() - 1);
+         run_scoring_msa(args.get_positional_argument(i), model, params, i, args.positional_argument_size() - 1);
     }
 
     printf(OUT_DEL "Done!\n");

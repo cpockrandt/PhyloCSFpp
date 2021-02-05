@@ -97,9 +97,9 @@ void run_annotate(const std::string & gff_path, const AnnotateCLIParams & params
     }
 }
 
-int main_annotate(int argc, char** argv)
+int main_annotate_with_tracks(int argc, char** argv)
 {
-    ArgParse args("phylocsf++ annotate",
+    ArgParse args("phylocsf++ annotate-with-tracks",
                   "Computes PhyloCSF scores for CDS features in GFF/GTF files and outputs them in \n"
                   "the same format. You can either pass track files (in wig format) or have the \n"
                   "multiple sequence alignment computed for the CDS (this requires mmseqs2 to be \n"

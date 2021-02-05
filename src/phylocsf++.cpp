@@ -1,7 +1,7 @@
 #include "arg_parse.hpp"
 
 #include "phylocsf++tracks.hpp"
-#include "phylocsf++region.hpp"
+#include "phylocsf++score_msa.hpp"
 #include "phylocsf++annotate.hpp"
 
 int main(int argc, char **argv)
@@ -12,28 +12,33 @@ int main(int argc, char **argv)
                   "Please consider citing: Harry Frankfurt: On Bullshit. Princeton University Press,\n"
                   "                        Princeton, New Jersey 2005");
 
-    args.add_subprogram("tracks", "Computes PhyloCSF and Power tracks for each codon and all 6 frames from alignments from MAF and FASTA files. Outputs them in wig files.");
-    args.add_subprogram("scores", "Computes PhyloCSF scores, ancestral sequence composition sores and branch length scores for entire alignments from MAF and FASTA files. Outputs them in BED format.");
-    args.add_subprogram("annotate", "Scores the CDS features in a GFF/GTF file using precomputed tracks or by computing a multiple sequence alignment from scratch (requires MMseqs2 to be installed).");
+    args.add_subprogram("build-tracks", "Computes PhyloCSF and Power tracks for each codon and all 6 frames from alignments from MAF files. Outputs them in wig files.");
+    args.add_subprogram("score-msa", "Computes PhyloCSF scores, ancestral sequence composition sores and branch length scores for entire alignments from MAF files. Outputs them in a BED-like format.");
+    args.add_subprogram("annotate-with-tracks", "Scores the CDS features in a GFF/GTF file using precomputed tracks (bw files) and outputs an annotated GFF/GTF file.");
+    args.add_subprogram("annotate-with-msa", "Scores the CDS features in a GFF/GTF file by computing multiple sequence alignments from scratch (requires MMseqs2) and outputs an annotated GFF/GTF file.");
 
-    args.add_option("help" , /*'e',*/ ArgParse::Type::FLAG, "Prints this help message. Run `phylocsf++ tracks --help` for help messages on the tools", ArgParse::Level::GENERAL, false);
+    args.add_option("help" , /*'e',*/ ArgParse::Type::FLAG, "Prints this help message. Run `phylocsf++ build-tracks --help` for help messages on the tools", ArgParse::Level::GENERAL, false);
 
     args.parse_args(argc, argv);
 
     // TODO: warn if files are going to be overwritten
 
-    if (args.get_selected_subprogram() == "tracks")
+    if (args.get_selected_subprogram() == "build-tracks")
     {
-        return main_tracks(argc - 1, argv + 1);
+        return main_build_tracks(argc - 1, argv + 1);
     }
-    else if (args.get_selected_subprogram() == "scores")
+    else if (args.get_selected_subprogram() == "score-msa")
     {
-        return main_region(argc - 1, argv + 1);
+        return main_score_msa(argc - 1, argv + 1);
     }
-    else if (args.get_selected_subprogram() == "annotate")
+    else if (args.get_selected_subprogram() == "annotate-with-tracks")
     {
-        return main_annotate(argc - 1, argv + 1);
+        return main_annotate_with_tracks(argc - 1, argv + 1);
     }
+//    else if (args.get_selected_subprogram() == "annotate-with-msa")
+//    {
+//        return main_annotate_with_msa(argc - 1, argv + 1);
+//    }
 
     return 0;
 }

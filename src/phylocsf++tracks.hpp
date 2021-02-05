@@ -306,9 +306,9 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
     }
 }
 
-int main_tracks(int argc, char **argv)
+int main_build_tracks(int argc, char **argv)
 {
-    ArgParse args("phylocsf++ tracks",
+    ArgParse args("phylocsf++ build-tracks",
                   "Computes PhyloCSF score tracks for each codon and all 6 frames from alignments \n"
                   "in FASTA or MAF files. Output is written to wig files. Optionally a PhyloCSF \n"
                   "power track containing the branch length scores can written to a wig file \n"
