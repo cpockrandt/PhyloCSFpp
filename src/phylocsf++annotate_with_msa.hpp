@@ -62,7 +62,7 @@ int main_annotate_with_msa(int argc, char** argv)
     args.add_option("strategy", ArgParse::Type::STRING, "PhyloCSF scoring algorithm: MLE, FIXED or OMEGA. Default: " + default_strategy, ArgParse::Level::GENERAL, false);
     args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.comp_bls), ArgParse::Level::GENERAL, false);
 
-    args.add_positional_argument("genome-file", ArgParse::Type::STRING, "Two-column text file with species name and path to reference (fasta file).", true);
+    args.add_positional_argument("genome-file", ArgParse::Type::STRING, "Two-column text file with species name and path to its genomic fasta file. First line has to be the reference genome of the GFF file.", true);
     args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", true);
     args.add_positional_argument("gff-files", ArgParse::Type::STRING, "One or more GFF/GTF files with coding exons to be scored.", true, true);
     args.parse_args(argc, argv);
