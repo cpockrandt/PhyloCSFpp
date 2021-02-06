@@ -16,7 +16,7 @@ matrix:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['cmake', 'g++-9', 'libgsl0-dev']
       # ubuntu toolchain does not contain the latest bugfixes for /usr/bin/ld
-      env: CXX=g++-9 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -fuse-ld=gold" THREADS=1
+      env: CXX=g++-9 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer" THREADS=1 # -fuse-ld=gold
 
     - os: linux
       dist: xenial
