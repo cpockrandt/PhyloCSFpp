@@ -308,7 +308,7 @@ int main_build_tracks(int argc, char **argv)
 
     TrackCLIParams params;
 
-    std::string model_list = get_list_of_models();
+    const std::string model_list = get_list_of_models();
 
     char threshold_default_str[10];
     sprintf(threshold_default_str, "%.1f", params.phylo_threshold);

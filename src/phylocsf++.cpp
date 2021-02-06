@@ -1,8 +1,9 @@
 #include "arg_parse.hpp"
 
-#include "phylocsf++tracks.hpp"
+#include "phylocsf++build_tracks.hpp"
 #include "phylocsf++score_msa.hpp"
-#include "phylocsf++annotate.hpp"
+#include "phylocsf++annotate_with_tracks.hpp"
+#include "phylocsf++annotate_with_msa.hpp"
 
 int main(int argc, char **argv)
 {
@@ -21,7 +22,7 @@ int main(int argc, char **argv)
 
     args.parse_args(argc, argv);
 
-    // TODO: warn if files are going to be overwritten
+    // TODO: warn if files are going to be overwritten?
 
     if (args.get_selected_subprogram() == "build-tracks")
     {
@@ -35,10 +36,10 @@ int main(int argc, char **argv)
     {
         return main_annotate_with_tracks(argc - 1, argv + 1);
     }
-//    else if (args.get_selected_subprogram() == "annotate-with-msa")
-//    {
-//        return main_annotate_with_msa(argc - 1, argv + 1);
-//    }
+    else if (args.get_selected_subprogram() == "annotate-with-msa")
+    {
+        return main_annotate_with_msa(argc - 1, argv + 1);
+    }
 
     return 0;
 }

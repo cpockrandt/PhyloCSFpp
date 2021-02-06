@@ -66,8 +66,8 @@ void my_fprintf(FILE* f, const char *format_str, const float d)
     fprintf(f, "%s\n", buf);
 }
 
-int system_with_return(const char * cmd)
+int system_with_return(const std::string & cmd)
 {
-    int ret = system(cmd);
+    int ret = system(cmd.c_str());
     return WEXITSTATUS(ret);
 }

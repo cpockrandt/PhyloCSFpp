@@ -172,7 +172,7 @@ int main_score_msa(int argc, char **argv)
 
     ScoreMSACLIParams params;
 
-    std::string model_list = get_list_of_models();
+    const std::string model_list = get_list_of_models();
 
     std::string default_strategy;
     switch (params.strategy)

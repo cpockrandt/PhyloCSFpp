@@ -27,11 +27,9 @@ public:
     enum Type { FLAG, BOOL, INT, FLOAT, STRING };
     enum Level { GENERAL, EXPERT };
 
-	std::string get_selected_subprogram() const noexcept
-	{
-		assert(!subprograms.empty());
-		return selected_subprogram;
-	}
+    static const std::string version;
+    static const std::string git_hash;
+    static const std::string git_date;
 
 private:
 
@@ -50,8 +48,6 @@ private:
     char type_str[5][7] = {"", "BOOL", "INT", "FLOAT", "STRING"};
 
     std::string program_name;
-    const std::string git_hash = xstr(GIT_HASH);
-    const std::string git_date = xstr(GIT_DATE);
     std::string desc_;
     std::vector<Arg> args;
     std::vector<Arg> pos_args;
@@ -217,6 +213,12 @@ public:
         }
     }
 
+    std::string get_selected_subprogram() const noexcept
+    {
+        assert(!subprograms.empty());
+        return selected_subprogram;
+    }
+
     void add_option(std::string && name, /*const char short_name,*/ const Type type, std::string && description, const Level level, const bool required)
     {
 #if defined _DEBUG
@@ -380,7 +382,7 @@ public:
 
     void print_help() const
     {
-        printf(OUT_BOLD "PhyloCSF++ v1.0.0 (build date: %s, git commit: %s)\n\n" OUT_RESET, git_date.c_str(), git_hash.c_str());
+        printf(OUT_BOLD "PhyloCSF++ %s (build date: %s, git commit: %s)\n\n" OUT_RESET, version.c_str(), git_date.c_str(), git_hash.c_str());
         printf("%s\n\n", desc_.c_str());
 
         printf("Usage: %s [OPTIONS]", program_name.c_str());
@@ -449,3 +451,7 @@ public:
 //        }
     }
 };
+
+const std::string ArgParse::version = "v1.0.0";
+const std::string ArgParse::git_hash = xstr(GIT_HASH);
+const std::string ArgParse::git_date = xstr(GIT_DATE);
