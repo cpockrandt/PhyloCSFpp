@@ -10,13 +10,13 @@ matrix:
     # Debug builds on linux (gcc) with sanitizer, TODO: add coverage
     - os: linux
       dist: bionic
-      compiler: gcc-7
+      compiler: gcc-9
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['cmake', 'g++-7', 'libgsl0-dev']
+          packages: ['cmake', 'g++-9', 'libgsl0-dev']
       # ubuntu toolchain does not contain the latest bugfixes for /usr/bin/ld
-      env: CXX=g++-7 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -fuse-ld=gold" THREADS=1
+      env: CXX=g++-9 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -fuse-ld=gold" THREADS=1
 
     - os: linux
       dist: xenial
