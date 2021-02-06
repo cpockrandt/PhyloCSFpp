@@ -121,8 +121,9 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
                         results.back().anc = std::get<1>(result);
                     }
                 }
-                catch (const std::runtime_error &)
+                catch (const std::runtime_error & e)
                 {
+                    // printf("%s\n", e.what());
                 }
             }
 

@@ -473,26 +473,26 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
     if (lo < params.x && params.x < hi)
     {
         const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
-        gsl_min_fminimizer *s = gsl_min_fminimizer_alloc(T);
+        instance.minimizer = gsl_min_fminimizer_alloc(T);
         gsl_function F{min_func, &params};
 
-        gsl_min_fminimizer_set(s, &F, params.x, lo, hi);
+        gsl_min_fminimizer_set(instance.minimizer, &F, params.x, lo, hi);
 
         int64_t max_iter = 250;
         do {
-            gsl_min_fminimizer_iterate(s); // int status =
+            gsl_min_fminimizer_iterate(instance.minimizer); // int status =
 
-            const double x = gsl_min_fminimizer_x_minimum(s);
-            const double lb = gsl_min_fminimizer_x_lower(s);
-            const double ub = gsl_min_fminimizer_x_upper(s);
+            const double x = gsl_min_fminimizer_x_minimum(instance.minimizer);
+            const double lb = gsl_min_fminimizer_x_lower(instance.minimizer);
+            const double ub = gsl_min_fminimizer_x_upper(instance.minimizer);
 //            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
 
             if (((ub - lb) / x) <= accuracy)
                 break;
             --max_iter;
         } while (max_iter > 0);
-
-        gsl_min_fminimizer_free(s);
+        gsl_min_fminimizer_free(instance.minimizer);
+        instance.minimizer = NULL;
     }
 
     lpr = params.lpr;

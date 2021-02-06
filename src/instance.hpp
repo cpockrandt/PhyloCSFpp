@@ -11,6 +11,7 @@
 #include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_blas.h>
+#include <gsl/gsl_min.h>
 
 enum domain {
     Pos,
@@ -335,6 +336,8 @@ struct instance_t
     gsl_vector * q_settings = NULL;
     double tree_settings; // this only stores the tree scale (a single float/double), no need for a vector!
 
+    gsl_min_fminimizer *minimizer;
+
     void clear()
     {
         if (q_settings != NULL)
@@ -353,6 +356,12 @@ struct instance_t
         {
             gsl_vector_free(q_settings);
             q_settings = NULL;
+        }
+
+        if (minimizer != NULL)
+        {
+            gsl_min_fminimizer_free(minimizer);
+            minimizer = NULL;
         }
     }
 

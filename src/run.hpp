@@ -240,22 +240,17 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
         double lpr_H0 = 0.0, lpr_H1 = 0.0;
         {
             double elpr_anc = 0.0;
-//            f_roh = (lpr_rho rho +. lpr_leaves inst_rho leaves);
 
             {
                 for (uint8_t i = 0; i < 3; ++i) // TODO: 3 iterations
                 {
                     const double init_rho = inst.tree_settings;
-//                    std::cout << "init rho: " << init_rho << '\n';
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
-//                    std::cout << "lpr after min_rho: " << lpr_H0 << " ---\n";
-//            print(inst);
+                    // print(inst);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
-//                    std::cout << "lpr after min_kappa: " << lpr_H0 << " ---\n";
                 }
-//                printf("lpr_H0: %f\n", lpr_H0);
             }
 
 
@@ -270,17 +265,13 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 for (uint8_t i = 0; i < 3; ++i)
                 {
                     const double init_rho = inst.tree_settings;
-//                    std::cout << "init rho: " << init_rho << '\n';
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
-//                    std::cout << "lpr after min_rho: " << lpr_H1 << " ---\n";
-//            print(inst);
+                    // print(inst);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
-//                    std::cout << "lpr after min_kappa: " << lpr_H1 << " ---\n";
-//                print(inst);
+                    // print(inst);
                 }
-//                std::cout << "lpr_H1: " << lpr_H1 << '\n';
             }
         }
 
