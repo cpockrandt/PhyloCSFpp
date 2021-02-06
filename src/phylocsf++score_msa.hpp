@@ -271,14 +271,6 @@ int main_score_msa(int argc, char **argv)
         update_sequence_name_mapping(mapping_file);
     }
 
-    if (!args.is_set_positional("model") || !args.is_set_positional("alignments"))
-    {
-        printf(OUT_ERROR "No model or alignments provided.\n" OUT_RESET);
-        return -1;
-    }
-
-    const std::string alignment_path = args.get_positional_argument("alignments");
-
     // load and prepare model
     Model model;
     load_model(model, args.get_positional_argument("model"), args.get_string("species"), false, 0, "");

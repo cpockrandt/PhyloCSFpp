@@ -1617,44 +1617,42 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
 void update_sequence_name_mapping(const std::string & path)
 {
     FILE *file = fopen(path.c_str(), "r");
-    if (file != NULL)
+    if (file == NULL)
     {
-        char line[BUFSIZ];
-        char common_name[BUFSIZ];
-        char scientific_name[BUFSIZ];
-        while (fgets(line, sizeof line, file) != NULL)
+        printf(OUT_ERROR "Cannot open mapping file %s\n" OUT_RESET, path.c_str());
+        exit(-1);
+    }
+
+    char line[BUFSIZ];
+    char common_name[BUFSIZ];
+    char scientific_name[BUFSIZ];
+    while (fgets(line, sizeof line, file) != NULL)
+    {
+        sscanf(line, "%s\t%s", common_name, scientific_name); // e.g., Human \t hg38
+
+        // remove leading digits (e.g., hg38 -> hg)
+        for (size_t i = 0; i < strlen(scientific_name); ++i)
         {
-            sscanf(line, "%s\t%s", common_name, scientific_name); // e.g., Human \t hg38
-
-            // remove leading digits (e.g., hg38 -> hg)
-            for (size_t i = 0; i < strlen(scientific_name); ++i)
+            if (isdigit(scientific_name[i]))
             {
-                if (isdigit(scientific_name[i]))
-                {
-                    scientific_name[i] = 0;
-                    break;
-                }
-            }
-
-            auto it = sequence_name_mapping.find(common_name);
-            if (it == sequence_name_mapping.end())
-            {
-                // common name does not exist in mapping yet
-                sequence_name_mapping.emplace(std::make_pair(std::string(common_name), std::vector<std::string>({scientific_name})));
-            }
-            else
-            {
-                // common name already exists. add scientific name if it does not exist yet
-                std::vector<std::string> & scientific_names = it->second;
-                if (std::find(scientific_names.begin(), scientific_names.end(), scientific_name) == scientific_names.end())
-                    scientific_names.emplace_back(scientific_name);
+                scientific_name[i] = 0;
+                break;
             }
         }
-    }
-    else
-    {
-        printf("Cannot open file %s\n", path.c_str());
-        exit(13);
+
+        auto it = sequence_name_mapping.find(common_name);
+        if (it == sequence_name_mapping.end())
+        {
+            // common name does not exist in mapping yet
+            sequence_name_mapping.emplace(std::make_pair(std::string(common_name), std::vector<std::string>({scientific_name})));
+        }
+        else
+        {
+            // common name already exists. add scientific name if it does not exist yet
+            std::vector<std::string> & scientific_names = it->second;
+            if (std::find(scientific_names.begin(), scientific_names.end(), scientific_name) == scientific_names.end())
+                scientific_names.emplace_back(scientific_name);
+        }
     }
     fclose(file);
 }

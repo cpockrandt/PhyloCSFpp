@@ -392,8 +392,12 @@ int main_build_tracks(int argc, char **argv)
     if (args.is_set("coding-exons"))
         coding_exons_path = args.get_string("coding-exons");
 
+    std::string species = "";
+    if (args.is_set("species"))
+        species = args.get_string("species");
+
     Model model;
-    load_model(model, args.get_positional_argument("model"), args.get_string("species"),
+    load_model(model, args.get_positional_argument("model"), species,
                params.phylo_smooth, genome_length, coding_exons_path);
 
     // run for every alignment file
