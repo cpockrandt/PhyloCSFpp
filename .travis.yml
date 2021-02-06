@@ -7,6 +7,17 @@ matrix:
     # GCC on Linux
     ##########################################################################
 
+    # Debug builds on linux (gcc) with sanitizer, TODO: add coverage
+    - os: linux
+      dist: bionic
+      compiler: gcc-7
+      addons:
+        apt:
+          sources: ['ubuntu-toolchain-r-test']
+          packages: ['cmake', 'g++-7', 'libgsl0-dev']
+      # ubuntu toolchain does not contain the latest bugfixes for /usr/bin/ld
+      env: CXX=g++-7 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -fuse-ld=gold" THREADS=1
+
     - os: linux
       dist: xenial
       compiler: gcc-4.9
@@ -211,17 +222,6 @@ matrix:
     #     - brew update
     #     - travis_wait 60 brew install gcc@8
     #   install: export CXX="g++-8"
-
-    # Debug builds on linux (gcc) with sanitizer, TODO: add coverage
-    - os: linux
-      dist: bionic
-      compiler: gcc-7
-      addons:
-        apt:
-          sources: ['ubuntu-toolchain-r-test']
-          packages: ['cmake', 'g++-7', 'libgsl0-dev']
-      # ubuntu toolchain does not contain the latest bugfixes for /usr/bin/ld
-      env: CXX=g++-7 CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug" CMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -fuse-ld=gold" THREADS=1
 
 script:
   - mkdir -p build && cd build
