@@ -573,6 +573,8 @@ public:
                     if (ref_seq_id2 == -1 && !((aln.start_pos - 1) + prev_cumulative_len_wo_ref_gaps == start_pos && (strcmp(chrom, aln.chrom.c_str()) == 0)))
                     {
                         abort_next_alignment = true;
+                        free(id);
+                        free(seq);
                         break;
                     }
 

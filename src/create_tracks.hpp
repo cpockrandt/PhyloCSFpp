@@ -153,7 +153,7 @@ struct hmm{
                 result[pos][state] = (forward[pos][state] * backward[pos][state]) / total;
             }
         }
-        delete backward[0];
+        delete [] backward[0];
         delete [] backward;
         return result;
     }
@@ -259,7 +259,7 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
         }
     }
     delete [] state_probabilities[0];
-    delete state_probabilities;
+    delete [] state_probabilities;
 }
 
 
