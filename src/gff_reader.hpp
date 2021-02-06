@@ -32,7 +32,7 @@ struct gff_transcript
     uint64_t begin = 0;
     uint64_t end = 0;
     char strand = '.';
-    float phylo_score = NAN; // if score cannot be computed/looked up, it will automatically output NAN
+    float phylo_score = NAN;
     float phylo_power = NAN;
 
     std::vector<cds_entry> CDS;
@@ -177,7 +177,10 @@ public:
                 ++transcript_occs;
 
             if (transcript_occs > 1)
+            {
+                free(line);
                 break;
+            }
 
             file_range_pos = cur_pos - (char*) file_mem;
 
@@ -198,10 +201,9 @@ public:
             }
 
             if (copy_lines)
-            {
                 transcript.lines.emplace_back(f, line);
-//                printf("xxx: %s\n", line);
-            }
+
+            free(line);
         }
 
         return true;

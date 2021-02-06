@@ -43,7 +43,6 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
     std::string output_file_path = params.output_path;
     if (output_file_path == "")
     {
-        // TODO: could overwrite a file created prior by the user
         output_file_path = alignment_path + ".scores";
     }
     else
@@ -62,7 +61,10 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
         printf("Error creating file!");
         exit(1);
     }
+
     // write header
+    fprintf(output_file, "# PhyloCSF scores computed with PhyloCSF++ %s (%s, %s)\n", ArgParse::version.c_str(), ArgParse::git_hash.c_str(), ArgParse::git_date.c_str());
+
     fprintf(output_file, "seq\tstart\tend\tstrand");
     if (params.comp_phylo)
         fprintf(output_file, "\tphylocsf-score");

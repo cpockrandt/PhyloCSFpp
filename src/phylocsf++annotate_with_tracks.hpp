@@ -34,31 +34,46 @@ void count_scores(float & sum, uint64_t & count, bigWigFile_t *file, const char 
             sum += (*intervals).value[i];
         count = (*intervals).l;
         bwDestroyOverlappingIntervals(intervals);
-        intervals = NULL;
     }
 }
 
-void run_annotate_with_tracks(std::string gff_path, const AnnotateWithTracksCLIParams & params,
+void run_annotate_with_tracks(const std::string & gff_path, const AnnotateWithTracksCLIParams & params,
                               std::unordered_set<std::string> & missing_sequences,
                               const uint32_t file_id, const uint32_t files)
 {
     gff_reader reader(gff_path.c_str());
     reader.setup_progressbar(file_id, files);
 
-    size_t gff_path_last_dot = gff_path.find_last_of('.');
-    if (gff_path_last_dot == std::string::npos)
-        gff_path += ".PhyloCSF++"; // NoFileEnding -> NoFileEnding.PhyloCSF++
+    // store output next to GFF file if no output_path was specified
+    std::string output_file_path = params.output_path;
+    if (output_file_path == "")
+    {
+        output_file_path = gff_path;
+    }
     else
-        gff_path.insert(gff_path_last_dot, ".PhyloCSF++"); // Human.Genes.gtf -> Human.Genes.PhyloCSF++.gtf
+    {
+        const size_t pos = gff_path.find_last_of('/');
+        if (pos != std::string::npos) // gff_path == ".../file.gff"
+            output_file_path += "/" + gff_path.substr(pos + 1);
+        else                          // gff_path == "aln.maf"
+            output_file_path += "/" + gff_path;
+    }
 
-    FILE *gff_out = fopen(gff_path.c_str(), "w");
+    // insert/append ".PhyloCSF++" (in)to filename
+    const size_t output_file_path_last_dot = output_file_path.find_last_of('.');
+    if (output_file_path_last_dot == std::string::npos)
+        output_file_path += ".PhyloCSF++"; // NoFileEnding -> NoFileEnding.PhyloCSF++
+    else
+        output_file_path.insert(output_file_path_last_dot, ".PhyloCSF++"); // Human.Genes.gtf -> Human.Genes.PhyloCSF++.gtf
+
+    FILE *gff_out = fopen(output_file_path.c_str(), "w");
     if (gff_out == NULL)
     {
-        printf(OUT_ERROR "Error creating file!\n" OUT_RESET);
+        printf(OUT_ERROR "Error creating file %s!\n" OUT_RESET, output_file_path.c_str());
         exit(1);
     }
 
-    // TODO: move header line to gff_out after the last header line?
+    // TODO: move header line to the end of the already existing header block
     fprintf(gff_out, "# PhyloCSF scores computed with PhyloCSF++ %s (%s, %s) and precomputed tracks %s\n", ArgParse::version.c_str(), ArgParse::git_hash.c_str(), ArgParse::git_date.c_str(), params.bw_path.c_str());
 
     gff_transcript t;
@@ -75,6 +90,8 @@ void run_annotate_with_tracks(std::string gff_path, const AnnotateWithTracksCLIP
             const auto chrom_sizes_it = params.chrom_sizes.find(t.chr);
             if (chrom_sizes_it == params.chrom_sizes.end())
             {
+                t.phylo_score = NAN;
+                t.phylo_power = NAN;
                 // only report a missing sequence once
                 if (missing_sequences.find(t.chr) == missing_sequences.end())
                 {
@@ -182,7 +199,7 @@ int main_annotate_with_tracks(int argc, char** argv)
     if (args.is_set("comp-power"))
         params.comp_bls = args.get_bool("comp-power");
 
-    if (args.is_set("output")) // TODO: not implemented yet
+    if (args.is_set("output"))
     {
         params.output_path = args.get_string("output");
         // create a directory if it doesn't exist yet
