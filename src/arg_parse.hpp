@@ -358,7 +358,7 @@ public:
 	void print_desc(const std::string & desc, uint16_t padding) const noexcept
 	{
 		uint32_t pos = 0;
-		const uint16_t space_for_desc = 85 - 4 - longest_opt_arg;
+		const uint16_t max_chars_per_line = 85 - 4 - longest_opt_arg;
 
 		while (pos < desc.size())
 		{
@@ -367,16 +367,19 @@ public:
 			else
 				printf("%s", std::string(padding, ' ').c_str());
 
-			uint16_t last_space_pos = pos + space_for_desc;
-			while (last_space_pos > pos && last_space_pos < desc.size() && desc[last_space_pos] != ' ')
-				--last_space_pos;
-			if (last_space_pos == pos)
-				last_space_pos = pos + space_for_desc; // just split in the middle of a word.
+			uint16_t next_pos = pos + max_chars_per_line;
+			if (next_pos < desc.size())
+            {
+                while (next_pos > pos && desc[next_pos] != ' ')
+                    --next_pos;
+                if (next_pos == pos)
+                    next_pos = pos + max_chars_per_line; // just split in the middle of a word.
+            }
 
-			printf("%s", desc.substr(pos, last_space_pos - pos).c_str());
-			pos = last_space_pos;
-			if (desc[last_space_pos] == ' ')
-				++pos;
+			printf("%s", desc.substr(pos, next_pos - pos).c_str());
+			while (next_pos < desc.size() && desc[next_pos] == ' ')
+				++next_pos;
+			pos = next_pos;
 		}
 	}
 
