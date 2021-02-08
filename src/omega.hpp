@@ -286,7 +286,6 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
     }
 }
 
-
 double minimizer_lpr_leaves_rho(const double x, void * params)
 {
     minimizer_params_t * min_params = (minimizer_params_t*) params;

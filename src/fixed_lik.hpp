@@ -218,7 +218,8 @@ gsl_matrix * complex_to_real(const gsl_matrix_complex * const cm, const double t
         for (uint16_t j = 0; j < cm->size2; ++j)
         {
             const gsl_complex &c = gsl_matrix_complex_get(cm, i, j);
-            if (!check_real(c, tol)) {
+            if (!check_real(c, tol))
+            {
                 throw std::runtime_error("real_of_complex " + std::to_string(GSL_REAL(c)) + "+" + std::to_string(GSL_IMAG(c)) + "i");
             }
             gsl_matrix_set(m, i, j, GSL_REAL(c));
@@ -498,18 +499,3 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
     lpr = params.lpr;
     elpr_anc = params.elpr_anc;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
