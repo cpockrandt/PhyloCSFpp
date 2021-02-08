@@ -348,6 +348,13 @@ struct instance_t
 
         p14n.clear();
         model.clear();
+
+        if (minimizer != NULL)
+        {
+            // this avoids a memory leak when a catched exception during minimizing keeps us from freeing it afterwards
+            gsl_min_fminimizer_free(minimizer);
+            minimizer = NULL;
+        }
     }
 
     ~instance_t()
