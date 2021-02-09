@@ -204,28 +204,25 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 //    printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
 //    if (system_with_return(cmd.c_str()))
 //        exit(2);
-
-    for (uint16_t i = 0; i < params.genome_file_paths.size() - 1; ++i)
-    {
-        cmd = "bash -c $'" + params.mmseqs2_bin + " createsubdb <(awk \\'$3 == " + std::to_string(i) + "\\' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
-        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
-        if (system_with_return(cmd.c_str()))
-            exit(3);
-
-        cmd = params.mmseqs2_bin + " createindex " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + " " + dir_tmp + " --search-type 2 --min-length 15";
-        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
-        if (system_with_return(cmd.c_str()))
-            exit(4);
-    }
+//
+//    for (uint16_t i = 0; i < params.genome_file_paths.size() - 1; ++i)
+//    {
+//        cmd = "bash -c $'" + params.mmseqs2_bin + " createsubdb <(awk \\'$3 == " + std::to_string(i) + "\\' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
+//        if (system_with_return(cmd.c_str()))
+//            exit(3);
+//
+//        cmd = params.mmseqs2_bin + " createindex " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + " " + dir_tmp + " --search-type 2 --min-length 15";
+//        if (system_with_return(cmd.c_str()))
+//            exit(4);
+//    }
 
     // index query sequences
-    for (uint8_t i = 0; i < 3; ++i)
+    for (uint8_t i = 1; i < 3; ++i) // TODO
     {
         const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
         const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".index";
 
         cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
-        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
         if (system_with_return(cmd.c_str()))
             exit(5);
 
@@ -242,12 +239,10 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
             const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(j);
 
             cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(i + 1) + " --reverse-frames 0";
-            printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
             if (system_with_return(cmd.c_str()))
                 exit(6);
 
             cmd = params.mmseqs2_bin + " filterdb " + aln_output + " " + aln_tophit_output + " --extract-lines 1";
-            printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
             if (system_with_return(cmd.c_str()))
                 exit(7);
             all_top_hit_files = aln_tophit_output + " " + all_top_hit_files;
@@ -257,14 +252,12 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         const std::string msa_file = aln_dir + "/msa";
 
         cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
-        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
         if (system_with_return(cmd.c_str()))
             exit(8);
 
-        cmd = params.mmseqs2_bin + " result2dnamsa " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
-        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+        cmd = params.mmseqs2_bin + " result2dnamsa " + exon_index_path + " " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
         if (system_with_return(cmd.c_str()))
-            exit(8);
+            exit(9);
     }
 
     // score alignments
@@ -314,16 +307,17 @@ int main_annotate_with_msa(int argc, char** argv)
     // both: --output, --confidence
 
     // check whether MMseqs2 is installed
+    printf(OUT_INFO "Checking whether MMseqs2 is installed ...\n" OUT_RESET);
     if (args.is_set("mmseqs-bin"))
         params.mmseqs2_bin = args.get_string("mmseqs-bin");
 
-    if (system_with_return(params.mmseqs2_bin + " --help > /dev/null 2>&1"))
+    if (system_with_return(params.mmseqs2_bin + " --help", false))
     {
         printf("ERROR: MMseqs2 seems not to be installed. `%s --help` does not seem to work.\n", params.mmseqs2_bin.c_str());
         return -1;
     }
 
-    if (system_with_return(params.mmseqs2_bin + " result2dnamsa --help > /dev/null 2>&1"))
+    if (system_with_return(params.mmseqs2_bin + " result2dnamsa --help", false))
     {
         printf("ERROR: A version of MMseqs2 seems to be installed that is too old. `%s result2dnamsa --help` does not seem to work.\n", params.mmseqs2_bin.c_str());
         return -1;

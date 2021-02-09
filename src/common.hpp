@@ -66,8 +66,12 @@ void my_fprintf(FILE* f, const char *format_str, const float d)
     fprintf(f, "%s\n", buf);
 }
 
-int system_with_return(const std::string & cmd)
+int system_with_return(std::string cmd, bool verbose = true)
 {
+    if (verbose)
+        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+    else
+        cmd  += " > /dev/null 2>&1";
     int ret = system(cmd.c_str());
     return WEXITSTATUS(ret);
 }
