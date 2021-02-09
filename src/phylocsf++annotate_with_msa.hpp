@@ -268,6 +268,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 
     // score alignments
     // read, copy and annotate gff
+    (void)missing_sequences;
 }
 
 int main_annotate_with_msa(int argc, char** argv)
