@@ -200,21 +200,21 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     }
     // TODO: keep intermediary files
     // TODO: --verbose to show or hide mmseqs output
-    cmd = params.mmseqs2_bin + " createdb " + all_genomes_paths + " " + dir_genomesdb + "/genbankseqs";
-    printf("%s\n\n", cmd.c_str());
-    if (!system_with_return(cmd.c_str()))
-        exit(2);
+//    cmd = params.mmseqs2_bin + " createdb " + all_genomes_paths + " " + dir_genomesdb + "/genbankseqs";
+//    printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+//    if (system_with_return(cmd.c_str()))
+//        exit(2);
 
     for (uint16_t i = 0; i < params.genome_file_paths.size() - 1; ++i)
     {
         cmd = params.mmseqs2_bin + " createsubdb <(awk '$3 == " + std::to_string(i) + "' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i);
-        printf("%s\n\n", cmd.c_str());
-        if (!system_with_return(cmd.c_str()))
+        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+        if (system_with_return(cmd.c_str()))
             exit(3);
 
         cmd = params.mmseqs2_bin + " createindex " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + " " + dir_tmp + " --search-type 2 --min-length 15";
-        printf("%s\n\n", cmd.c_str());
-        if (!system_with_return(cmd.c_str()))
+        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+        if (system_with_return(cmd.c_str()))
             exit(4);
     }
 
@@ -225,8 +225,8 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".index";
 
         cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
-        printf("%s\n\n", cmd.c_str());
-        if (!system_with_return(cmd.c_str()))
+        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+        if (system_with_return(cmd.c_str()))
             exit(5);
 
         const std::string aln_dir = dir_mmseqs_work + "/aln_" + std::to_string(i);
@@ -242,13 +242,13 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
             const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(j);
 
             cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(i + 1) + " --reverse-frames 0";
-            printf("%s\n\n", cmd.c_str());
-            if (!system_with_return(cmd.c_str()))
+            printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+            if (system_with_return(cmd.c_str()))
                 exit(6);
 
             cmd = params.mmseqs2_bin + " filterdb " + aln_output + " " + aln_tophit_output + " --extract-lines 1";
-            printf("%s\n\n", cmd.c_str());
-            if (!system_with_return(cmd.c_str()))
+            printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+            if (system_with_return(cmd.c_str()))
                 exit(7);
             all_top_hit_files = aln_tophit_output + " " + all_top_hit_files;
         }
@@ -257,13 +257,13 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         const std::string msa_file = aln_dir + "/msa";
 
         cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
-        printf("%s\n\n", cmd.c_str());
-        if (!system_with_return(cmd.c_str()))
+        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+        if (system_with_return(cmd.c_str()))
             exit(8);
 
         cmd = params.mmseqs2_bin + " result2dnamsa " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
-        printf("%s\n\n", cmd.c_str());
-        if (!system_with_return(cmd.c_str()))
+        printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+        if (system_with_return(cmd.c_str()))
             exit(8);
     }
 
