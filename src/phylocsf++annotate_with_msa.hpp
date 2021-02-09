@@ -238,6 +238,9 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
             const std::string aln_output = aln_dir + "/aln_" + std::to_string(j);
             const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(j);
 
+            printf(OUT_INFO "rm -rf %s\n" OUT_RESET, dir_tmp.c_str());
+            system("rm -rf dir_tmp");
+
             cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(i + 1) + " --reverse-frames 0";
             if (system_with_return(cmd.c_str()))
                 exit(6);
