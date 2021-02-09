@@ -200,24 +200,24 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     }
     // TODO: keep intermediary files
     // TODO: --verbose to show or hide mmseqs output
-//    cmd = params.mmseqs2_bin + " createdb " + all_genomes_paths + " " + dir_genomesdb + "/genbankseqs";
-//    printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
-//    if (system_with_return(cmd.c_str()))
-//        exit(2);
-//
-//    for (uint16_t i = 0; i < params.genome_file_paths.size() - 1; ++i)
-//    {
-//        cmd = "bash -c $'" + params.mmseqs2_bin + " createsubdb <(awk \\'$3 == " + std::to_string(i) + "\\' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
-//        if (system_with_return(cmd.c_str()))
-//            exit(3);
-//
-//        cmd = params.mmseqs2_bin + " createindex " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + " " + dir_tmp + " --search-type 2 --min-length 15";
-//        if (system_with_return(cmd.c_str()))
-//            exit(4);
-//    }
+    cmd = params.mmseqs2_bin + " createdb " + all_genomes_paths + " " + dir_genomesdb + "/genbankseqs";
+    printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
+    if (system_with_return(cmd.c_str()))
+        exit(2);
+
+    for (uint16_t i = 0; i < params.genome_file_paths.size() - 1; ++i)
+    {
+        cmd = "bash -c $'" + params.mmseqs2_bin + " createsubdb <(awk \\'$3 == " + std::to_string(i) + "\\' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
+        if (system_with_return(cmd.c_str()))
+            exit(3);
+
+        cmd = params.mmseqs2_bin + " createindex " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + " " + dir_tmp + " --search-type 2 --min-length 15";
+        if (system_with_return(cmd.c_str()))
+            exit(4);
+    }
 
     // index query sequences
-    for (uint8_t i = 1; i < 3; ++i) // TODO
+    for (uint8_t i = 0; i < 3; ++i)
     {
         const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
         const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".index";
@@ -225,6 +225,13 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
         if (system_with_return(cmd.c_str()))
             exit(5);
+    }
+
+    exit(0);
+
+    for (uint8_t i = 0; i < 3; ++i)
+    {
+        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".index";
 
         const std::string aln_dir = dir_mmseqs_work + "/aln_" + std::to_string(i);
         if (create_directory(aln_dir))
