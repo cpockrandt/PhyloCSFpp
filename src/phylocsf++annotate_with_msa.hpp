@@ -207,7 +207,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 
     for (uint16_t i = 0; i < params.genome_file_paths.size() - 1; ++i)
     {
-        cmd = "bash -c '" + params.mmseqs2_bin + " createsubdb <(awk '$3 == " + std::to_string(i) + "' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
+        cmd = "bash -c '" + params.mmseqs2_bin + " createsubdb <(awk \"$3 == " + std::to_string(i) + "\" " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
         printf(OUT_INFO "%s\n" OUT_RESET, cmd.c_str());
         if (system_with_return(cmd.c_str()))
             exit(3);
