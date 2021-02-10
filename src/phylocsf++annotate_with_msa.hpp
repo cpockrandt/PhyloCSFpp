@@ -300,7 +300,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         {
             std::string cds_seq = ref_chr->second.substr(c.begin - 1, c.end - (c.begin - 1));
 
-            if (cds_seq.size() < 3 + c.phase) // NOTE c.phase == 1 means that 1 base has to be thrown away because the previous CDS had 2 bases "too many"
+            if (cds_seq.size() < 3ul + c.phase) // NOTE c.phase == 1 means that 1 base has to be thrown away because the previous CDS had 2 bases "too many"
                 continue;
 
             if (t.strand == '-')
