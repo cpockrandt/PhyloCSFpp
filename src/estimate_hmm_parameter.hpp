@@ -267,7 +267,7 @@ hmm_parameter estimate_hmm_params_for_genome(const char * path_exon_list, const 
     }
 
     char line[1024];
-    std::map<std::string, std::list<range> > exons_by_chr_map;
+    std::map<std::string, std::list<range> > exons_by_chr_map;  // TODO:  can't we make this an unordered_map?
     while (fgets(line, sizeof(line), exon_file)) {
         const char * delim = " \t";
         char *token = strtok(line, delim);

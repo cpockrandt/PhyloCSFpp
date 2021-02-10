@@ -6,6 +6,11 @@
 
 #include <unordered_map>
 
+#include <regex>
+#include <string>
+#include <vector>
+#include <tuple>
+
 #include <stdio.h>
 #include <sys/wait.h>
 
@@ -14,14 +19,127 @@ struct AnnotateWithMSACLIParams
     std::string output_path = "";
     std::string mmseqs2_bin = "mmseqs";
     unsigned threads = omp_get_max_threads();
-    algorithm_t strategy = MLE;
-    bool comp_bls = true;
+//    algorithm_t strategy = MLE;
+//    bool comp_bls = true;
 
     std::string reference_genome_name;
     std::string reference_genome_path;
 
     std::vector<std::tuple<std::string, std::string> > aligning_genomes;
 };
+
+// TODO: make this function prettier (e.g., no local struct def)
+void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest)
+{
+    struct maf_object
+    {
+        std::string chr;
+        uint64_t begin;
+        uint64_t end;
+        char strand;
+
+        std::string seq;
+
+        std::vector<std::tuple<std::string, std::string> > aln;
+
+        void print(FILE *fp) const
+        {
+            // create format string (depends on max sequence name length)s
+            char format_str[50];
+            uint16_t max_seq_name_len = chr.size();
+            for (auto const & a : aln)
+            {
+                if (std::get<0>(a).size() > max_seq_name_len)
+                {
+                    max_seq_name_len = std::get<0>(a).size();
+                }
+            }
+            sprintf(format_str, "s %%-%ds %%10ld %%10ld %%c %%ld %%s\n", max_seq_name_len);
+
+            fprintf(fp, "a score=NAN\n");
+            // seq name, begin pos (0-indexed), length, strand, total chrom len, seq
+            fprintf(fp, format_str, chr.c_str(), begin - 1, end - (begin - 1), strand, 0, seq.c_str());
+            for (const auto & a : aln)
+            {
+                // we don't care about locations or strandness
+                fprintf(fp, format_str, std::get<0>(a).c_str(), 0ul, 0, '+', 0, std::get<1>(a).c_str());
+            }
+            fprintf(fp, "\n");
+        }
+    };
+
+    FILE *f_in = fopen(src.c_str(), "r");
+    if (f_in == NULL)
+        exit(2);
+
+    FILE *f_out = fopen(dest.c_str(), "w");
+    if (f_out == NULL)
+        exit(3);
+
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    // TODO: get rid of regex and use sscanf
+    const std::regex pieces_regex("(.+):([0-9]+)-([0-9]+)#c");
+    std::smatch pieces_match;
+
+    maf_object m;
+
+    std::string id;
+
+    while ((read = getline(&line, &len, f_in)) != -1)
+    {
+        if (read == 0)
+            continue;
+
+        if (line[read - 1] == '\n')
+            line[read - 1] = 0; // remove newline
+
+        // mmseqs2 outputs a 0x00 char before the beginning of each alignment (i.e., before the identifier)
+        char *line2 = line;
+        if (line2[0] == 0)
+            line2 = line + 1;
+
+        if (line2[0] == '>')
+        {
+            id = line2;
+            id.erase(0, 1); // remove ">"
+
+            if (std::regex_match(id, pieces_match, pieces_regex))
+            {
+                if (m.aln.size() > 0)
+                    m.print(f_out);
+
+                m.chr = pieces_match[1].str();
+                m.begin = std::stoi(pieces_match[2].str());
+                m.end = std::stoi(pieces_match[3].str());
+                m.strand = pieces_match[4].str()[0];
+                m.seq = "";
+                m.aln.clear();
+            }
+            else
+            {
+                id = id.substr(0, id.find_first_of(' ')); // remove everything after the first space
+            }
+        }
+        else
+        {
+            if (m.chr != "" && m.seq == "")
+                m.seq = line2;
+            else
+                m.aln.emplace_back(id, line2);
+        }
+    }
+
+    if (m.aln.size() > 0)
+        m.print(f_out);
+
+    free(line);
+
+    fclose(f_in);
+    fclose(f_out);
+}
 
 void load_fasta_file(const std::string & reference_path, std::unordered_map<std::string, std::string> & genome)
 {
@@ -120,6 +238,7 @@ void load_genome_file(const std::string & genome_file, std::vector<std::tuple<st
 }
 
 void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACLIParams & params,
+                           const Model & model, const ScoreMSACLIParams & scoring_params,
                            std::unordered_set<std::string> & missing_sequences)
 {
     (void)gff_path;
@@ -181,7 +300,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         {
             std::string cds_seq = ref_chr->second.substr(c.begin - 1, c.end - (c.begin - 1));
 
-            if (cds_seq.size() < 5) // TODO: < 3 + phase
+            if (cds_seq.size() < 3 + c.phase) // NOTE c.phase == 1 means that 1 base has to be thrown away because the previous CDS had 2 bases "too many"
                 continue;
 
             if (t.strand == '-')
@@ -208,27 +327,27 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     std::string cmd;
 
     // 1. index genomes
-    std::string all_genomes_paths = "";
-    for (uint64_t genome_id = 0; genome_id < params.aligning_genomes.size(); ++genome_id)
-    {
-        // the order is important, because the genomes/indices will be indexed in the same order by mmseqs
-        all_genomes_paths += std::get<1>(params.aligning_genomes[genome_id]) + " ";
-    }
-
-    cmd = params.mmseqs2_bin + " createdb " + all_genomes_paths + " " + dir_genomesdb + "/genbankseqs";
-    if (system_with_return(cmd.c_str()))
-        exit(2);
-
-    for (uint16_t i = 0; i < params.aligning_genomes.size(); ++i)
-    {
-        cmd = "bash -c $'" + params.mmseqs2_bin + " createsubdb <(awk \\'$3 == " + std::to_string(i) + "\\' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
-        if (system_with_return(cmd.c_str()))
-            exit(3);
-
-        cmd = params.mmseqs2_bin + " createindex " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + " " + dir_tmp + " --search-type 2 --min-length 15";
-        if (system_with_return(cmd.c_str()))
-            exit(4);
-    }
+//    std::string all_genomes_paths = "";
+//    for (uint64_t genome_id = 0; genome_id < params.aligning_genomes.size(); ++genome_id)
+//    {
+//        // the order is important, because the genomes/indices will be indexed in the same order by mmseqs
+//        all_genomes_paths += std::get<1>(params.aligning_genomes[genome_id]) + " ";
+//    }
+//
+//    cmd = params.mmseqs2_bin + " createdb " + all_genomes_paths + " " + dir_genomesdb + "/genbankseqs";
+//    if (system_with_return(cmd.c_str()))
+//        exit(2);
+//
+//    for (uint16_t i = 0; i < params.aligning_genomes.size(); ++i)
+//    {
+//        cmd = "bash -c $'" + params.mmseqs2_bin + " createsubdb <(awk \\'$3 == " + std::to_string(i) + "\\' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
+//        if (system_with_return(cmd.c_str()))
+//            exit(3);
+//
+//        cmd = params.mmseqs2_bin + " createindex " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + " " + dir_tmp + " --search-type 2 --min-length 15";
+//        if (system_with_return(cmd.c_str()))
+//            exit(4);
+//    }
 
     // index query sequences
     for (uint8_t i = 0; i < 3; ++i)
@@ -272,6 +391,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 
         const std::string aln_all_tophit_file = aln_dir + "/aln_all_tophit";
         const std::string msa_file = aln_dir + "/msa";
+        const std::string maf_file = aln_dir + "/msa.maf";
 
         cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
         if (system_with_return(cmd.c_str()))
@@ -280,6 +400,9 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         cmd = params.mmseqs2_bin + " result2dnamsa " + exon_index_path + " " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
         if (system_with_return(cmd.c_str()))
             exit(9);
+
+        mmseqs_fasta_to_maf(msa_file, maf_file);
+        run_scoring_msa(maf_file, model, scoring_params, 1, 1);
 
         // remove 0x00 characters at the beginning of the line (weird behavior from MMseqs2)
 //        if (system_with_return("awk '$0 ~ /^\\x00/ { $0=substr($0, 2) } 1' " + msa_file + " > " + msa_file + "_fixed"))
@@ -298,11 +421,12 @@ int main_annotate_with_msa(int argc, char** argv)
                   "alignments from scratch.");
 
     AnnotateWithMSACLIParams params;
+    ScoreMSACLIParams scoring_params; // parameters for the scoring part
 
     const std::string model_list = get_list_of_models();
 
     std::string default_strategy;
-    switch (params.strategy)
+    switch (scoring_params.strategy)
     {
         case MLE:
             default_strategy = "MLE";
@@ -319,7 +443,7 @@ int main_annotate_with_msa(int argc, char** argv)
     args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, true);
 
     args.add_option("strategy", ArgParse::Type::STRING, "PhyloCSF scoring algorithm: MLE, FIXED or OMEGA. Default: " + default_strategy, ArgParse::Level::GENERAL, false);
-    args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.comp_bls), ArgParse::Level::GENERAL, false);
+    args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
     args.add_option("mmseqs-bin", ArgParse::Type::STRING, "Path to MMseqs2 binary. Default: " + params.mmseqs2_bin, ArgParse::Level::GENERAL, false);
 
     args.add_positional_argument("genome-file", ArgParse::Type::STRING, "Two-column text file with species name and path to its genomic fasta file. First line has to be the reference genome of the GFF file.", true);
@@ -328,9 +452,6 @@ int main_annotate_with_msa(int argc, char** argv)
     args.parse_args(argc, argv);
 
     args.check_args(); // check here because if "--model-info" is set, we don't want to require mandatory arguments
-
-    // phylocsf++ annotate --genomes-file PATH --strategy STRING --mmseqs-bin PATH <gtf file(s)>
-    // both: --output, --confidence
 
     // check whether MMseqs2 is installed
     printf(OUT_INFO "Checking whether MMseqs2 is installed ...\n" OUT_RESET);
@@ -352,6 +473,25 @@ int main_annotate_with_msa(int argc, char** argv)
     // retrieve flags/options that were set
     if (args.is_set("threads"))
         params.threads = args.get_int("threads");
+    scoring_params.threads = params.threads;
+
+    if (args.is_set("strategy"))
+    {
+        std::string strategy = args.get_string("strategy");
+        std::transform(strategy.begin(), strategy.end(), strategy.begin(), toupper);
+
+        if (strategy == "MLE")
+            scoring_params.strategy = MLE;
+        else if (strategy == "FIXED")
+            scoring_params.strategy = FIXED;
+        else if (strategy == "OMEGA")
+            scoring_params.strategy = OMEGA;
+        else
+        {
+            printf(OUT_ERROR "Please choose a valid strategy (MLE, FIXED or OMEGA)!\n" OUT_RESET);
+            return -1;
+        }
+    }
 
     if (args.is_set("output"))
     {
@@ -360,6 +500,14 @@ int main_annotate_with_msa(int argc, char** argv)
         if (create_directory(params.output_path))
             printf(OUT_INFO "Created the output directory.\n" OUT_RESET);
     }
+    scoring_params.output_path = params.output_path;
+
+    scoring_params.comp_phylo = true;
+    scoring_params.comp_anc = false;
+    if (args.is_set("comp-power"))
+        scoring_params.comp_bls = args.get_bool("comp-power");
+    else
+        scoring_params.comp_bls = false;
 
     const std::string genome_file = args.get_positional_argument("genome-file");
     load_genome_file(genome_file, params.aligning_genomes, params.reference_genome_name, params.reference_genome_path);
@@ -379,7 +527,7 @@ int main_annotate_with_msa(int argc, char** argv)
         if (args.positional_argument_size() > 2)
             printf("Processing GFF %s\n", args.get_positional_argument(i).c_str());
 
-        run_annotate_with_msa(args.get_positional_argument(i), params, missing_sequences);
+        run_annotate_with_msa(args.get_positional_argument(i), params, model, scoring_params, missing_sequences);
 
         if (args.positional_argument_size() > 2)
             printf("----------------------------\n");
