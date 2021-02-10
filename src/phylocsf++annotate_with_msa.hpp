@@ -261,64 +261,64 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 
     const std::string dir_tmp = dir_mmseqs_work + "/tmp";
 
-    FILE *cds_fasta[3];
-    for (uint8_t i = 0; i < 3; ++i)
-    {
-        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
-        cds_fasta[i] = fopen(cds_fasta_path.c_str(), "w");
-        if (cds_fasta[i] == NULL)
-        {
-            printf(OUT_ERROR "Could not create file %s.\n" OUT_RESET, cds_fasta_path.c_str());
-            exit(-1);
-        }
-    }
-
-    printf("Reading GFF file and extracting CDS coordinates ...\n");
-    gff_reader reader(gff_path.c_str());
-    reader.setup_progressbar(1, 1);
-
-    gff_transcript t;
-    uint32_t transcripts_left = 99999999;
-    while (reader.get_next_transcript<false>(t) && transcripts_left > 0)
-    {
-        if (t.CDS.size() == 0)
-            continue;
-
-        const auto ref_chr = reference_genome.find(t.chr);
-        if (ref_chr == reference_genome.end())
-        {
-            // only report a missing sequence once
-            if (missing_sequences.find(t.chr) == missing_sequences.end())
-            {
-                missing_sequences.insert(t.chr);
-                printf(OUT_DEL OUT_INFO "Sequence %s from the GFF file does not occur in the reference fasta file. Skipping ...\n" OUT_RESET, t.chr.c_str());
-            }
-            continue;
-        }
-
-        for (const auto & c : t.CDS)
-        {
-            std::string cds_seq = ref_chr->second.substr(c.begin - 1, c.end - (c.begin - 1));
-
-            if (cds_seq.size() < 3ul + c.phase) // NOTE c.phase == 1 means that 1 base has to be thrown away because the previous CDS had 2 bases "too many"
-                continue;
-
-            if (t.strand == '-')
-            {
-                std::reverse(cds_seq.begin(), cds_seq.end());
-                for (uint64_t i = 0; i < cds_seq.size(); ++i)
-                    cds_seq[i] = complement(cds_seq[i]);
-            }
-
-            fprintf(cds_fasta[c.phase], ">%s:%ld-%ld#%c\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, cds_seq.c_str());
-        }
-
-        --transcripts_left;
-        reader.print_progress();
-    }
-
-    for (uint8_t i = 0; i < 3; ++i)
-        fclose(cds_fasta[i]);
+//    FILE *cds_fasta[3];
+//    for (uint8_t i = 0; i < 3; ++i)
+//    {
+//        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
+//        cds_fasta[i] = fopen(cds_fasta_path.c_str(), "w");
+//        if (cds_fasta[i] == NULL)
+//        {
+//            printf(OUT_ERROR "Could not create file %s.\n" OUT_RESET, cds_fasta_path.c_str());
+//            exit(-1);
+//        }
+//    }
+//
+//    printf("Reading GFF file and extracting CDS coordinates ...\n");
+//    gff_reader reader(gff_path.c_str());
+//    reader.setup_progressbar(1, 1);
+//
+//    gff_transcript t;
+//    uint32_t transcripts_left = 99999999;
+//    while (reader.get_next_transcript<false>(t) && transcripts_left > 0)
+//    {
+//        if (t.CDS.size() == 0)
+//            continue;
+//
+//        const auto ref_chr = reference_genome.find(t.chr);
+//        if (ref_chr == reference_genome.end())
+//        {
+//            // only report a missing sequence once
+//            if (missing_sequences.find(t.chr) == missing_sequences.end())
+//            {
+//                missing_sequences.insert(t.chr);
+//                printf(OUT_DEL OUT_INFO "Sequence %s from the GFF file does not occur in the reference fasta file. Skipping ...\n" OUT_RESET, t.chr.c_str());
+//            }
+//            continue;
+//        }
+//
+//        for (const auto & c : t.CDS)
+//        {
+//            std::string cds_seq = ref_chr->second.substr(c.begin - 1, c.end - (c.begin - 1));
+//
+//            if (cds_seq.size() < 3ul + c.phase) // NOTE c.phase == 1 means that 1 base has to be thrown away because the previous CDS had 2 bases "too many"
+//                continue;
+//
+//            if (t.strand == '-')
+//            {
+//                std::reverse(cds_seq.begin(), cds_seq.end());
+//                for (uint64_t i = 0; i < cds_seq.size(); ++i)
+//                    cds_seq[i] = complement(cds_seq[i]);
+//            }
+//
+//            fprintf(cds_fasta[c.phase], ">%s:%ld-%ld#%c\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, cds_seq.c_str());
+//        }
+//
+//        --transcripts_left;
+//        reader.print_progress();
+//    }
+//
+//    for (uint8_t i = 0; i < 3; ++i)
+//        fclose(cds_fasta[i]);
 
     // do all the stuff wth mmseqs
     // TODO: keep/delete intermediary files?
@@ -350,17 +350,17 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 //    }
 
     // index query sequences
-    for (uint8_t i = 0; i < 3; ++i)
-    {
-        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
-        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".index";
+//    for (uint8_t i = 0; i < 3; ++i)
+//    {
+//        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
+//        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".index";
+//
+//        cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
+//        if (system_with_return(cmd.c_str()))
+//            exit(5);
+//    }
 
-        cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
-        if (system_with_return(cmd.c_str()))
-            exit(5);
-    }
-
-    for (uint8_t phase = 0; phase < 3; ++phase)
+    for (uint8_t phase = 1; phase < 3; ++phase)
     {
         const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".index";
 
@@ -401,8 +401,8 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         if (system_with_return(cmd.c_str()))
             exit(9);
 
-        mmseqs_fasta_to_maf(msa_file, maf_file);
-        run_scoring_msa(maf_file, model, scoring_params, 1, 1);
+//        mmseqs_fasta_to_maf(msa_file, maf_file);
+//        run_scoring_msa(maf_file, model, scoring_params, 1, 1);
 
         // remove 0x00 characters at the beginning of the line (weird behavior from MMseqs2)
 //        if (system_with_return("awk '$0 ~ /^\\x00/ { $0=substr($0, 2) } 1' " + msa_file + " > " + msa_file + "_fixed"))
