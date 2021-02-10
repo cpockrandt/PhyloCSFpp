@@ -360,48 +360,48 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 //            exit(5);
 //    }
 
-    for (uint8_t phase = 1; phase < 3; ++phase)
+    for (uint8_t phase = 0; phase < 3; ++phase)
     {
-        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".index";
-
+//        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".index";
+//
         const std::string aln_dir = dir_mmseqs_work + "/aln_" + std::to_string(phase);
-        if (create_directory(aln_dir))
-            printf(OUT_INFO "Created the aln_dir directory.\n" OUT_RESET);
-
-        std::string all_top_hit_files = "";
-
-        for (uint16_t genome_id = 0; genome_id < params.aligning_genomes.size(); ++genome_id)
-        {
-            const std::string indexed_genome_path = dir_genomesdb + "/genbankseqs_" + std::to_string(genome_id);
-            const std::string aln_output = aln_dir + "/aln_" + std::to_string(genome_id);
-            const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(genome_id);
-
-            printf(OUT_INFO "rm -rf %s\n" OUT_RESET, dir_tmp.c_str());
-            system("rm -rf dir_tmp");
-
-            cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(phase + 1) + " --reverse-frames 0";
-            if (system_with_return(cmd.c_str()))
-                exit(6);
-
-            cmd = params.mmseqs2_bin + " filterdb " + aln_output + " " + aln_tophit_output + " --extract-lines 1";
-            if (system_with_return(cmd.c_str()))
-                exit(7);
-            all_top_hit_files = aln_tophit_output + " " + all_top_hit_files;
-        }
-
-        const std::string aln_all_tophit_file = aln_dir + "/aln_all_tophit";
+//        if (create_directory(aln_dir))
+//            printf(OUT_INFO "Created the aln_dir directory.\n" OUT_RESET);
+//
+//        std::string all_top_hit_files = "";
+//
+//        for (uint16_t genome_id = 0; genome_id < params.aligning_genomes.size(); ++genome_id)
+//        {
+//            const std::string indexed_genome_path = dir_genomesdb + "/genbankseqs_" + std::to_string(genome_id);
+//            const std::string aln_output = aln_dir + "/aln_" + std::to_string(genome_id);
+//            const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(genome_id);
+//
+//            printf(OUT_INFO "rm -rf %s\n" OUT_RESET, dir_tmp.c_str());
+//            system("rm -rf dir_tmp");
+//
+//            cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(phase + 1) + " --reverse-frames 0";
+//            if (system_with_return(cmd.c_str()))
+//                exit(6);
+//
+//            cmd = params.mmseqs2_bin + " filterdb " + aln_output + " " + aln_tophit_output + " --extract-lines 1";
+//            if (system_with_return(cmd.c_str()))
+//                exit(7);
+//            all_top_hit_files = aln_tophit_output + " " + all_top_hit_files;
+//        }
+//
+//        const std::string aln_all_tophit_file = aln_dir + "/aln_all_tophit";
         const std::string msa_file = aln_dir + "/msa";
         const std::string maf_file = aln_dir + "/msa.maf";
+//
+//        cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
+//        if (system_with_return(cmd.c_str()))
+//            exit(8);
+//
+//        cmd = params.mmseqs2_bin + " result2dnamsa " + exon_index_path + " " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
+//        if (system_with_return(cmd.c_str()))
+//            exit(9);
 
-        cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
-        if (system_with_return(cmd.c_str()))
-            exit(8);
-
-        cmd = params.mmseqs2_bin + " result2dnamsa " + exon_index_path + " " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
-        if (system_with_return(cmd.c_str()))
-            exit(9);
-
-//        mmseqs_fasta_to_maf(msa_file, maf_file);
+        mmseqs_fasta_to_maf(msa_file, maf_file);
 //        run_scoring_msa(maf_file, model, scoring_params, 1, 1);
 
         // remove 0x00 characters at the beginning of the line (weird behavior from MMseqs2)
