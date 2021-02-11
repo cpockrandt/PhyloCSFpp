@@ -64,9 +64,10 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
             seq.erase(0, phase); // remove the first 0-2 bases
 
             fprintf(fp, format_str, chr.c_str(), begin - 1, end - (begin - 1), strand, 0, seq.c_str());
-            for (const auto & a : aln)
+            for (auto & a : aln)
             {
                 // we don't care about locations or strandness
+                std::get<1>(a).erase(0, phase); // remove the first 0-2 bases
                 fprintf(fp, format_str, std::get<0>(a).c_str(), 0ul, 0, '+', 0, std::get<1>(a).c_str());
             }
             fprintf(fp, "\n");
@@ -427,7 +428,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         fclose(lookup_file);
     }
 
-    for (uint8_t phase = 0; phase < 3; ++phase)
+    for (uint8_t phase = 1; phase < 3; ++phase)
     {
         const std::string aln_dir = dir_mmseqs_work + "/aln_" + std::to_string(phase);
         if (create_directory(aln_dir))
