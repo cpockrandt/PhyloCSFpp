@@ -29,7 +29,8 @@ struct AnnotateWithMSACLIParams
 };
 
 // TODO: make this function prettier (e.g., no local struct def)
-void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest)
+void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, const AnnotateWithMSACLIParams & params,
+                         const std::unordered_map<std::string, uint32_t> & lookup_genome_ids)
 {
     struct maf_object
     {
@@ -81,7 +82,7 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest)
     ssize_t read;
 
     // TODO: get rid of regex and use sscanf
-    const std::regex pieces_regex("(.+):([0-9]+)-([0-9]+)#c");
+    const std::regex pieces_regex("(.+):([0-9]+)-([0-9]+)#([\\+-])");
     std::smatch pieces_match;
 
     maf_object m;
@@ -90,7 +91,7 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest)
 
     while ((read = getline(&line, &len, f_in)) != -1)
     {
-        if (read == 0)
+        if (read == 0) // empty line
             continue;
 
         if (line[read - 1] == '\n')
@@ -111,24 +112,47 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest)
                 if (m.aln.size() > 0)
                     m.print(f_out);
 
-                m.chr = pieces_match[1].str();
+//                printf("ref id\n");
+
+                m.chr = params.reference_genome_name + "." + pieces_match[1].str();
                 m.begin = std::stoi(pieces_match[2].str());
                 m.end = std::stoi(pieces_match[3].str());
                 m.strand = pieces_match[4].str()[0];
                 m.seq = "";
                 m.aln.clear();
+
+                id = ""; // NOTE: this is impotant. last line in file might only by 0x00, hence it will try to add a new sequence to the alignment
+
+                //printf("XXX: %s\t%ld\t%ld\t%c\n", m.chr.c_str(), m.begin, m.end, m.strand);
             }
             else
             {
-                id = id.substr(0, id.find_first_of(' ')); // remove everything after the first space
+//                printf("other id\n");
+
+                const size_t space = id.find_first_of(' ');
+                if (space != std::string::npos)
+                    id = id.substr(0, space); // remove everything after the first space
             }
         }
         else
         {
             if (m.chr != "" && m.seq == "")
+            {
+//                printf("ref seq\n");
                 m.seq = line2;
+            }
             else
-                m.aln.emplace_back(id, line2);
+            {
+                if (id != "")
+                {
+//                    printf("other seq: x%sx (%ld)\n", line2, strlen(line2));
+                    auto genome_id = lookup_genome_ids.find(id);
+                    if (genome_id != lookup_genome_ids.end())
+                        m.aln.emplace_back(std::get<0>(params.aligning_genomes[genome_id->second]) + ".UNK", line2);
+                    else
+                        printf(OUT_ERROR "Could not match sequence id to genome (this should never happen!) in file %s: %s\n" OUT_RESET, src.c_str(), id.c_str());
+                }
+            }
         }
     }
 
@@ -241,9 +265,6 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                            const Model & model, const ScoreMSACLIParams & scoring_params,
                            std::unordered_set<std::string> & missing_sequences)
 {
-    (void)gff_path;
-    (void)missing_sequences;
-
     printf("Reading reference genome of GFF file %s ...\n", params.reference_genome_path.c_str());
 
     std::unordered_map<std::string, std::string> reference_genome;
@@ -261,64 +282,75 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 
     const std::string dir_tmp = dir_mmseqs_work + "/tmp";
 
-//    FILE *cds_fasta[3];
-//    for (uint8_t i = 0; i < 3; ++i)
-//    {
-//        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
-//        cds_fasta[i] = fopen(cds_fasta_path.c_str(), "w");
-//        if (cds_fasta[i] == NULL)
-//        {
-//            printf(OUT_ERROR "Could not create file %s.\n" OUT_RESET, cds_fasta_path.c_str());
-//            exit(-1);
-//        }
-//    }
-//
-//    printf("Reading GFF file and extracting CDS coordinates ...\n");
-//    gff_reader reader(gff_path.c_str());
-//    reader.setup_progressbar(1, 1);
-//
-//    gff_transcript t;
-//    uint32_t transcripts_left = 99999999;
-//    while (reader.get_next_transcript<false>(t) && transcripts_left > 0)
-//    {
-//        if (t.CDS.size() == 0)
-//            continue;
-//
-//        const auto ref_chr = reference_genome.find(t.chr);
-//        if (ref_chr == reference_genome.end())
-//        {
-//            // only report a missing sequence once
-//            if (missing_sequences.find(t.chr) == missing_sequences.end())
-//            {
-//                missing_sequences.insert(t.chr);
-//                printf(OUT_DEL OUT_INFO "Sequence %s from the GFF file does not occur in the reference fasta file. Skipping ...\n" OUT_RESET, t.chr.c_str());
-//            }
-//            continue;
-//        }
-//
-//        for (const auto & c : t.CDS)
-//        {
-//            std::string cds_seq = ref_chr->second.substr(c.begin - 1, c.end - (c.begin - 1));
-//
-//            if (cds_seq.size() < 3ul + c.phase) // NOTE c.phase == 1 means that 1 base has to be thrown away because the previous CDS had 2 bases "too many"
-//                continue;
-//
-//            if (t.strand == '-')
-//            {
-//                std::reverse(cds_seq.begin(), cds_seq.end());
-//                for (uint64_t i = 0; i < cds_seq.size(); ++i)
-//                    cds_seq[i] = complement(cds_seq[i]);
-//            }
-//
-//            fprintf(cds_fasta[c.phase], ">%s:%ld-%ld#%c\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, cds_seq.c_str());
-//        }
-//
-//        --transcripts_left;
-//        reader.print_progress();
-//    }
-//
-//    for (uint8_t i = 0; i < 3; ++i)
-//        fclose(cds_fasta[i]);
+    FILE *cds_fasta[3];
+    for (uint8_t i = 0; i < 3; ++i)
+    {
+        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
+        cds_fasta[i] = fopen(cds_fasta_path.c_str(), "w");
+        if (cds_fasta[i] == NULL)
+        {
+            printf(OUT_ERROR "Could not create file %s.\n" OUT_RESET, cds_fasta_path.c_str());
+            exit(-1);
+        }
+    }
+
+    printf("Reading GFF file and extracting CDS coordinates ...\n");
+    gff_reader reader(gff_path.c_str());
+    reader.setup_progressbar(1, 1);
+
+    gff_transcript t;
+    uint32_t transcripts_left = 99999999; // TODO: remove
+
+    std::unordered_set<std::string> processed_cds; // don't extract the same CDS sequence twice
+
+    while (reader.get_next_transcript<false>(t) && transcripts_left > 0)
+    {
+        if (t.CDS.size() == 0)
+            continue;
+
+        const auto ref_chr = reference_genome.find(t.chr);
+        if (ref_chr == reference_genome.end())
+        {
+            // only report a missing sequence once
+            if (missing_sequences.find(t.chr) == missing_sequences.end())
+            {
+                missing_sequences.insert(t.chr);
+                printf(OUT_DEL OUT_INFO "Sequence %s from the GFF file does not occur in the reference fasta file. Skipping ...\n" OUT_RESET, t.chr.c_str());
+            }
+            continue;
+        }
+
+        for (const auto & c : t.CDS)
+        {
+            // do not search a cds twice
+            std::string key = t.chr + ":" + std::to_string(c.begin) + "-" + std::to_string(c.end) + "#" + t.strand;
+            if (processed_cds.find(key) != processed_cds.end())
+                continue;
+
+            processed_cds.emplace(key);
+
+            std::string cds_seq = ref_chr->second.substr(c.begin - 1, c.end - (c.begin - 1));
+
+            if (cds_seq.size() < 3ul + c.phase) // NOTE c.phase == 1 means that 1 base has to be thrown away because the previous CDS had 2 bases "too many"
+                continue;
+
+            if (t.strand == '-')
+            {
+                std::reverse(cds_seq.begin(), cds_seq.end());
+                for (uint64_t i = 0; i < cds_seq.size(); ++i)
+                    cds_seq[i] = complement(cds_seq[i]);
+            }
+
+            // TODO: do not need end position
+            fprintf(cds_fasta[c.phase], ">%s:%ld-%ld#%c\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, cds_seq.c_str());
+        }
+
+        --transcripts_left;
+        reader.print_progress();
+    }
+
+    for (uint8_t i = 0; i < 3; ++i)
+        fclose(cds_fasta[i]);
 
     // do all the stuff wth mmseqs
     // TODO: keep/delete intermediary files?
@@ -349,68 +381,84 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 //            exit(4);
 //    }
 
-    // index query sequences
-//    for (uint8_t i = 0; i < 3; ++i)
-//    {
-//        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
-//        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".index";
-//
-//        cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
-//        if (system_with_return(cmd.c_str()))
-//            exit(5);
-//    }
+    // load lookup table (seq id -> genome id)
+    std::unordered_map<std::string, uint32_t> lookup_genome_ids;
+    {
+        const std::string lookup_path = dir_genomesdb + "/genbankseqs.lookup";
+        FILE *lookup_file = fopen(lookup_path.c_str(), "r");
+        if (lookup_file == NULL)
+        {
+            printf(OUT_ERROR "Could not open file %s.\n" OUT_RESET, lookup_path.c_str());
+            exit(-1);
+        }
+
+        uint32_t lookup_id;
+        char lookup_seq_name[255];
+        uint32_t lookup_genome_id;
+        while (!feof(lookup_file))
+        {
+            fscanf(lookup_file, "%u\t%s\t%u\n", &lookup_id, lookup_seq_name, &lookup_genome_id);
+            lookup_genome_ids.emplace(lookup_seq_name, lookup_genome_id);
+        }
+
+        fclose(lookup_file);
+    }
 
     for (uint8_t phase = 0; phase < 3; ++phase)
     {
-//        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".index";
-//
+        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".fasta";
+        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".index";
+
+        // index query sequences
+        cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
+        if (system_with_return(cmd.c_str()))
+            exit(5);
+
         const std::string aln_dir = dir_mmseqs_work + "/aln_" + std::to_string(phase);
-//        if (create_directory(aln_dir))
-//            printf(OUT_INFO "Created the aln_dir directory.\n" OUT_RESET);
-//
-//        std::string all_top_hit_files = "";
-//
-//        for (uint16_t genome_id = 0; genome_id < params.aligning_genomes.size(); ++genome_id)
-//        {
-//            const std::string indexed_genome_path = dir_genomesdb + "/genbankseqs_" + std::to_string(genome_id);
-//            const std::string aln_output = aln_dir + "/aln_" + std::to_string(genome_id);
-//            const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(genome_id);
-//
+        if (create_directory(aln_dir))
+            printf(OUT_INFO "Created the aln_dir directory.\n" OUT_RESET);
+
+        std::string all_top_hit_files = "";
+
+        for (uint16_t genome_id = 0; genome_id < params.aligning_genomes.size(); ++genome_id)
+        {
+            const std::string indexed_genome_path = dir_genomesdb + "/genbankseqs_" + std::to_string(genome_id);
+            const std::string aln_output = aln_dir + "/aln_" + std::to_string(genome_id);
+            const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(genome_id);
+
 //            printf(OUT_INFO "rm -rf %s\n" OUT_RESET, dir_tmp.c_str());
 //            system("rm -rf dir_tmp");
-//
-//            cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(phase + 1) + " --reverse-frames 0";
-//            if (system_with_return(cmd.c_str()))
-//                exit(6);
-//
-//            cmd = params.mmseqs2_bin + " filterdb " + aln_output + " " + aln_tophit_output + " --extract-lines 1";
-//            if (system_with_return(cmd.c_str()))
-//                exit(7);
-//            all_top_hit_files = aln_tophit_output + " " + all_top_hit_files;
-//        }
-//
-//        const std::string aln_all_tophit_file = aln_dir + "/aln_all_tophit";
+
+            cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(phase + 1) + " --reverse-frames 0";
+            if (system_with_return(cmd.c_str()))
+                exit(6);
+
+            cmd = params.mmseqs2_bin + " filterdb " + aln_output + " " + aln_tophit_output + " --extract-lines 1";
+            if (system_with_return(cmd.c_str()))
+                exit(7);
+            all_top_hit_files = aln_tophit_output + " " + all_top_hit_files;
+        }
+
+        const std::string aln_all_tophit_file = aln_dir + "/aln_all_tophit";
         const std::string msa_file = aln_dir + "/msa";
         const std::string maf_file = aln_dir + "/msa.maf";
-//
-//        cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
-//        if (system_with_return(cmd.c_str()))
-//            exit(8);
-//
-//        cmd = params.mmseqs2_bin + " result2dnamsa " + exon_index_path + " " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
-//        if (system_with_return(cmd.c_str()))
-//            exit(9);
 
-        mmseqs_fasta_to_maf(msa_file, maf_file);
-//        run_scoring_msa(maf_file, model, scoring_params, 1, 1);
+        cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
+        if (system_with_return(cmd.c_str()))
+            exit(8);
 
-        // remove 0x00 characters at the beginning of the line (weird behavior from MMseqs2)
-//        if (system_with_return("awk '$0 ~ /^\\x00/ { $0=substr($0, 2) } 1' " + msa_file + " > " + msa_file + "_fixed"))
-//            exit(10);
+        cmd = params.mmseqs2_bin + " result2dnamsa " + exon_index_path + " " + dir_genomesdb + "/genbankseqs" + " " + aln_all_tophit_file + " " + msa_file;
+        if (system_with_return(cmd.c_str()))
+            exit(9);
+
+        mmseqs_fasta_to_maf(msa_file, maf_file, params, lookup_genome_ids);
+        run_scoring_msa(maf_file, model, scoring_params, 1, 1);
     }
 
     // score alignments
     // read, copy and annotate gff
+    (void)gff_path;
+    (void)missing_sequences;
     (void)model;
     (void)scoring_params;
 }
