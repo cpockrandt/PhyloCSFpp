@@ -502,6 +502,7 @@ public:
                     continue;
                 }
 
+                assert(seq != NULL); // check because of a former bug
                 aln.seqs[alnid->second] = seq; // TODO: std::move?
 
                 // first sequence we encounter is the reference sequence. store its length!
@@ -599,6 +600,7 @@ public:
                         continue;
                     }
 
+                    assert(seq != NULL); // check because of a former bug
                     aln.seqs[alnid->second] += seq; // TODO: std::move?
 
                     // first sequence we encounter is the reference sequence. store its length!
