@@ -450,7 +450,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         const std::string msa_file = aln_dir + "/msa";
         const std::string maf_file = aln_dir + "/msa.maf";
 
-        cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files + " --threads " + std::to_string(params.threads);
+        cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
         if (system_with_return(cmd.c_str()))
             exit(8);
 
