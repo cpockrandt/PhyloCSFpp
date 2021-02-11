@@ -55,7 +55,7 @@ void run_annotate_with_tracks(const std::string & gff_path, const AnnotateWithTr
         const size_t pos = gff_path.find_last_of('/');
         if (pos != std::string::npos) // gff_path == ".../file.gff"
             output_file_path += "/" + gff_path.substr(pos + 1);
-        else                          // gff_path == "aln.maf"
+        else                          // gff_path == "file.gff"
             output_file_path += "/" + gff_path;
     }
 
