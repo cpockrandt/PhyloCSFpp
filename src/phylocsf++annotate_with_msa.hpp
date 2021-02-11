@@ -451,11 +451,11 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         if (system_with_return(cmd.c_str()))
             exit(9);
 
+        // score alignments
         mmseqs_fasta_to_maf(msa_file, maf_file, params, lookup_genome_ids);
         run_scoring_msa(maf_file, model, scoring_params, 1, 1);
     }
 
-    // score alignments
     // read, copy and annotate gff
     (void)gff_path;
     (void)missing_sequences;
@@ -550,7 +550,7 @@ int main_annotate_with_msa(int argc, char** argv)
         if (create_directory(params.output_path))
             printf(OUT_INFO "Created the output directory.\n" OUT_RESET);
     }
-    scoring_params.output_path = params.output_path;
+    scoring_params.output_path = ""; // this will automatically save scores next to maf file
 
     scoring_params.comp_phylo = true;
     scoring_params.comp_anc = false;
