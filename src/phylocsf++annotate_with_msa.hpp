@@ -151,6 +151,7 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
                         m.aln.emplace_back(std::get<0>(params.aligning_genomes[genome_id->second]) + ".UNK", line2);
                     else
                         printf(OUT_ERROR "Could not match sequence id to genome (this should never happen!) in file %s: %s\n" OUT_RESET, src.c_str(), id.c_str());
+                    id = ""; // at the end of the file we might encounter a newline (i.e, it does does not start with '>') and might think a sequene is following
                 }
             }
         }
@@ -272,7 +273,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 
     const std::string dir_mmseqs_work = params.output_path;
 
-//    const std::string dir_genomesdb = dir_mmseqs_work + "/genomesDB";
+    const std::string dir_genomesdb = dir_mmseqs_work + "/genomesDB";
 //    if (create_directory(dir_genomesdb))
 //        printf(OUT_INFO "Created the genomesDB directory.\n" OUT_RESET);
 //
@@ -382,27 +383,27 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 //    }
 
     // load lookup table (seq id -> genome id)
-//    std::unordered_map<std::string, uint32_t> lookup_genome_ids;
-//    {
-//        const std::string lookup_path = dir_genomesdb + "/genbankseqs.lookup";
-//        FILE *lookup_file = fopen(lookup_path.c_str(), "r");
-//        if (lookup_file == NULL)
-//        {
-//            printf(OUT_ERROR "Could not open file %s.\n" OUT_RESET, lookup_path.c_str());
-//            exit(-1);
-//        }
-//
-//        uint32_t lookup_id;
-//        char lookup_seq_name[255];
-//        uint32_t lookup_genome_id;
-//        while (!feof(lookup_file))
-//        {
-//            fscanf(lookup_file, "%u\t%s\t%u\n", &lookup_id, lookup_seq_name, &lookup_genome_id);
-//            lookup_genome_ids.emplace(lookup_seq_name, lookup_genome_id);
-//        }
-//
-//        fclose(lookup_file);
-//    }
+    std::unordered_map<std::string, uint32_t> lookup_genome_ids;
+    {
+        const std::string lookup_path = dir_genomesdb + "/genbankseqs.lookup";
+        FILE *lookup_file = fopen(lookup_path.c_str(), "r");
+        if (lookup_file == NULL)
+        {
+            printf(OUT_ERROR "Could not open file %s.\n" OUT_RESET, lookup_path.c_str());
+            exit(-1);
+        }
+
+        uint32_t lookup_id;
+        char lookup_seq_name[255];
+        uint32_t lookup_genome_id;
+        while (!feof(lookup_file))
+        {
+            fscanf(lookup_file, "%u\t%s\t%u\n", &lookup_id, lookup_seq_name, &lookup_genome_id);
+            lookup_genome_ids.emplace(lookup_seq_name, lookup_genome_id);
+        }
+
+        fclose(lookup_file);
+    }
 
     for (uint8_t phase = 0; phase < 3; ++phase)
     {
@@ -440,7 +441,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 //        }
 //
 //        const std::string aln_all_tophit_file = aln_dir + "/aln_all_tophit";
-//        const std::string msa_file = aln_dir + "/msa";
+        const std::string msa_file = aln_dir + "/msa";
         const std::string maf_file = aln_dir + "/msa.maf";
 //
 //        cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files + " --threads " + std::to_string(params.threads);
@@ -452,9 +453,8 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
 //            exit(9);
 //
 //        // score alignments
-//        mmseqs_fasta_to_maf(msa_file, maf_file, params, lookup_genome_ids);
+        mmseqs_fasta_to_maf(msa_file, maf_file, params, lookup_genome_ids);
         run_scoring_msa(maf_file, model, scoring_params, 1, 1);
-        exit(0);
     }
 
     // read, copy and annotate gff
