@@ -272,23 +272,23 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                            const Model & model, const ScoreMSACLIParams & scoring_params,
                            std::unordered_set<std::string> & missing_sequences)
 {
-//    printf("Reading reference genome of GFF file %s ...\n", params.reference_genome_path.c_str());
-//
-//    std::unordered_map<std::string, std::string> reference_genome;
-//    load_fasta_file(params.reference_genome_path, reference_genome);
+    printf("Reading reference genome of GFF file %s ...\n", params.reference_genome_path.c_str());
+
+    std::unordered_map<std::string, std::string> reference_genome;
+    load_fasta_file(params.reference_genome_path, reference_genome);
 
     const std::string dir_mmseqs_work = params.output_path;
 
     const std::string dir_genomesdb = dir_mmseqs_work + "/genomesDB";
-//    if (create_directory(dir_genomesdb))
-//        printf(OUT_INFO "Created the genomesDB directory.\n" OUT_RESET);
-//
-//    const std::string dir_cds_files = dir_mmseqs_work + "/cds";
-//    if (create_directory(dir_cds_files))
-//        printf(OUT_INFO "Created the cds directory.\n" OUT_RESET);
-//
-//    const std::string dir_tmp = dir_mmseqs_work + "/tmp";
-//
+    if (create_directory(dir_genomesdb))
+        printf(OUT_INFO "Created the genomesDB directory.\n" OUT_RESET);
+
+    const std::string dir_cds_files = dir_mmseqs_work + "/cds";
+    if (create_directory(dir_cds_files))
+        printf(OUT_INFO "Created the cds directory.\n" OUT_RESET);
+
+    const std::string dir_tmp = dir_mmseqs_work + "/tmp";
+
 //    FILE *cds_fasta[3];
 //    for (uint8_t i = 0; i < 3; ++i)
 //    {
