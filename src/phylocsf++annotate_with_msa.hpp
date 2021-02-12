@@ -756,7 +756,15 @@ int main_annotate_with_msa(int argc, char** argv)
             species += std::get<0>(g) + ",";
 //        const std::vector<std::string> scientific_names = sequence_name_mapping[e.label];
     }
-    species.pop_back(); // remove last comma
+    // add reference genome name
+    for (const auto & names_list : sequence_name_mapping)
+    {
+        if (std::find(names_list.second.begin(), names_list.second.end(), params.reference_genome_name) != names_list.second.end())
+        {
+            species += names_list.first;
+            break;
+        }
+    }
 
     // load and prepare model
     Model model;
