@@ -319,11 +319,10 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         reader.setup_progressbar(1, 1);
 
         gff_transcript t;
-        uint32_t transcripts_left = 99999999; // TODO: remove
 
         std::unordered_set<std::string> processed_cds; // don't extract the same CDS sequence twice
 
-        while (reader.get_next_transcript<false>(t) && transcripts_left > 0)
+        while (reader.get_next_transcript<false>(t))
         {
             if (t.CDS.size() == 0)
                 continue;
@@ -365,7 +364,6 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                 fprintf(cds_fasta[c.phase], ">%s:%ld-%ld#%c\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, cds_seq.c_str());
             }
 
-            --transcripts_left;
             reader.print_progress();
         }
 
@@ -464,7 +462,6 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                     exit(7);
                 all_top_hit_files = aln_tophit_output + " " + all_top_hit_files;
             }
-
 
             cmd = params.mmseqs2_bin + " mergedbs " + exon_index_path + " " + aln_all_tophit_file + " " + all_top_hit_files;
             if (system_with_return(cmd.c_str()))
@@ -566,6 +563,8 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         {
             for (auto & c : t.CDS)
             {
+                c.end -= c.phase;
+
                 const std::string key = std::string(t.chr) + ':' + std::to_string(c.begin) + '-' + std::to_string(c.end)
                                         + '#' + t.strand + '#' + std::to_string(c.phase);
 
@@ -575,12 +574,12 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                     const uint64_t cds_length = c.end - c.begin + 1;
                     bases_with_scores += cds_length;
                     c.phylo_score = std::get<0>(scores_it->second);
-                    weighted_phylo_score += c.phylo_score / cds_length; // TODO: does this make sense?
+                    weighted_phylo_score += c.phylo_score * cds_length; // TODO: does this make sense?
 
                     if (scoring_params.comp_bls)
                     {
                         c.phylo_power = std::get<1>(scores_it->second);
-                        weighted_phylo_power += c.phylo_power / cds_length; // TODO: does this make sense?
+                        weighted_phylo_power += c.phylo_power * cds_length; // TODO: does this make sense?
                     }
                 }
             }
@@ -635,11 +634,6 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     }
 
     fclose(gff_out);
-
-    (void)gff_path;
-    (void)missing_sequences;
-    (void)model;
-    (void)scoring_params;
 }
 
 int main_annotate_with_msa(int argc, char** argv)
@@ -741,9 +735,28 @@ int main_annotate_with_msa(int argc, char** argv)
     const std::string genome_file = args.get_positional_argument("genome-file");
     load_genome_file(genome_file, params.aligning_genomes, params.reference_genome_name, params.reference_genome_path);
 
-    // TODO: test whether species in genome-file can be mapped to model.
-
     std::string species = ""; // TODO: set species subset according to provided reference genomes in genome-file
+    // TODO: remove ids
+    for (const auto & g : params.aligning_genomes)
+    {
+        const std::string & species_name = std::get<0>(g);
+        // get the common name in case we find that it's a scientific name
+        bool common_name_found = false;
+        for (const auto & names_list : sequence_name_mapping)
+        {
+
+            if (std::find(names_list.second.begin(), names_list.second.end(), species_name) != names_list.second.end())
+            {
+                common_name_found = true;
+                species += names_list.first + ",";
+                break;
+            }
+        }
+        if (!common_name_found)
+            species += std::get<0>(g) + ",";
+//        const std::vector<std::string> scientific_names = sequence_name_mapping[e.label];
+    }
+    species.pop_back(); // remove last comma
 
     // load and prepare model
     Model model;
