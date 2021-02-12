@@ -426,7 +426,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         fclose(lookup_file);
     }
 
-    for (uint8_t phase = 1; phase < 3; ++phase)
+    for (uint8_t phase = 0; phase < 3; ++phase)
     {
         const std::string aln_dir = dir_mmseqs_work + "/aln_" + std::to_string(phase);
         if (create_directory(aln_dir))
