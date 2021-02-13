@@ -1610,7 +1610,31 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "Spar",						{ "sacPar" } },
     { "Sbay",						{ "sacBay" } },
     { "Scas",						{ "sacCas" } },
-    { "Sklu",						{ "sacKlu" } }
+    { "Sklu",						{ "sacKlu" } },
+    { "Sklu",						{ "sacKlu" } },
+    { "dmel",						{ "dm" } },
+    { "dsim",						{ "droSim" } },
+    { "dsec",						{ "droSec" } },
+    { "dyak",						{ "droYak" } },
+    { "dere",						{ "droEre" } },
+    { "dbia",						{ "droBia" } },
+    { "dsuz",						{ "droSuz" } },
+    { "dana",						{ "droAna" } },
+    { "dbip",						{ "droBip" } },
+    { "deug",						{ "droEug" } },
+    { "dele",						{ "droEle" } },
+    { "dkik",						{ "droKik" } },
+    { "dtak",						{ "droTak" } },
+    { "drho",						{ "droRho" } },
+    { "dfic",						{ "droFic" } },
+    { "dpse",						{ "droPse" } },
+    { "dper",						{ "droPer" } },
+    { "dmir",						{ "droMir" } },
+    { "dwil",						{ "droWil" } },
+    { "dvir",						{ "droVir" } },
+    { "dmoj",						{ "droMoj" } },
+    { "dalb",						{ "droAlb" } },
+    { "dgri",						{ "droGri" } }
 };
 
 // TODO: make common names in mapping structure, mapping file and models and phylo-input all lower case, also scientific names

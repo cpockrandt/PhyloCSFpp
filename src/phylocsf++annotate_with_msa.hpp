@@ -380,6 +380,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     // 1. index genomes
     if (debug_index_genomes)
     {
+        printf("MMseqs2: Indexing genomes ...\n");
         std::string all_genomes_paths = "";
         for (uint64_t genome_id = 0; genome_id < params.aligning_genomes.size(); ++genome_id)
         {
@@ -441,6 +442,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         // index query sequences
         if (debug_align_sequences)
         {
+            printf("MMseqs2: Align CDS sequences ...\n");
             cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path; // TODO: index ist der falsche begriff
             if (system_with_return(cmd.c_str()))
                 exit(5);
@@ -475,6 +477,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         // score alignments
         if (debug_transform_and_score_alignments)
         {
+            printf("MMseqs2: Score aligned CDS ...\n");
             // TODO: cut off phase before even starting to score. when reading from the maf we have to consider this when computing the end-coordinate for lookup
             mmseqs_fasta_to_maf(msa_file, maf_file, params, lookup_genome_ids, phase);
             run_scoring_msa(maf_file, model, scoring_params, 1, 1);
@@ -517,6 +520,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     }
 
     // read (again) and output with gff scores
+    printf("Annotate GFF with scores ...\n");
     gff_reader gff_in(gff_path.c_str());
     gff_in.setup_progressbar(1, 1);
 
@@ -793,6 +797,8 @@ int main_annotate_with_msa(int argc, char** argv)
     std::string coding_exons_path = "";
     if (args.is_set("coding-exons"))
         coding_exons_path = args.get_string("coding-exons");
+
+    // TODO: only pass "true" if coding-exons and genome-length are set
 
     Model model;
     load_model(model, args.get_positional_argument("model"), species, true/*smooth=false*/, genome_length, coding_exons_path);

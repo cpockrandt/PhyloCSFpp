@@ -139,6 +139,7 @@ class parallel_maf_reader
     size_t pages_per_thread;
 
     const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid;
+    std::unordered_set<std::string> unresolved_identifiers;
 
     const bool concatenate_alignments;
 
@@ -400,12 +401,6 @@ public:
                                        (char*) file_mem + file_range_pos_orig[job_id - 1], // haysteck_begin
                                        "\na ") + 1; // pattern; +1 to skip \n
 
-//        printf("Prev_aln_begin: %ld\n", prev_aln_begin - (char*)file_mem);
-//        char buf[61];
-//        memcpy(buf, prev_aln_begin, 60);
-//        buf[60] = 0;
-//        printf("buf: %s\n", buf);
-
         if (prev_aln_begin == NULL) // no alignment begin in this section, so there are no alignments to process for this job
         {
             file_range_pos[job_id] = file_size;
@@ -494,8 +489,14 @@ public:
                 auto alnid = (*fastaid_to_alnid).find(id);
                 if (alnid == (*fastaid_to_alnid).end())
                 {
-//                    printf("ERROR: Species %s in alignment file does not exist in model (or is not translated correctly)!\n", id);
-//                    exit(-1);
+                    #pragma omp critical(unresolved_identifier)
+                    {
+                        if (unresolved_identifiers.find(id) == unresolved_identifiers.end())
+                        {
+                            unresolved_identifiers.emplace(id);
+                            printf(OUT_INFO "WARNING: Not able to match species %s in alignment file to model (Use `--mapping` to fix it)!\n" OUT_RESET, id);
+                        }
+                    }
 
                     free(id);
                     free(seq);
@@ -514,7 +515,7 @@ public:
                     aln.strand = ref_strand;
                     ref_seq_id = alnid->second;
                     prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
-                    assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
+                    //assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
                 }
                 else
                 {
@@ -608,7 +609,7 @@ public:
                     {
                         ref_seq_id2 = alnid->second;
                         prev_cumulative_len_wo_ref_gaps += tmp_len_wo_ref_gaps;
-                        assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
+                        //assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
 //                    printf("Ref_seq_id: %ld\n", ref_seq_id);
                     }
                     else
