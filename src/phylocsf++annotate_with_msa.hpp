@@ -441,7 +441,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         // index query sequences
         if (debug_align_sequences)
         {
-            cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path;
+            cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path; // TODO: index ist der falsche begriff
             if (system_with_return(cmd.c_str()))
                 exit(5);
 
@@ -669,10 +669,23 @@ int main_annotate_with_msa(int argc, char** argv)
     args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
     args.add_option("mmseqs-bin", ArgParse::Type::STRING, "Path to MMseqs2 binary. Default: " + params.mmseqs2_bin, ArgParse::Level::GENERAL, false);
 
+    args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
+    args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
+
+    args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
+    args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::GENERAL, false);
+
     args.add_positional_argument("genome-file", ArgParse::Type::STRING, "Two-column text file with species name and path to its genomic fasta file. First line has to be the reference genome of the GFF file.", true);
     args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", true);
     args.add_positional_argument("gff-files", ArgParse::Type::STRING, "One or more GFF/GTF files with coding exons to be scored.", true, true);
     args.parse_args(argc, argv);
+
+    // additional help strings
+    if (args.is_set("model-info"))
+    {
+        const std::string & model_name = args.get_string("model-info");
+        return print_model_info(model_name);
+    }
 
     args.check_args(); // check here because if "--model-info" is set, we don't want to require mandatory arguments
 
@@ -725,6 +738,12 @@ int main_annotate_with_msa(int argc, char** argv)
     }
     scoring_params.output_path = ""; // this will automatically save scores next to maf file
 
+    if (args.is_set("mapping"))
+    {
+        std::string mapping_file = args.get_string("mapping");
+        update_sequence_name_mapping(mapping_file);
+    }
+
     scoring_params.comp_phylo = true;
     scoring_params.comp_anc = false;
     if (args.is_set("comp-power"))
@@ -767,8 +786,16 @@ int main_annotate_with_msa(int argc, char** argv)
     }
 
     // load and prepare model
+    uint64_t genome_length = 0;
+    if (args.is_set("genome-length"))
+        genome_length = args.get_int("genome-length");
+
+    std::string coding_exons_path = "";
+    if (args.is_set("coding-exons"))
+        coding_exons_path = args.get_string("coding-exons");
+
     Model model;
-    load_model(model, args.get_positional_argument("model"), species, false, 0, "");
+    load_model(model, args.get_positional_argument("model"), species, true/*smooth=false*/, genome_length, coding_exons_path);
 
     // run for every gff file
     std::unordered_set<std::string> missing_sequences;
