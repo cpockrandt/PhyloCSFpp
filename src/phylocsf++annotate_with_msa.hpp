@@ -673,6 +673,10 @@ int main_annotate_with_msa(int argc, char** argv)
     args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
     args.add_option("mmseqs-bin", ArgParse::Type::STRING, "Path to MMseqs2 binary. Default: " + params.mmseqs2_bin, ArgParse::Level::GENERAL, false);
 
+    args.add_option("score-codons", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
+    args.add_option("score-codons-smooth", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
+    args.add_option("score-codons-smooth-with-threshold", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
+
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
 
@@ -731,6 +735,25 @@ int main_annotate_with_msa(int argc, char** argv)
             printf(OUT_ERROR "Please choose a valid strategy (MLE, FIXED or OMEGA)!\n" OUT_RESET);
             return -1;
         }
+    }
+
+    if (args.is_set("score-codons") && args.get_bool("score-codons"))
+    {
+        scoring_params.avg_codon_score = true;
+        scoring_params.avg_codon_score_smoothing = false;
+        scoring_params.avg_codon_score_smoothing_threshold = false;
+    }
+    if (args.is_set("score-codons-smooth") && args.get_bool("score-codons-smooth"))
+    {
+        scoring_params.avg_codon_score = true;
+        scoring_params.avg_codon_score_smoothing = true;
+        scoring_params.avg_codon_score_smoothing_threshold = false;
+    }
+    if (args.is_set("score-codons-smooth-with-threshold") && args.get_bool("score-codons-smooth-with-threshold"))
+    {
+        scoring_params.avg_codon_score = true;
+        scoring_params.avg_codon_score_smoothing = true;
+        scoring_params.avg_codon_score_smoothing_threshold = true;
     }
 
     if (args.is_set("output"))

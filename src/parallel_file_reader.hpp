@@ -531,6 +531,8 @@ public:
             }
         }
 
+        // TODO: load next alignment if the current alignment was empty (because no species was successfully mapped to the model)
+
         // for species not included in the alignment assign them the sequence NNNN...NNNN.
         const size_t new_ref_seq_len2 = aln.seqs[ref_seq_id].size();
         for (uint64_t i = 0; i < aln.seqs.size(); ++i)

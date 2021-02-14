@@ -12,9 +12,15 @@ struct ScoreMSACLIParams
     unsigned threads = omp_get_max_threads();
     bool comp_phylo = true;
     bool comp_anc = false;
-    bool comp_bls = false;
+    bool comp_bls = true;
     std::string output_path = "";
     algorithm_t strategy = MLE;
+
+    // internal flag for annotate-with-msa
+    // score every codon separately, flatten and compute the average
+    bool avg_codon_score = true;
+    bool avg_codon_score_smoothing = true;
+    bool avg_codon_score_smoothing_threshold = true;
 };
 
 struct scoring_result
@@ -88,6 +94,8 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
 
     std::vector<std::vector<scoring_result> > all_results(jobs);
 
+    std::vector<std::vector<double> > lpr_per_codon(params.threads), bls_per_bp(params.threads);
+
     #pragma omp parallel for num_threads(params.threads) schedule(dynamic, 1)
     for (unsigned job_id = 0; job_id < jobs; ++job_id)
     {
@@ -105,33 +113,111 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
             results.emplace_back(aln.chrom, aln.start_pos, aln.start_pos + aln.length() - 1, aln.strand, NAN, NAN, NAN);
 
             // TODO: only compute phylocsf score and/or anc score if necessary
-            if (params.comp_phylo || params.comp_anc)
+            if (!params.avg_codon_score)
             {
-                try {
-                    gen.seed(42); // NOTE: make sure that parallelization does not affect results
-                    std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy, gen);
+                if (params.comp_phylo || params.comp_anc)
+                {
+                    try {
+                        gen.seed(42); // NOTE: make sure that parallelization does not affect resultss
+                        std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy, gen);
 
-                    if (params.comp_phylo)
-                    {
-                        results.back().phylo = std::get<0>(result);
+                        if (params.comp_phylo)
+                            results.back().phylo = std::get<0>(result);
+
+                        if (params.comp_anc)
+                            results.back().anc = std::get<1>(result);
                     }
-
-                    if (params.comp_anc)
+                    catch (const std::runtime_error & e)
                     {
-                        results.back().anc = std::get<1>(result);
+                        // printf("%s\n", e.what());
                     }
                 }
-                catch (const std::runtime_error & e)
+
+                if (params.comp_bls)
                 {
-                    // printf("%s\n", e.what());
+                    const float bls_score = compute_bls_score<false>(model.phylo_tree, aln, model, bls_per_bp[thread_id]);
+                    results.back().bls = bls_score;
                 }
             }
-
-            if (params.comp_bls)
+            else
             {
-                std::vector<double> bls_scores_per_base;
-                const float bls_score = compute_bls_score<false>(model.phylo_tree, aln, model, bls_scores_per_base);
+                assert(params.strategy == FIXED);
+
+                bls_per_bp[thread_id].clear();
+                const float bls_score = compute_bls_score<true>(model.phylo_tree, aln, model, bls_per_bp[thread_id]);
                 results.back().bls = bls_score;
+
+                std::vector<double> scores;
+                std::vector<scored_region> region;
+
+                lpr_per_codon[thread_id].clear();
+                run_tracks(data[thread_id], model, aln, lpr_per_codon[thread_id]);
+                data[thread_id].clear();
+
+                float sum_smoothened_scores = 0.0;
+                uint64_t cnt_smoothened_scores = 0;
+
+                float sum_all_lpr = 0.0;
+
+                int64_t prevPos = -4;
+                int64_t startBlockPos = aln.start_pos;
+                for (size_t xx = 0, bls_pos = 0; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
+                {
+                    sum_all_lpr += lpr_per_codon[thread_id][xx];
+                    const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
+                                              + bls_per_bp[thread_id][bls_pos + 1]
+                                              + bls_per_bp[thread_id][bls_pos + 2];
+                    if (params.avg_codon_score_smoothing_threshold && bls_codon_sum < 0.1 * 3) // TODO: document this fixed threshold
+                    {
+                        if (scores.empty())
+                            startBlockPos = aln.start_pos + ((xx + 1) * 3);
+                        continue;
+                    }
+
+                    int64_t newPos = aln.start_pos + (xx * 3);
+
+                    if (prevPos + 3 != newPos)
+                    {
+                        if (!scores.empty())
+                        {
+                            // fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                            process_scores(model._hmm, scores, startBlockPos, region, SCORE_CODON);
+
+                            for(size_t i = 0; i < region.size(); i++)
+                                sum_smoothened_scores += region[i].log_odds_prob;
+                                //my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                            cnt_smoothened_scores += region.size();
+
+                            scores.clear();
+                            region.clear();
+                            startBlockPos = aln.start_pos + (xx * 3);
+                        }
+                    }
+
+                    prevPos = newPos;
+
+                    scores.push_back(lpr_per_codon[thread_id][xx]);
+                }
+
+                if (!scores.empty())
+                {
+                    //fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                    process_scores(model._hmm, scores, startBlockPos, region, SCORE_CODON);
+
+                    for(size_t i = 0; i < region.size(); i++)
+                        sum_smoothened_scores += region[i].log_odds_prob;
+                        //my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                    cnt_smoothened_scores += region.size();
+
+                    scores.clear();
+                    region.clear();
+                }
+
+                results.back().phylo = sum_smoothened_scores / cnt_smoothened_scores;
+
+                // if we don't want smoothing, just overwrite the value with the unsmoothened avg value
+                if (!params.avg_codon_score_smoothing)
+                    results.back().phylo = sum_all_lpr / lpr_per_codon[thread_id].size();
             }
 
             data[thread_id].clear();
@@ -204,6 +290,9 @@ int main_score_msa(int argc, char **argv)
     args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::GENERAL, false);
     // TODO: ignore sequences not occuring in model (instead of failing)
 
+    args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
+    args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
+
     args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", true);
     args.add_positional_argument("alignments", ArgParse::Type::STRING, "One or more files containing multiple sequence alignments. Formats: MAF and multi FASTA. Multiple MSAs can be stored in a single file separated by empty lines.", true, true);
     args.parse_args(argc, argv);
@@ -273,8 +362,18 @@ int main_score_msa(int argc, char **argv)
     }
 
     // load and prepare model
+    uint64_t genome_length = 0;
+    if (args.is_set("genome-length"))
+        genome_length = args.get_int("genome-length");
+
+    std::string coding_exons_path = "";
+    if (args.is_set("coding-exons"))
+        coding_exons_path = args.get_string("coding-exons");
+
+    // TODO: only pass "true" if coding-exons and genome-length are set
+
     Model model;
-    load_model(model, args.get_positional_argument("model"), args.get_string("species"), false, 0, "");
+    load_model(model, args.get_positional_argument("model"), args.get_string("species"), true/*false*/, genome_length, coding_exons_path);
 
     // run for every alignment file
     for (uint16_t i = 1; i < args.positional_argument_size(); ++i)
