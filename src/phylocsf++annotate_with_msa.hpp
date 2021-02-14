@@ -30,7 +30,8 @@ struct AnnotateWithMSACLIParams
 
 // TODO: make this function prettier (e.g., no local struct def)
 void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, const AnnotateWithMSACLIParams & params,
-                         const std::unordered_map<std::string, uint32_t> & lookup_genome_ids, const uint8_t phase)
+                         const std::unordered_map<std::string, uint32_t> & lookup_genome_ids,
+                         std::vector<uint8_t> & phases)
 {
     struct maf_object
     {
@@ -38,12 +39,13 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
         uint64_t begin;
         uint64_t end;
         char strand;
+        uint8_t phase;
 
         std::string seq;
 
         std::vector<std::tuple<std::string, std::string> > aln;
 
-        void print(FILE *fp, const uint8_t phase)
+        void print(FILE *fp, std::vector<uint8_t> & phases)
         {
             // create format string (depends on max sequence name length)s
             char format_str[50];
@@ -56,18 +58,17 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
                 }
             }
             sprintf(format_str, "s %%-%ds %%10ld %%10ld %%c %%ld %%s\n", max_seq_name_len);
+            phases.push_back(phase);
 
             fprintf(fp, "a score=NAN\n");
             // seq name, begin pos (0-indexed), length, strand, total chrom len, seq
             // NOTE: an entry on the reverse strand already has the sequence reverse-complemented, i.e., it would actually now be on the forward strand
             // but we need to remember what strand the original sequence was on to easily map them to the CDS in the GFF file
-            seq.erase(0, phase); // remove the first 0-2 bases
-
             fprintf(fp, format_str, chr.c_str(), begin - 1, end - (begin - 1), strand, 0, seq.c_str());
+
             for (auto & a : aln)
             {
                 // we don't care about locations or strandness
-                std::get<1>(a).erase(0, phase); // remove the first 0-2 bases
                 fprintf(fp, format_str, std::get<0>(a).c_str(), 0ul, 0, '+', 0, std::get<1>(a).c_str());
             }
             fprintf(fp, "\n");
@@ -93,7 +94,7 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
     ssize_t read;
 
     // TODO: get rid of regex and use sscanf
-    const std::regex pieces_regex("(.+):([0-9]+)-([0-9]+)#([\\+-])");
+    const std::regex pieces_regex("(.+):([0-9]+)-([0-9]+)#([\\+-])#([0-2])");
     std::smatch pieces_match;
 
     maf_object m;
@@ -121,7 +122,7 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
             if (std::regex_match(id, pieces_match, pieces_regex))
             {
                 if (m.aln.size() > 0)
-                    m.print(f_out, phase);
+                    m.print(f_out, phases);
 
 //                printf("ref id\n");
 
@@ -129,8 +130,10 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
                 m.begin = std::stoi(pieces_match[2].str());
                 m.end = std::stoi(pieces_match[3].str());
                 m.strand = pieces_match[4].str()[0];
+                m.phase = pieces_match[5].str()[0];
                 m.seq = "";
                 m.aln.clear();
+                printf("XXXX: %d\n", m.phase);
 
                 id = ""; // NOTE: this is impotant. last line in file might only by 0x00, hence it will try to add a new sequence to the alignment
 
@@ -169,7 +172,7 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
     }
 
     if (m.aln.size() > 0)
-        m.print(f_out, phase);
+        m.print(f_out, phases);
 
     free(line);
 
@@ -278,8 +281,8 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                            std::unordered_set<std::string> & missing_sequences)
 {
     constexpr bool debug_index_genomes                  = 0;
-    constexpr bool debug_extract_cds                    = 0;
-    constexpr bool debug_align_sequences                = 0;
+    constexpr bool debug_extract_cds                    = 1;
+    constexpr bool debug_align_sequences                = 1;
     constexpr bool debug_transform_and_score_alignments = 1;
 
     const std::string dir_mmseqs_work = params.output_path;
@@ -301,16 +304,13 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         std::unordered_map<std::string, std::string> reference_genome;
         load_fasta_file(params.reference_genome_path, reference_genome);
 
-        FILE *cds_fasta[3];
-        for (uint8_t i = 0; i < 3; ++i)
+        FILE *cds_fasta;
+        const std::string cds_fasta_path = dir_cds_files + "/cds.fasta";
+        cds_fasta = fopen(cds_fasta_path.c_str(), "w");
+        if (cds_fasta == NULL)
         {
-            const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(i) + ".fasta";
-            cds_fasta[i] = fopen(cds_fasta_path.c_str(), "w");
-            if (cds_fasta[i] == NULL)
-            {
-                printf(OUT_ERROR "Could not create file %s.\n" OUT_RESET, cds_fasta_path.c_str());
-                exit(-1);
-            }
+            printf(OUT_ERROR "Could not create file %s.\n" OUT_RESET, cds_fasta_path.c_str());
+            exit(-1);
         }
 
         printf("Reading GFF file and extracting CDS coordinates ...\n");
@@ -360,15 +360,16 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                         cds_seq[i] = complement(cds_seq[i]);
                 }
 
+                cds_seq.erase(0, c.phase); // remove first 0-2 bases so we can later all align with the same frame shifts
+
                 // TODO: do not need end position
-                fprintf(cds_fasta[c.phase], ">%s:%ld-%ld#%c\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, cds_seq.c_str());
+                fprintf(cds_fasta, ">%s:%ld-%ld#%c#%d\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, c.phase, cds_seq.c_str());
             }
 
             reader.print_progress();
         }
 
-        for (uint8_t i = 0; i < 3; ++i)
-            fclose(cds_fasta[i]);
+        fclose(cds_fasta);
     }
 
     // do all the stuff wth mmseqs
@@ -427,14 +428,14 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         fclose(lookup_file);
     }
 
-    for (uint8_t phase = 0; phase < 3; ++phase)
+    std::vector<uint8_t> phases;
     {
-        const std::string aln_dir = dir_mmseqs_work + "/aln_" + std::to_string(phase);
+        const std::string aln_dir = dir_mmseqs_work + "/aln";
         if (create_directory(aln_dir))
             printf(OUT_INFO "Created the aln_dir directory.\n" OUT_RESET);
 
-        const std::string cds_fasta_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".fasta";
-        const std::string exon_index_path = dir_cds_files + "/cds_phase" + std::to_string(phase) + ".index";
+        const std::string cds_fasta_path = dir_cds_files + "/cds.fasta";
+        const std::string exon_index_path = dir_cds_files + "/cds.index";
         const std::string aln_all_tophit_file = aln_dir + "/aln_all_tophit";
         const std::string msa_file = aln_dir + "/msa";
         const std::string maf_file = aln_dir + "/msa.maf";
@@ -455,7 +456,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                 const std::string aln_output = aln_dir + "/aln_" + std::to_string(genome_id);
                 const std::string aln_tophit_output = aln_dir + "/aln_tophit_" + std::to_string(genome_id);
 
-                cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames " + std::to_string(phase + 1) + " --reverse-frames 0" + " --threads " + std::to_string(params.threads);
+                cmd = params.mmseqs2_bin + " search " + exon_index_path + " " + indexed_genome_path + " " + aln_output + " " + dir_tmp + " -a --search-type 4 --min-length 15 --remove-tmp-files --forward-frames 1 --reverse-frames 0" + " --threads " + std::to_string(params.threads);
                 if (system_with_return(cmd.c_str()))
                     exit(6);
 
@@ -479,7 +480,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         {
             printf("MMseqs2: Score aligned CDS ...\n");
             // TODO: cut off phase before even starting to score. when reading from the maf we have to consider this when computing the end-coordinate for lookup
-            mmseqs_fasta_to_maf(msa_file, maf_file, params, lookup_genome_ids, phase);
+            mmseqs_fasta_to_maf(msa_file, maf_file, params, lookup_genome_ids, phases);
             run_scoring_msa(maf_file, model, scoring_params, 1, 1);
         }
     }
@@ -487,9 +488,8 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     // TODO: don't store scores in output files but emplace them directly into the map
     // read in score files
     std::unordered_map<std::string, std::tuple<float, float> > computed_scores; // key (chrom:from-to#strand#phase), val: <phylo score, bls>
-    for (uint8_t phase = 0; phase < 3; ++phase)
     {
-        const std::string score_file_path = dir_mmseqs_work + "/aln_" + std::to_string(phase) + "/msa.maf.scores";
+        const std::string score_file_path = dir_mmseqs_work + "/aln/msa.maf.scores";
 
         FILE *score_file = fopen(score_file_path.c_str(), "r");
         if (score_file == NULL)
@@ -508,12 +508,14 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         fgets(line, sizeof line, score_file); // skip comment line
         fgets(line, sizeof line, score_file); // skip column name line
 
+        uint64_t alignment_id = 0;
         while (fgets(line, sizeof line, score_file) != NULL)
         {
             sscanf(line, "%s\t%lu\t%lu\t%c\t%f", chr, &start, &end, &strand, &score);
             const std::string key = std::string(chr) + ':' + std::to_string(start) + '-' + std::to_string(end)
-                                  + '#' + strand + '#' + std::to_string(phase);
+                                  + '#' + strand + '#' + std::to_string(phases[alignment_id]);
             computed_scores.emplace(key, std::tuple<float, float>(score, NAN));
+            ++alignment_id;
 //            printf("%s\t%lu\t%lu\t%c\t%f\n", chr, start, end, strand, score);
         }
         fclose(score_file);
