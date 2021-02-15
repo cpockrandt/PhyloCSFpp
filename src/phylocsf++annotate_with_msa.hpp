@@ -130,7 +130,8 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
                 m.begin = std::stoi(pieces_match[2].str());
                 m.end = std::stoi(pieces_match[3].str());
                 m.strand = pieces_match[4].str()[0];
-                m.phase = pieces_match[5].str()[0];
+                m.phase = std::stoi(pieces_match[5].str());
+                assert(m.phase <= 2);
                 m.seq = "";
                 m.aln.clear();
                 printf("XXXX: %d\n", m.phase);
@@ -281,8 +282,8 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                            std::unordered_set<std::string> & missing_sequences)
 {
     constexpr bool debug_index_genomes                  = 0;
-    constexpr bool debug_extract_cds                    = 1;
-    constexpr bool debug_align_sequences                = 1;
+    constexpr bool debug_extract_cds                    = 0;
+    constexpr bool debug_align_sequences                = 0;
     constexpr bool debug_transform_and_score_alignments = 1;
 
     const std::string dir_mmseqs_work = params.output_path;
