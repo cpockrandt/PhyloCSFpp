@@ -282,6 +282,10 @@ int main_score_msa(int argc, char **argv)
     args.add_option("comp-anc", ArgParse::Type::BOOL, "Compute the ancestral sequence composition score (only in MLE and FIXED mode). Default: " + std::to_string(params.comp_anc), ArgParse::Level::GENERAL, false);
     args.add_option("comp-bls", ArgParse::Type::BOOL, "Compute the branch length score (confidence). Default: " + std::to_string(params.comp_bls), ArgParse::Level::GENERAL, false);
 
+    args.add_option("score-codons", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.avg_codon_score), ArgParse::Level::GENERAL, false);
+    args.add_option("score-codons-smooth", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.avg_codon_score_smoothing), ArgParse::Level::GENERAL, false);
+    args.add_option("score-codons-smooth-with-threshold", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.avg_codon_score_smoothing_threshold), ArgParse::Level::GENERAL, false);
+
     args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
     args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
 
@@ -309,6 +313,25 @@ int main_score_msa(int argc, char **argv)
     // retrieve flags/options that were set
     if (args.is_set("threads"))
         params.threads = args.get_int("threads");
+
+    if (args.is_set("score-codons") && args.get_bool("score-codons"))
+    {
+        params.avg_codon_score = true;
+        params.avg_codon_score_smoothing = false;
+        params.avg_codon_score_smoothing_threshold = false;
+    }
+    if (args.is_set("score-codons-smooth") && args.get_bool("score-codons-smooth"))
+    {
+        params.avg_codon_score = true;
+        params.avg_codon_score_smoothing = true;
+        params.avg_codon_score_smoothing_threshold = false;
+    }
+    if (args.is_set("score-codons-smooth-with-threshold") && args.get_bool("score-codons-smooth-with-threshold"))
+    {
+        params.avg_codon_score = true;
+        params.avg_codon_score_smoothing = true;
+        params.avg_codon_score_smoothing_threshold = true;
+    }
 
     if (args.is_set("strategy"))
     {
@@ -352,7 +375,7 @@ int main_score_msa(int argc, char **argv)
         params.output_path = args.get_string("output");
         // create a directory if it doesn't exist yet
         if (create_directory(params.output_path))
-            printf(OUT_ERROR "Created the output directory.\n" OUT_RESET);
+            printf(OUT_INFO "Created the output directory.\n" OUT_RESET);
     }
 
     if (args.is_set("mapping"))

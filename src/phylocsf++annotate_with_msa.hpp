@@ -134,7 +134,6 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
                 assert(m.phase <= 2);
                 m.seq = "";
                 m.aln.clear();
-                printf("XXXX: %d\n", m.phase);
 
                 id = ""; // NOTE: this is impotant. last line in file might only by 0x00, hence it will try to add a new sequence to the alignment
 
@@ -676,9 +675,9 @@ int main_annotate_with_msa(int argc, char** argv)
     args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
     args.add_option("mmseqs-bin", ArgParse::Type::STRING, "Path to MMseqs2 binary. Default: " + params.mmseqs2_bin, ArgParse::Level::GENERAL, false);
 
-    args.add_option("score-codons", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
-    args.add_option("score-codons-smooth", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
-    args.add_option("score-codons-smooth-with-threshold", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
+    args.add_option("score-codons", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.avg_codon_score), ArgParse::Level::GENERAL, false);
+    args.add_option("score-codons-smooth", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.avg_codon_score_smoothing), ArgParse::Level::GENERAL, false);
+    args.add_option("score-codons-smooth-with-threshold", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.avg_codon_score_smoothing_threshold), ArgParse::Level::GENERAL, false);
 
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
