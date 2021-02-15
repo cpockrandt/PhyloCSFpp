@@ -18,9 +18,9 @@ struct ScoreMSACLIParams
 
     // internal flag for annotate-with-msa
     // score every codon separately, flatten and compute the average
-    bool avg_codon_score = true;
-    bool avg_codon_score_smoothing = true;
-    bool avg_codon_score_smoothing_threshold = true;
+    bool avg_codon_score = false;
+    bool avg_codon_score_smoothing = false;
+    bool avg_codon_score_smoothing_threshold = false;
 };
 
 struct scoring_result
