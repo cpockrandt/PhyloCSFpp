@@ -1634,7 +1634,14 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "dvir",						{ "droVir" } },
     { "dmoj",						{ "droMoj" } },
     { "dalb",						{ "droAlb" } },
-    { "dgri",						{ "droGri" } }
+    { "dgri",						{ "droGri" } },
+    { "C_elegans",					{ "ce" } },
+    { "C_brenneri",					{ "caePb" } },
+    { "C_remanei",					{ "caeRem" } },
+    { "C_briggsae",					{ "cb" } },
+    { "C_japonica",					{ "caeJap" } },
+    { "C_tropicalis",				{ "caeSp" } },
+    { "C_angaria",					{ "caeAng" } }
 };
 
 // TODO: make common names in mapping structure, mapping file and models and phylo-input all lower case, also scientific names

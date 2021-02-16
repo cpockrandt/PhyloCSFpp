@@ -805,14 +805,19 @@ int main_annotate_with_msa(int argc, char** argv)
 //        const std::vector<std::string> scientific_names = sequence_name_mapping[e.label];
     }
     // add reference genome name
+    // TODO
+    bool common_name_found = false;
     for (const auto & names_list : sequence_name_mapping)
     {
         if (std::find(names_list.second.begin(), names_list.second.end(), params.reference_genome_name) != names_list.second.end())
         {
+            common_name_found = true;
             species += names_list.first;
             break;
         }
     }
+    if (!common_name_found)
+        species += params.reference_genome_name;
 
     // load and prepare model
     uint64_t genome_length = 0;
