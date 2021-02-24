@@ -148,6 +148,28 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
             bls_per_bp[thread_id].clear();
             compute_bls_score<true>(model.phylo_tree, aln, model, bls_per_bp[thread_id]);
 
+            if (params.phylo_power)
+            {
+                // since we iterate over a codon array, there must be 3 bp for each codon
+                // the last 0-2 remaining basepairs in the bls array do not have a codon entry
+                assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
+
+                // skip the first 0-2 bases as in aln.update_seqs(orig_start_pos, strand = '+', frame = 3);
+                int64_t skip_bases = static_cast<int64_t>(3 - aln.start_pos) % 3;
+                if (skip_bases < 0)
+                    skip_bases += 3;
+
+                fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos + skip_bases);
+                for (uint32_t pos = 2; pos + 2 < bls_per_bp[thread_id].size(); pos += 3)
+                {
+                    const float bls_codon_avg = (bls_per_bp[thread_id][pos]
+                                                 +  bls_per_bp[thread_id][pos + 1]
+                                                 +  bls_per_bp[thread_id][pos + 2]) / 3.0;
+
+                    my_fprintf(file_power, "%.4f", bls_codon_avg);
+                }
+            }
+
             const uint64_t orig_start_pos = aln.start_pos;
 
             for (char strand = '+'; strand <= '-'; strand += 2)
@@ -168,23 +190,6 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         // aminoacids are translated from right to left, i.e., remove the remaining 0-2 dna bases from
                         // the left, i.e., increase the start_pos
                         aln.start_pos += aln.length() % 3;
-                    }
-
-                    if (params.phylo_power && frame == 3 && strand == '+')
-                    {
-                        // since we iterate over a codon array, there must be 3 bp for each codon
-                        // the last 0-2 remaining basepairs in the bls array do not have a codon entry
-                        assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
-
-                        fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos);
-                        for (uint32_t pos = 2; pos + 2 < bls_per_bp[thread_id].size(); pos += 3)
-                        {
-                            const float bls_codon_avg = (bls_per_bp[thread_id][pos]
-                                                         +  bls_per_bp[thread_id][pos + 1]
-                                                         +  bls_per_bp[thread_id][pos + 2]) / 3.0;
-
-                            my_fprintf(file_power, "%.4f", bls_codon_avg);
-                        }
                     }
 
                     int64_t prevPos = -4;
