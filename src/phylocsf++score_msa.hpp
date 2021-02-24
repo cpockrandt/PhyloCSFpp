@@ -77,7 +77,7 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
     if (params.comp_anc)
         fprintf(output_file, "\tanc-score");
     if (params.comp_bls)
-        fprintf(output_file, "\tblc-score");
+        fprintf(output_file, "\tbls-score");
     fprintf(output_file, "\n");
 
     // prepare alignment
@@ -396,7 +396,7 @@ int main_score_msa(int argc, char **argv)
     // TODO: only pass "true" if coding-exons and genome-length are set
 
     Model model;
-    load_model(model, args.get_positional_argument("model"), args.get_string("species"), true/*false*/, genome_length, coding_exons_path);
+    load_model(model, args.get_positional_argument("model"), args.get_string("species"), false/*true*/, genome_length, coding_exons_path);
 
     // run for every alignment file
     for (uint16_t i = 1; i < args.positional_argument_size(); ++i)

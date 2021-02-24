@@ -413,7 +413,7 @@ struct instance_t
         // NOTE: it seems that order does not seem to matter! can sort in Ocaml and does not change the result
         // NOTE: even though we sort, some values are neg. instead of pos and vice versa
         // TODO: not necessary, just for comparing results with ocaml helpful
-        gsl_eigen_nonsymmv_sort(l, s, GSL_EIGEN_SORT_ABS_ASC);
+        // gsl_eigen_nonsymmv_sort(l, s, GSL_EIGEN_SORT_ABS_ASC);
 
         // ---- zinvm
         int signum;
