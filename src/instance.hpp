@@ -18,81 +18,6 @@ enum domain {
     NonNeg
 };
 
-std::ostream& operator<<(std::ostream & os, const gsl_vector v)
-{
-    os << '[';
-    for (uint32_t i = 0; i < v.size; ++i)
-    {
-//        os << gsl_vector_get(&v, i) << ' ';
-        char buf[10];
-        sprintf(buf, "%f ", gsl_vector_get(&v, i));
-        os << buf;
-    }
-    os << ']';
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const gsl_vector_complex v)
-{
-    os << '[';
-    for (uint32_t i = 0; i < v.size; ++i)
-    {
-        auto c = gsl_vector_complex_get(&v, i);
-        os << c.dat[0] << ',' << c.dat[1] << ' ';
-    }
-    os << ']';
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const gsl_matrix m)
-{
-    for (uint32_t i = 0; i < m.size1; ++i)
-    {
-        for (uint32_t j = 0; j < m.size2; ++j)
-        {
-//            os << gsl_matrix_get(&m, i, j) << ' ';
-            char buf[10];
-            sprintf(buf, "%f ", gsl_matrix_get(&m, i, j));
-            os << buf;
-        }
-        os << '\n';
-    }
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const gsl_matrix_complex m)
-{
-    for (uint32_t i = 0; i < m.size1; ++i)
-    {
-        for (uint32_t j = 0; j < m.size2; ++j)
-        {
-            auto c = gsl_matrix_complex_get(&m, i, j);
-//            os << gsl_matrix_get(&m, i, j) << ' ';
-            char buf[20];
-            sprintf(buf, "%f,%f ", c.dat[0], c.dat[1]);
-            os << buf;
-        }
-        os << '\n';
-    }
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const domain d)
-{
-    switch (d)
-    {
-        case domain::Pos:
-            os << "Pos";
-            break;
-        case domain::NonNeg:
-            os << "NonNeg";
-            break;
-        default:
-            os << "UNKNOWN!";
-    }
-    return os;
-}
-
 inline bool check_real(const gsl_complex& c, const double tol)
 {
     return
@@ -514,39 +439,6 @@ struct instance_t
     }
 };
 
-std::ostream& operator<<(std::ostream & os, const instance_t::p14n_t &)
-{
-//    os << "q_p14ns\n" << x.q_p14ns << '\n';
-//    char buf[10];
-//    sprintf(buf, "%.3f", x.q_scale_p14ns);
-//    os << "q_scale_p14ns: " << buf << '\n';
-//    os << "q_domains: " << x.q_domains << '\n';
-//    os << "tree_shape:\n" << x.tree_shape << '\n';
-//    os << "tree_p14n:\n" << x.tree_p14n << '\n';
-//    os << "tree_domains: " << x.tree_domains << '\n';
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const instance_t::model_t &)
-{
-//    os << "tree\n" << x.tree << '\n';
-//    os << "qms\n" << x.qms << '\n';
-//    os << "pms\n" << x.pms << '\n';
-//    os << "prior: " << *x.prior << '\n';
-//    char buf[10];
-//    sprintf(buf, "%.3f", x.q_scale_p14ns);
-
-    return os;
-}
-
-std::ostream& operator<<(std::ostream & os, const instance_t &)
-{
-//    os << x.p14n << '\n';
-//    os << x.model;
-//    os << "tree_settings: " << x.tree_settings << '\n';
-//    os << "q_settings: " << x.q_settings << '\n';
-    return os;
-}
 
 // TODO: let make ?prior t qms
 // the new tree and the new qms (created by instantiate_tree or instantiate_qs) are passed be reference in Ocaml
@@ -658,17 +550,8 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
                            p /* C result */);
 
             gsl_matrix_free(diagm_c);
-
-//            for (uint8_t tmp_i = 0; tmp_i < 64; ++tmp_i)
-//            {
-//                for (uint8_t tmp_j = 0; tmp_j < 64; ++tmp_j)
-//                {
-//                    printf("%.3f\t", gsl_matrix_get(gemm_c, tmp_i, tmp_j));
-//                }
-//                printf("\n");
-//            }
         }
-            // non-real-part
+        // non-real-part
         else
         {
             printf("NOT REAL!!!!!\n");
@@ -732,7 +615,6 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
                 total += cell_value;
                 if (cell_value < 0.0)
                 {
-//                    printf("%f\t%f\n", cell_value, q.tol);
                     if (fabs(cell_value) > q.tol) // fabs is for doubles, fabsf is for floats
                     {
                         throw std::runtime_error("CamlPaml.Q.substition_matrix: expm(" + std::to_string(t) + "*Q)[" + std::to_string(index_i) + "," + std::to_string(index_j) + "] = " + std::to_string(cell_value) + " < 0");

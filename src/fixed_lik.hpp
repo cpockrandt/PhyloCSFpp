@@ -122,7 +122,6 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
         gsl_vector * ps_colb = gsl_vector_alloc(k);
         for (int16_t i = ((instance.model.tree.size() + 1) / 2) - 1; i >= 0; --i) // for i = (T.root x.tree)-1 downto 0 do
         {
-            printf("XXXXXXXXXXXXXX\n");
             const int16_t p = instance.model.tree[i].parent_id;
             assert(p > i);
             // TODO: update siblings on reduce!
@@ -428,7 +427,6 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
     const double fhi = (-1) * (*f)(hi, params);
     double x = init;
     double fx = (-1) * (*f)(init, params);
-//    std::cout << "xxx: " << x << " ||| " << fx << '\n';
 
     std::uniform_real_distribution<> dis(0.0, width);
 
@@ -436,10 +434,8 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
     while (i < max_tries && (fx <= flo || fx <= fhi))
     {
         const double r = dis(gen); // width * ((float) rand()/RAND_MAX);
-//        printf("width: %f, random: %f\n", width, r);
         x = exp(log(lo) + r);
         fx = (-1) * (*f)(x, params);
-//        std::cout << "xxx: " << x << " ||| " << fx << '\n';
         ++i;
     }
 
@@ -456,10 +452,8 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
             params->lpr = fhi;
         }
     }
-    else
-    {
-        // NOTE: x and lpr in params already set by call to (*f)(x, params)
-    }
+    // NOTE: otherwise x and lpr in params already set by call to (*f)(x, params)
+
     (*f)(params->x, params); // NOTE: this is suuuuper improtant! (maybe!) we need to set stuff like tree_settings and pms to the values for the x that we eventually chose!
 }
 
@@ -470,7 +464,6 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
 
     minimizer_params_t params {instance, alignment, 0.0, 0.0, 0.0};
     fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params, gen);
-//    std::cout << "good init: " << params.x << " => " << params.lpr << '\n';
     if (lo < params.x && params.x < hi)
     {
         const gsl_min_fminimizer_type *T = gsl_min_fminimizer_brent;
@@ -481,12 +474,11 @@ void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, doub
 
         int64_t max_iter = 250;
         do {
-            gsl_min_fminimizer_iterate(instance.minimizer); // int status =
+            gsl_min_fminimizer_iterate(instance.minimizer);
 
             const double x = gsl_min_fminimizer_x_minimum(instance.minimizer);
             const double lb = gsl_min_fminimizer_x_lower(instance.minimizer);
             const double ub = gsl_min_fminimizer_x_upper(instance.minimizer);
-//            printf("[%.7f, %.7f] %.7f %.7f\n", lb, ub, x, params.lpr);
 
             if (((ub - lb) / x) <= accuracy)
                 break;

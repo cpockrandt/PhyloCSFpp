@@ -551,7 +551,6 @@ public:
             const size_t old_file_range_pos = file_range_pos[job_id];
             skip(job_id); // skip "a score=..."
 
-            char line_type;
             int64_t ref_seq_id2 = -1;
             // get the next alignment
             while (!abort_next_alignment && file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')

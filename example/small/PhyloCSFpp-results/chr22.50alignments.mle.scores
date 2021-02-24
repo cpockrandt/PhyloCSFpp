@@ -1,4 +1,4 @@
-seq	start	end	strand	phylocsf-score	anc-score	blc-score
+seq	start	end	strand	phylocsf-score	anc-score	bls-score
 chr22	16050001	16051627	+	-834.663879	-1.148266	0.002847
 chr22	16051628	16051636	+	-18.685333	0.597033	0.000645
 chr22	16051637	16051645	+	-13.117091	0.017371	0.002873
