@@ -301,7 +301,7 @@ public:
         file_range_end = (size_t*) calloc(sizeof(size_t), this->jobs);
         file_range_pos_orig = (size_t*) calloc(sizeof(size_t), this->jobs);
 
-        bytes_processing = (size_t*) calloc(sizeof(uint64_t), this->jobs);
+        bytes_processing = (uint64_t*) calloc(sizeof(uint64_t), this->jobs);
 
         size_t file_range_from = 0;
         for (unsigned i = 0; i < this->jobs; ++i)
