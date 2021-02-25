@@ -7,7 +7,6 @@ double newick_sum_branch_lengths(const newick_node* node, const std::unordered_s
     if (node->left == NULL) // leaf
     {
         assert(subset.find(node->label) != subset.end());
-//        std::cout << "leaf: " << node->branch_length << '\n';
         return node->branch_length;
     }
     else
@@ -19,11 +18,6 @@ double newick_sum_branch_lengths(const newick_node* node, const std::unordered_s
 
         const uint16_t overlap_left_child = newick_overlap_size(node->left, subset);
         const uint16_t overlap_right_child = overlap_parent - overlap_left_child;
-//        const uint16_t overlap_right_child = newick_overlap_size(node->right, subset); // store nbr of hits in parent node to avoid two passes!
-
-//        printf("%d + %d ?= %d\n", overlap_left_child, overlap_right_child, overlap_parent);
-//        assert(overlap_left_child + overlap_right_child == overlap_parent);
-//        std::cout << overlap_left_child << " ... " << overlap_right_child << '\n';
 
         double bl = 0.0;
 
@@ -32,7 +26,6 @@ double newick_sum_branch_lengths(const newick_node* node, const std::unordered_s
         if (arrived_at_lca)
         {
             bl = node->branch_length;
-//            std::cout << "rek: " << node->branch_length << '\n';
         }
 
         if (overlap_left_child > 0 && overlap_right_child > 0)
@@ -46,36 +39,6 @@ double newick_sum_branch_lengths(const newick_node* node, const std::unordered_s
         return bl;
     }
 }
-
-//newick_node * newick_go_to_lca(newick_node * n, const std::unordered_set<std::string> & subset)
-//{
-//    uint16_t overlap_left_child = newick_overlap_size(n->left, subset);
-//    uint16_t overlap_right_child = subset.size() - overlap_left_child;
-//
-//    while (n->left != NULL && (overlap_left_child == 0 || overlap_right_child == 0))
-//    {
-//        if (overlap_left_child == 0)
-//        {
-//            n = n->right;
-//            if (n->left != NULL)
-//            {
-//                overlap_left_child = newick_overlap_size(n->left, subset);
-//                overlap_right_child -= overlap_left_child;
-//            }
-//        }
-//        else
-//        {
-//            n = n->left;
-//            if (n->left != NULL)
-//            {
-//                overlap_right_child = newick_overlap_size(n->right, subset);
-//                overlap_left_child -= overlap_right_child;
-//            }
-//        }
-//    }
-//
-//    return n;
-//}
 
 template <bool score_per_base>
 double compute_bls_score(const newick_node* node, const alignment_t & alignment, const Model & model, std::vector<double> & scores_per_base)

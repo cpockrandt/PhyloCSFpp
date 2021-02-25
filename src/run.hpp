@@ -7,90 +7,11 @@
 #include "newick.hpp"
 #include "models.hpp"
 #include "parallel_file_reader.hpp"
-
-//std::ostream& operator<<(std::ostream & os, const newick_elem & e)
-//{
-//    os  << e.id << '\t'
-//        << e.label << '\t'
-//        << e.parent_id << '\t'
-//        << '(' << e.child1_id << ", " << e.child2_id << ")\t"
-//        << e.sibling_id << '\t'
-//        << e.branch_length;
-//    return os;
-//}
-//
-//std::ostream& operator<<(std::ostream & os, const std::vector<newick_elem> & v)
-//{
-//    for (uint32_t i = 0; i < v.size(); ++i)
-//    {
-//        os << v[i] << '\n';
-//    }
-//    return os;
-//}
-//
-//std::ostream& operator<<(std::ostream & os, const std::vector<double> & v)
-//{
-//    for (uint32_t i = 0; i < v.size(); ++i)
-//    {
-//        char buf[10];
-//        sprintf (buf, "%f\t", v[i]);
-//        os << buf;
-//    }
-//    os << '\n';
-//    return os;
-//}
-
-//std::ostream& operator<<(std::ostream & os, const std::vector<std::vector<double> > & v)
-//{
-//    for (uint32_t i = 0; i < v.size(); ++i)
-//    {
-//        for (uint32_t j = 0; j < v[i].size(); ++j)
-//        {
-//            char buf[10];
-//            sprintf (buf, "%.3f ", v[i][j]);
-//            os << buf << ' ';
-//        }
-//        std::cout << '\n';
-//    }
-//    return os;
-//}
-
-//template <typename T>
-//std::ostream& operator<<(std::ostream & os, const std::vector<T> & v)
-//{
-//    os << '[';
-//    for (uint32_t i = 0; i < v.size(); ++i)
-//    {
-//        os << v[i] << ' ';
-//    }
-//    os << ']';
-//    return os;
-//}
-//
-//std::ostream& operator<<(std::ostream & os, const std::tuple<double, double, double> & t)
-//{
-//    os << '(' << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ')';
-//    return os;
-//}
-
 #include "ecm.hpp"
 #include "instance.hpp"
 #include "fixed_lik.hpp"
 #include "additional_scores.hpp"
 #include "omega.hpp"
-
-//std::ostream& operator<<(std::ostream & os, const gsl_matrix& m)
-//{
-//    for (uint8_t i = 0; i < m.size1; ++i)
-//    {
-//        for (uint8_t j = 0; j < m.size2; ++j)
-//        {
-//            os << gsl_matrix_get(&m, i, j) << '\t';
-//        }
-//        os << '\n';
-//    }
-//    return os;
-//}
 
 enum algorithm_t
 {
@@ -177,15 +98,11 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             // instantiate_qs
             inst.model.qms.reserve(inst.p14n.tree_p14n.size() - 1);
             compute_q_p14ns_and_q_scale_p14ns_omega(inst);
-//            std::cout << "instance.p14n.q_p14ns:\n" << *inst.p14n.q_p14ns << '\n';
             inst.instantiate_qs();
             // PM.P14n.instantiate p14n ~q_settings:q_settings ~tree_settings:tree_settings
             PhyloModel_make(inst, inst.q_settings, true);
-//            print(inst);
         }
 
-//        std::cout << *inst.model.qms[0].q << '\n';
-//        std::cout << *inst.model.qms[0].eig.r_l << '\n';
         {
             //let update_f3x4 inst leaves = // REVIEW: update_f3x4 seems to be correct!
             gsl_matrix * counts = gsl_matrix_alloc(3, 4);
@@ -200,11 +117,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                     {
                         uint8_t i1, i2, i3;
                         from_amino_acid_id(peptide[i], i1, i2, i3);
-//                        std::cout << "X: " << (unsigned)peptide[i]
-//                                << ' ' << (unsigned)i1
-//                                << ' ' << (unsigned)i2
-//                                << ' ' << (unsigned)i3
-//                        << '\n';
 
                         gsl_matrix_set(counts, 0, i1, gsl_matrix_get(counts, 0, i1) + 1); // counts[0][i1]++
                         gsl_matrix_set(counts, 1, i2, gsl_matrix_get(counts, 1, i2) + 1); // counts[1][i2]++
@@ -212,8 +124,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                     }
                 }
             }
-
-//            std::cout << *counts << '\n';
 
             for (uint8_t i = 0; i < 3; ++i)
             {
@@ -227,12 +137,8 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             //    PM.P14n.update ~q_settings:qs inst
             compute_q_p14ns_and_q_scale_p14ns_omega(inst);
 
-//            std::cout << *inst.q_settings << '\n';
-
             inst.instantiate_qs();
             PhyloModel_make(inst, NULL, true);
-
-//            print(inst);
         }
 
         // STATUS 2020-12-03 02:40 pms and qms are identical here with Ocaml version!!!! :)
@@ -246,7 +152,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 {
                     const double init_rho = inst.tree_settings;
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
-                    // print(inst);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
@@ -258,7 +163,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 gsl_vector_set(inst.q_settings, 1, 0.2); // omega_H1
                 gsl_vector_set(inst.q_settings, 2, 0.01); // sigma_H1
                 compute_q_p14ns_and_q_scale_p14ns_omega(inst);
-                // std::cout << *inst.q_settings << '\n';
                 inst.instantiate_qs();
                 PhyloModel_make(inst, NULL, true);
 
@@ -266,11 +170,9 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 {
                     const double init_rho = inst.tree_settings;
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
-                    // print(inst);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
                     max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
-                    // print(inst);
                 }
             }
         }
@@ -284,9 +186,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
         // initialize model
         PhyloCSFModel_make(data.c_instance, model.c_model, model.phylo_array);
         PhyloCSFModel_make(data.nc_instance, model.nc_model, model.phylo_array);
-
-        // std::cout << "Coding instance:\n" << instance_coding;
-        // std::cout << "NonCoding instance:\n" << instance_noncoding;
 
         double lpr_c, lpr_nc, elpr_anc_c, elpr_anc_nc;
 

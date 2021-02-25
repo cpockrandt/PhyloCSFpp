@@ -96,24 +96,4 @@ struct empirical_codon_model
 
         memcpy(codon_freq, m_codon_freq, 64 * sizeof(m_codon_freq));
     }
-
-    void print_model() const noexcept
-    {
-        for (uint16_t i = 0; i < 64; ++i)
-        {
-            for (uint16_t j = 0; j < 64; ++j)
-            {
-                printf("%f\t", matrix[i][j]);
-            }
-            printf("\n");
-        }
-
-        printf("\n");
-
-        for (uint16_t i = 0; i < 64; ++i)
-        {
-            printf("%f\t", codon_freq[i]);
-        }
-        printf("\n");
-    }
 };
