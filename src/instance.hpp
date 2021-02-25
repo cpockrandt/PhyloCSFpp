@@ -440,7 +440,7 @@ struct instance_t
 
 bool operator!=(const gsl_matrix & m1, const gsl_matrix & m2)
 {
-    assert(m1.size1 == v2.size1 && m1.size2 == m2.size2);
+    assert(m1.size1 == m2.size1 && m1.size2 == m2.size2);
     return memcmp(m1.data, m2.data, sizeof(double) * m1.size1 * m1.size2) != 0;
 }
 
