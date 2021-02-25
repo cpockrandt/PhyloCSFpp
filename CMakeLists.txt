@@ -43,11 +43,12 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 
 # -static -fsanitize=address -fno-omit-frame-pointer
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -pedantic -DNOCURL -std=c++11 -fpermissive") # -Wconversion
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -pedantic -DNOCURL -std=c++11 -fpermissive -DHAVE_INLINE") # -Wconversion
 
 add_executable(phylocsf++ src/phylocsf++.cpp)
 add_dependencies(phylocsf++ libBigWig)
-target_link_libraries(phylocsf++ gsl gslcblas BigWig z)
+target_link_libraries(phylocsf++ BigWig z)
+target_link_libraries(phylocsf++ gsl gslcblas)
 
 #add_executable(tests automatic_tests.cpp)
 #target_link_libraries(tests gsl gslcblas)
