@@ -69,6 +69,59 @@ gsl_vector * alpha_get(const instance_t & instance, workspace_t & workspace, con
     }
 }
 
+struct alpha_result
+{
+    gsl_vector * alpha = gsl_vector_alloc(64);
+    uint8_t aa = 0;
+    bool is_distribution = false; // TODO: is the naming correct? bl < nl
+
+    ~alpha_result()
+    {
+        gsl_vector_free(alpha);
+        alpha = NULL;
+    }
+};
+
+// for now we create a new vector and don't use views, because we don't know what else we will use this function for and how we will handle everything, and scope, etc.
+void alpha_get(const instance_t & instance, workspace_t & workspace, const int16_t br,
+               const alignment_t & alignment, const uint32_t codon_pos, alpha_result & result) // don't think & is necessary for alpha
+{
+    // Inside algo (aka Felsenstein algo)
+    assert(workspace.alpha.matrix.size2 == 64); // = k
+    const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
+    if (br < nl)
+    {
+        result.is_distribution = false;
+        result.aa = alignment.peptides[br][codon_pos];
+    }
+    else
+    {
+        result.is_distribution = true;
+        auto row = gsl_matrix_row(&workspace.alpha.matrix, br - nl);
+        _deeep_copy_vector(&result.alpha, &row.vector);
+    }
+}
+
+void dot_with_alpha(gsl_vector * v, alpha_result & result, double & d)
+{
+    if (result.is_distribution)
+    {
+        gsl_blas_ddot(v, result.alpha, &d);
+    }
+    else if (result.aa == 64)
+    {
+        // gsl_blas_ddot(v, [1 1 1 1 ... 1], &d);
+        d = 0.0;
+        for (size_t i = 0; i < v->size; ++i)
+            d += gsl_vector_get(v, i);
+    }
+    else // if (result.aa != 64)
+    {
+        // gsl_blas_ddot(v, [0 0 ... 0 1 0 ... 0 0], &d); // only at position result.alpha is a 1
+        d = gsl_vector_get(v, result.aa);
+    }
+}
+
 void ensure_alpha(const instance_t & instance, workspace_t & workspace, const alignment_t & alignment, const uint32_t codon_pos) // don't think & is necessary for alpha
 {
     if (workspace.have_alpha)
@@ -78,6 +131,7 @@ void ensure_alpha(const instance_t & instance, workspace_t & workspace, const al
     const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
     const uint16_t k = workspace.alpha.matrix.size2; // let k = snd (Gsl.Matrix.dims x.alpha)
 
+    alpha_result alc, arc;
     for (uint16_t i = nl; i < n; ++i)
     {
         const int16_t lc = instance.model.tree[i].child1_id;
@@ -87,27 +141,24 @@ void ensure_alpha(const instance_t & instance, workspace_t & workspace, const al
         gsl_matrix * ls = instance.model.pms[lc]; // let ls = x.pms.(lc)
         gsl_matrix * rs = instance.model.pms[rc]; // let rs = x.pms.(rc)
 
-        gsl_vector * alc = alpha_get(instance, workspace, lc, alignment, codon_pos);
-        gsl_vector * arc = alpha_get(instance, workspace, rc, alignment, codon_pos);
+        alpha_get(instance, workspace, lc, alignment, codon_pos, alc);
+        alpha_get(instance, workspace, rc, alignment, codon_pos, arc);
 
         for (uint16_t a = 0; a < k; ++a)
         {
             auto lsa = gsl_matrix_row(ls, a);
             auto rsa = gsl_matrix_row(rs, a);
             double res1, res2;
-            gsl_blas_ddot(&lsa.vector, alc, &res1);
-            gsl_blas_ddot(&rsa.vector, arc, &res2);
+            dot_with_alpha(&lsa.vector, alc, res1);
+            dot_with_alpha(&rsa.vector, arc, res2);
+
             gsl_matrix_set(&workspace.alpha.matrix, i - nl, a, res1 * res2); // x.alpha.{i-nl,a} <- (Gsl.Blas.dot lsa alc) *. (Gsl.Blas.dot rsa arc)
         }
-
-        gsl_vector_free(alc);
-        gsl_vector_free(arc);
     }
 
-    auto x1 = alpha_get(instance, workspace, n - 1, alignment, codon_pos);
+    alpha_get(instance, workspace, n - 1, alignment, codon_pos, alc);
     auto x2 = gsl_matrix_row(&workspace.beta.matrix, n - 1);
-    gsl_blas_ddot(x1, &x2.vector, &workspace.z);
-    gsl_vector_free(x1);
+    dot_with_alpha(&x2.vector, alc, workspace.z);
 
     workspace.have_alpha = true;
 }
@@ -120,6 +171,9 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
         const uint16_t k = workspace.beta.matrix.size2;
         gsl_vector * inter = gsl_vector_alloc(k);
         gsl_vector * ps_colb = gsl_vector_alloc(k);
+
+        alpha_result a_res;
+
         for (int16_t i = ((instance.model.tree.size() + 1) / 2) - 1; i >= 0; --i) // for i = (T.root x.tree)-1 downto 0 do
         {
             const int16_t p = instance.model.tree[i].parent_id;
@@ -129,19 +183,17 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
             gsl_matrix * ps = instance.model.pms[i];
             gsl_matrix * ss = instance.model.pms[s];
             auto bp = gsl_matrix_row(&workspace.beta.matrix, p); // TODO: compare output
-            gsl_vector * xas = alpha_get(instance, workspace, s, alignment, codon_pos);
+            alpha_get(instance, workspace, s, alignment, codon_pos, a_res);
 
             for (uint16_t a = 0; a < k; ++a)
             {
                 // inter.{a} <- bp.{a} *. (Gsl.Blas.dot (Gsl.Matrix.row ss a) xas)
                 double dot_result;
                 auto ss_row = gsl_matrix_row(ss, a);
-                gsl_blas_ddot(&ss_row.vector, xas, &dot_result);
+                dot_with_alpha(&ss_row.vector, a_res, dot_result);
                 dot_result *= gsl_vector_get(&bp.vector, a);
                 gsl_vector_set(inter, a, dot_result);
             }
-
-            gsl_vector_free(xas);
 
             for (uint16_t b = 0; b < k; ++b)
             {
