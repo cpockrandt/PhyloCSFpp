@@ -141,7 +141,7 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
                 gsl_vector_set(inter, a, dot_result);
             }
 
-            gsl_vector_free(inter);
+            gsl_vector_free(xas);
 
             for (uint16_t b = 0; b < k; ++b)
             {
