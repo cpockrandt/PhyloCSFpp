@@ -85,7 +85,6 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             {
                 inst.p14n.tree_shape = model.phylo_array;
                 inst.p14n.q_domains = std::vector<domain>(12, domain::NonNeg);
-                inst.p14n.tree_domains = std::vector<domain>(1, domain::Pos);
                 // skipped these, because they only build expressions. they are evaluated in instantiate_tree and instantiate_qs (in Ocaml). That's where we will start with them in PhyloCSF++
                 // q_p14ns = [| q_p14n |];
                 // q_scale_p14ns = [| q_scale |];

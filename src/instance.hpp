@@ -237,7 +237,6 @@ struct instance_t
 
         std::vector<newick_elem> tree_shape; // original tree
         std::vector<newick_elem> tree_p14n; // tree with evaluated branch lengths (already computed)
-        std::vector<domain> tree_domains;
 
         void clear()
         {
@@ -439,6 +438,17 @@ struct instance_t
     }
 };
 
+bool operator!=(const gsl_matrix & m1, const gsl_matrix & m2)
+{
+    assert(m1.size1 == v2.size1 && m1.size2 == m2.size2);
+    return memcmp(m1.data, m2.data, sizeof(double) * m1.size1 * m1.size2) != 0;
+}
+
+bool operator!=(const gsl_vector & v1, const gsl_vector & v2)
+{
+    assert(v1.size == v2.size);
+    return memcmp(v1.data, v2.data, sizeof(double) * v1.size) != 0;
+}
 
 // TODO: let make ?prior t qms
 // the new tree and the new qms (created by instantiate_tree or instantiate_qs) are passed be reference in Ocaml
@@ -502,34 +512,53 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
         instance.model.pms.resize(instance.p14n.tree_p14n.size() - 1);
     }
 
+    gsl_vector * expLt = gsl_vector_alloc(64);
+    gsl_matrix * diagm_c = gsl_matrix_alloc(64, 64);
+
     // pms = Array.init (T.size t - 1) (fun br -> Q.Diag.to_Pt qms.(br) (T.branch t br))
     for (uint16_t i = 0; i < instance.p14n.tree_shape.size() - 1; ++i)
     {
         // to_Pt:
         // TODO: here is memoization happening with q.memoized_to_Pt
         // especially inefficient since for initialization all qms[i] are identical!
-        instance_t::model_t::q_diag_t &q = instance.model.qms[i]; // TODO: make sure whether tree[i] matches qms[i] (but should)
+        const instance_t::model_t::q_diag_t &q = instance.model.qms[i]; // TODO: make sure whether tree[i] matches qms[i] (but should)
         gsl_matrix *&p = instance.model.pms[i];
         const double t = instance.p14n.tree_p14n[i].branch_length;
+
         assert(t >= 0.0);
 
-        if (p != NULL)
-            gsl_matrix_free(p);
+        if (p == NULL)
+            p = gsl_matrix_alloc(64, 64); // p is the i-th matrix in pms, and will have first gemm_c (variable name from Ocaml), and afterwards sm (substitution matrix of gemm_c)
 
-        p = gsl_matrix_alloc(64, 64); // p is the i-th matrix in pms, and will have first gemm_c (variable name from Ocaml), and afterwards sm (substitution matrix of gemm_c)
         // real part
         if (q.eig.nr_l == NULL)
         {
             assert(q.eig.r_l != NULL && q.eig.r_s != NULL && q.eig.r_s2 != NULL);
             assert(q.eig.nr_l == NULL && q.eig.nr_s == NULL && q.eig.nr_s2 == NULL);
 
-            gsl_vector * expLt = gsl_vector_alloc(64);
+            // reuse matrix if it was already computed in an iteration before
+            bool memoized = false;
+            for (uint64_t mem_i = 0; mem_i < i; ++mem_i)
+            {
+                const instance_t::model_t::q_diag_t &q_mem = instance.model.qms[i];
+
+                // TODO: cmp non-real part in the non-real case
+                if (t != instance.p14n.tree_p14n[mem_i].branch_length ||
+                    *q.eig.r_l != *q_mem.eig.r_l || *q.eig.r_s != *q_mem.eig.r_s || *q.eig.r_s2 != *q_mem.eig.r_s2)
+                    continue;
+
+                memoized = true;
+                _deeep_copy_matrix(&p, instance.model.pms[mem_i]);
+            }
+
+            if (memoized)
+                continue;
+
             gsl_vector_memcpy(expLt, q.eig.r_l); // remove memcopy and insert below!
             for (uint8_t expLt_i = 0; expLt_i < 64; ++expLt_i)
                 gsl_vector_set(expLt, expLt_i, gsl_sf_exp(gsl_vector_get(expLt, expLt_i) * t)); // gsl_sf_exp might to error checking! maybe avoid in the end
 
             // gemm r_s (diagm expLt r_s')
-            gsl_matrix * diagm_c = gsl_matrix_alloc(64, 64);
             for (uint8_t diagm_i = 0; diagm_i < 64; ++diagm_i)
             {
                 const double expLt_i = gsl_vector_get(expLt, diagm_i);
@@ -539,8 +568,6 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
                 }
             }
 
-            gsl_vector_free(expLt);
-
             gsl_blas_dgemm(CBLAS_TRANSPOSE::CblasNoTrans,
                            CBLAS_TRANSPOSE::CblasNoTrans,
                            1.0 /* alpha */,
@@ -548,25 +575,21 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
                            diagm_c /* B */,
                            0.0 /* beta */,
                            p /* C result */);
-
-            gsl_matrix_free(diagm_c);
         }
         // non-real-part
         else
         {
-            printf("NOT REAL!!!!!\n");
-            exit(77);
             // NOTE: we just create all q's (except the very first one). the arrays should all have 0s!
-            //assert(q.eig.r_l == NULL && q.eig.r_s == NULL && q.eig.r_s2 == NULL);
-            //assert(q.eig.nr_l != NULL && q.eig.nr_s != NULL && q.eig.nr_s2 != NULL);
+            assert(q.eig.r_l == NULL && q.eig.r_s == NULL && q.eig.r_s2 == NULL);
+            assert(q.eig.nr_l != NULL && q.eig.nr_s != NULL && q.eig.nr_s2 != NULL);
 
-            gsl_vector_complex * expLt = gsl_vector_complex_alloc(64);
+            gsl_vector_complex * expLt_c = gsl_vector_complex_alloc(64);
             for (uint8_t expLt_i = 0; expLt_i < 64; ++expLt_i)
             {
                 const gsl_complex complex_t = gsl_complex_rect(t, 0.0); // TODO: test whether this works!
                 // val = exp((q.eig.nr_l[expLt_i] * complex_t))
                 const gsl_complex expLt_val = gsl_complex_exp(gsl_complex_mul(gsl_vector_complex_get(q.eig.nr_l, expLt_i), complex_t));
-                gsl_vector_complex_set(expLt, expLt_i, expLt_val);
+                gsl_vector_complex_set(expLt_c, expLt_i, expLt_val);
             }
 
             // OLD: gemm r_s (diagm expLt r_s')
@@ -574,7 +597,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
             gsl_matrix_complex * zdiagm_c = gsl_matrix_complex_alloc(64, 64);
             for (uint8_t diagm_i = 0; diagm_i < 64; ++diagm_i)
             {
-                const gsl_complex expLt_i = gsl_vector_complex_get(expLt, diagm_i);
+                const gsl_complex expLt_i = gsl_vector_complex_get(expLt_c, diagm_i);
                 for (uint8_t diagm_j = 0; diagm_j < 64; ++diagm_j)
                 {
                     gsl_matrix_complex_set(zdiagm_c, diagm_i, diagm_j, gsl_complex_mul(gsl_matrix_complex_get(q.eig.nr_s2, diagm_i, diagm_j), expLt_i));
@@ -600,6 +623,7 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
             }
             gsl_matrix_complex_free(zdiagm_c);
             gsl_matrix_complex_free(zgemm_c);
+            gsl_vector_complex_free(expLt_c);
         }
 
         // now doing something on gemm_c ... gemm_c is referred to as matrix "sm" (substitution matrix) in the ocaml code
@@ -640,6 +664,9 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
         }
         // p now is the i-th gemm_c matrix / substitution matrix sm
     }
+
+    gsl_vector_free(expLt);
+    gsl_matrix_free(diagm_c);
 }
 
 void compute_q_p14ns_and_q_scale_p14ns_fixed_mle( // see instantiate_q and instantiate_qs,
@@ -686,7 +713,6 @@ void PhyloCSFModel_make(instance_t & instance, const empirical_codon_model & ecm
     instance.p14n.q_domains = {};
     instance.p14n.tree_shape = tree_array;
 //    instance.p14n.tree_p14n = tree_array; // redundant work
-    instance.p14n.tree_domains = {domain::Pos};
     instance.q_settings = gsl_vector_alloc(64);
     for (uint8_t i = 0; i < 64; ++i)
         gsl_vector_set(instance.q_settings, i, ecm.codon_freq[i]);
