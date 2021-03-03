@@ -1,5 +1,12 @@
 #include "arg_parse.hpp"
 
+#ifdef ENABLE_OPENMP
+    #include <omp.h>
+#else
+    int omp_get_max_threads() { return 1; }
+    int omp_get_thread_num() { return 0; }
+#endif
+
 #include "phylocsf++build_tracks.hpp"
 #include "phylocsf++score_msa.hpp"
 #include "phylocsf++annotate_with_tracks.hpp"

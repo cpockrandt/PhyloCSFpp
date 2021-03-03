@@ -10,8 +10,6 @@
 
 #include "run.hpp"
 
-#include <omp.h>
-
 #include <sstream>
 
 struct TrackCLIParams

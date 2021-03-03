@@ -5,8 +5,6 @@
 
 #include "run.hpp"
 
-#include <omp.h>
-
 struct ScoreMSACLIParams
 {
     unsigned threads = omp_get_max_threads();

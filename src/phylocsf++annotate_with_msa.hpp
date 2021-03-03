@@ -2,8 +2,6 @@
 #include "arg_parse.hpp"
 #include "gff_reader.hpp"
 
-#include <omp.h>
-
 #include <unordered_map>
 
 #include <regex>
