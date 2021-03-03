@@ -361,7 +361,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
                 cds_seq.erase(0, c.phase); // remove first 0-2 bases so we can later all align with the same frame shifts
 
                 // TODO: do not need end position
-                fprintf(cds_fasta, ">%s:%ld-%ld#%c#%d\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, c.phase, cds_seq.c_str());
+                fprintf(cds_fasta, ">%s:%" PRIu64 "-%" PRIu64 "#%c#%d\n%s\n", t.chr.c_str(), c.begin, c.end, t.strand, c.phase, cds_seq.c_str());
             }
 
             reader.print_progress();
@@ -509,7 +509,7 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         uint64_t alignment_id = 0;
         while (fgets(line, sizeof line, score_file) != NULL)
         {
-            sscanf(line, "%s\t%lu\t%lu\t%c\t%f", chr, &start, &end, &strand, &score);
+            sscanf(line, "%s\t%" PRIu64 "\t%" PRIu64 "\t%c\t%f", chr, &start, &end, &strand, &score);
             const std::string key = std::string(chr) + ':' + std::to_string(start) + '-' + std::to_string(end)
                                   + '#' + strand + '#' + std::to_string(phases[alignment_id]);
             computed_scores.emplace(key, std::tuple<float, float>(score, NAN));

@@ -157,7 +157,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                 if (skip_bases < 0)
                     skip_bases += 3;
 
-                fprintf(file_power, "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), aln.start_pos + skip_bases);
+                fprintf(file_power, "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), aln.start_pos + skip_bases);
                 for (uint32_t pos = 2; pos + 2 < bls_per_bp[thread_id].size(); pos += 3)
                 {
                     const float bls_codon_avg = (bls_per_bp[thread_id][pos]
@@ -209,11 +209,11 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         if (prevPos + 3 != newPos)
                         {
                             if (params.phylo_raw)
-                                fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), newPos);
+                                fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), newPos);
 
                             if (params.phylo_smooth && !scores.empty())
                             {
-                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
 
                                 process_scores(model._hmm, scores, startBlockPos, region, SCORE_CODON);
 
@@ -239,7 +239,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
                     if (params.phylo_smooth && !scores.empty())
                     {
-                        fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                        fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
                         process_scores(model._hmm, scores, startBlockPos, region, SCORE_CODON);
 
                         for(size_t i = 0; i < region.size(); i++)

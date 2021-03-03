@@ -1,3 +1,6 @@
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include "arg_parse.hpp"
 
 #ifdef ENABLE_OPENMP

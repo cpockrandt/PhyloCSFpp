@@ -235,7 +235,7 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
     {
         for (const auto & result : job_results)
         {
-            fprintf(output_file, "%s\t%ld\t%ld\t%c", result.seq.c_str(), result.start, result.end, result.strand);
+            fprintf(output_file, "%s\t%" PRIu64 "\t%" PRIu64 "\t%c", result.seq.c_str(), result.start, result.end, result.strand);
             if (params.comp_phylo)
                 fprintf(output_file, "\t%.6f", result.phylo);
             if (params.comp_anc)
