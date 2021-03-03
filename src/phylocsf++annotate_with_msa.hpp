@@ -419,7 +419,12 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         uint32_t lookup_genome_id;
         while (!feof(lookup_file))
         {
-            fscanf(lookup_file, "%u\t%s\t%u\n", &lookup_id, lookup_seq_name, &lookup_genome_id);
+            if (fscanf(lookup_file, "%u\t%s\t%u\n", &lookup_id, lookup_seq_name, &lookup_genome_id) != 3)
+            {
+                printf(OUT_ERROR "Error parsing genbankseqs.lookup file.\n" OUT_RESET);
+                exit(-1);
+            }
+
             lookup_genome_ids.emplace(lookup_seq_name, lookup_genome_id);
         }
 
@@ -503,8 +508,16 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
         char strand;
         float score;
 
-        fgets(line, sizeof line, score_file); // skip comment line
-        fgets(line, sizeof line, score_file); // skip column name line
+        if (fgets(line, sizeof line, score_file) == NULL) // skip comment line
+        {
+            printf(OUT_ERROR "Error in msa.maf.scores file (1)!\n" OUT_RESET);
+            exit(1);
+        }
+        if (fgets(line, sizeof line, score_file) == NULL) // skip column name line
+        {
+            printf(OUT_ERROR "Error in msa.maf.scores file (1)!\n" OUT_RESET);
+            exit(1);
+        }
 
         uint64_t alignment_id = 0;
         while (fgets(line, sizeof line, score_file) != NULL)
