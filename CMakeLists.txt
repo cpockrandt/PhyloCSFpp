@@ -112,8 +112,6 @@ if (NOT CMAKE_BUILD_TYPE STREQUAL Release)
 endif ()
 
 option (PHYLOCSFPP_NATIVE_BUILD "Architecture-specific optimizations, i.e., g++ -march=native." ON)
-option (PHYLOCSFPP_STATIC_BUILD "Include all libraries in the binaries."                        OFF)
-
 if (PHYLOCSFPP_NATIVE_BUILD)
     add_definitions (-DPHYLOCSFPP_NATIVE_BUILD=1)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
@@ -125,30 +123,8 @@ endif ()
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 
-if (PHYLOCSFPP_STATIC_BUILD)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    message("${CMAKE_FIND_LIBRARY_PREFIXES}")
-    message("${CMAKE_FIND_LIBRARY_SUFFIXES}")
-    add_definitions (-DPHYLOCSFPP_STATIC_BUILD=1)
-#    find_library(Var BigWig)
-#    find_library(Var z)
-#    find_library(Var gsl gslcblas)
-    # apple does not support fully static builds, but at least libgcc and libstdc++
-    if (APPLE)
-        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-        message (WARNING "WARNING: Builds on Mac are never fully static.")
-    else ()
-        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-    endif ()
-    # on linux cmake adds -rdynamic automatically which clang can't handle in static builds
-    if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-        set (CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
-    endif ()
-endif ()
-
 message (STATUS "The following options are selected for the build:")
 message (   "     PHYLOCSFPP_NATIVE_BUILD             ${PHYLOCSFPP_NATIVE_BUILD}")
-message (   "     PHYLOCSFPP_STATIC_BUILD             ${PHYLOCSFPP_STATIC_BUILD}")
 message (STATUS "Run 'cmake -LH' to get a comment on each option.")
 message (STATUS "Remove CMakeCache.txt and re-run cmake with -DOPTIONNAME=ON|OFF to change an option.")
 
@@ -163,28 +139,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -DNOCURL -std=c+
 
 add_executable(phylocsf++ src/phylocsf++.cpp)
 add_dependencies(phylocsf++ libBigWig)
-
-# TODO: choose automatically with CMAKE_FIND_LIBRARY_SUFFIXES. but for some way it's not working
-# TODO: also there are more libraries that still need to be linked statically
 target_link_libraries(phylocsf++ z)
-if (PHYLOCSFPP_STATIC_BUILD)
-    target_link_libraries(phylocsf++ gsl)
-    target_link_libraries(phylocsf++ gslcblas)
-    target_link_libraries(phylocsf++ BigWig)
-else ()
-    target_link_libraries(phylocsf++ libgsl.a)
-    target_link_libraries(phylocsf++ libgslcblas.a)
-    target_link_libraries(phylocsf++ libBigWig.a)
-endif ()
+target_link_libraries(phylocsf++ gsl)
+target_link_libraries(phylocsf++ gslcblas)
+target_link_libraries(phylocsf++ BigWig)
 
 install(TARGETS phylocsf++ DESTINATION bin)
-
-# -static -fsanitize=address -fno-omit-frame-pointer
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-Bstatic -lgsl -lgslcblas -Wl,-Bdynamic")
-#target_link_libraries(phylocsf++ /usr/local/lib/libgsl.a)
-#target_link_libraries(phylocsf++ /usr/local/lib/libgslcblas.a)
-#install(TARGETS genmap DESTINATION bin)
-# include (GNUInstallDirs)
-# install (TARGETS phylocsf++ DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 message ("\n${ColourBold}Finishing up${ColourReset}")
