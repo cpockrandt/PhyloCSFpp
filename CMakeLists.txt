@@ -125,11 +125,28 @@ if (PHYLOCSFPP_NATIVE_BUILD)
     endif ()
 endif ()
 
+option(PHYLOCSFPP_STATIC_BUILD "Static build." OFF)
+if (PHYLOCSFPP_STATIC_BUILD)
+    add_definitions(-DPHYLOCSFPP_STATIC_BUILD=1)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    set(BUILD_SHARED_LIBS OFF)
+    set (CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+    # apple does not support fully static builds, but at least libgcc and libstdc++
+    if (APPLE)
+        message(WARNING "WARNING: Builds on Mac are never fully static.")
+    endif ()
+    # on linux cmake adds -rdynamic automatically which clang can't handle in static builds
+    # if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    #     set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+    # endif ()
+endif ()
+
 include_directories(SYSTEM ${CMAKE_BINARY_DIR}/libBigWig)
 link_directories(${CMAKE_BINARY_DIR}/libBigWig)
 
 message(STATUS "The following options are selected for the build:")
 message(   "     PHYLOCSFPP_NATIVE_BUILD             ${PHYLOCSFPP_NATIVE_BUILD}")
+message(   "     PHYLOCSFPP_STATIC_BUILD             ${PHYLOCSFPP_STATIC_BUILD}")
 message(STATUS "Run 'cmake -LH' to get a comment on each option.")
 message(STATUS "Remove CMakeCache.txt and re-run cmake with -DOPTIONNAME=ON|OFF to change an option.")
 
