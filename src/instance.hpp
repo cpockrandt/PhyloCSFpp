@@ -641,6 +641,8 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
                 {
                     if (fabs(cell_value) > q.tol) // fabs is for doubles, fabsf is for floats
                     {
+                        gsl_vector_free(expLt);
+                        gsl_matrix_free(diagm_c);
                         throw std::runtime_error("CamlPaml.Q.substition_matrix: expm(" + std::to_string(t) + "*Q)[" + std::to_string(index_i) + "," + std::to_string(index_j) + "] = " + std::to_string(cell_value) + " < 0");
                     }
                     else
@@ -656,6 +658,8 @@ void PhyloModel_make(instance_t & instance, gsl_vector * prior, const bool insta
 
             if (fabs(total - 1.0) > q.tol)
             {
+                gsl_vector_free(expLt);
+                gsl_matrix_free(diagm_c);
                 throw std::runtime_error("CamlPaml.Q.substition_matrix: sum(expm(" + std::to_string(t) + "*Q)[" + std::to_string(index_i) + ",] = " + std::to_string(total) + " > 1");
             }
             assert(smii <= 1.0 && smii > 0.0);

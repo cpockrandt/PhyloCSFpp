@@ -127,6 +127,8 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 
 if (PHYLOCSFPP_STATIC_BUILD)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    message("${CMAKE_FIND_LIBRARY_PREFIXES}")
+    message("${CMAKE_FIND_LIBRARY_SUFFIXES}")
     add_definitions (-DPHYLOCSFPP_STATIC_BUILD=1)
 #    find_library(Var BigWig)
 #    find_library(Var z)
