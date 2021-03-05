@@ -1931,6 +1931,10 @@ void load_model(Model & model, const std::string & model_name_or_path, const std
         model.phylo_tree = newick_open((std::string(model_name_or_path) + ".nh").c_str());
     }
 
+    // get array representation of tree (only temporary for name mapping for --species). will be flattened again after reduction
+    std::vector<newick_elem> tmp_phylo_array;
+    newick_flatten(model.phylo_tree, tmp_phylo_array);
+
     // reduce tree when --species is passed
     // TODO: allow common and scientific names)
     if (selected_species != "")
@@ -1942,7 +1946,30 @@ void load_model(Model & model, const std::string & model_name_or_path, const std
             std::string s;
             getline(ss, s, ',');
             str_to_lower(s);
-            selected_species_set.insert(s);
+
+            if (std::find_if(tmp_phylo_array.begin(), tmp_phylo_array.end(), [&s](const newick_elem & e) { return e.label == s; }) != tmp_phylo_array.end())
+            {
+                selected_species_set.insert(s);
+            }
+            else
+            {
+                bool newick_name_found = false;
+                for (const auto & name_mapping_row : sequence_name_mapping)
+                {
+                    auto const & alternative_names = name_mapping_row.second;
+                    auto hit = std::find(alternative_names.begin(), alternative_names.end(), s);
+                    if (hit != alternative_names.end())
+                    {
+                        newick_name_found = true;
+                        selected_species_set.insert(name_mapping_row.first);
+                        printf("Species mapping: %s => %s\n", s.c_str(), name_mapping_row.first.c_str());
+                    }
+                }
+                if (!newick_name_found)
+                {
+                    selected_species_set.insert(s); // TODO: to trigger ERROR below. recode this in a cleaner way
+                }
+            }
         }
 
         std::unordered_set<std::string> missing_species = selected_species_set; // merge into one set with bool
