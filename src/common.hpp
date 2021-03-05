@@ -75,3 +75,15 @@ int system_with_return(std::string cmd, bool verbose = true)
     int ret = system(cmd.c_str());
     return WEXITSTATUS(ret);
 }
+
+void str_to_lower(char * str)
+{
+    for (size_t i = 0; str[i]; ++i)
+        str[i] = tolower(str[i]);
+}
+
+void str_to_lower(std::string & str)
+{
+    for (size_t i = 0; i < str.size(); ++i)
+        str[i] = std::tolower(str[i]);
+}

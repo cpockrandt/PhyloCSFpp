@@ -476,15 +476,7 @@ public:
                 *ptr = 0;
                 char *chrom = ptr + 1;
 
-                // remove leading digits (e.g., galGal6 -> galGal)
-                for (size_t id_i = 0; id_i < strlen(id); ++id_i)
-                {
-                    if (isdigit(id[id_i]))
-                    {
-                        id[id_i] = 0;
-                        break;
-                    }
-                }
+                str_to_lower(id);
 
                 auto alnid = (*fastaid_to_alnid).find(id);
                 if (alnid == (*fastaid_to_alnid).end())
@@ -581,15 +573,7 @@ public:
                         break;
                     }
 
-                    // remove leading digits (e.g., galGal6 -> galGal)
-                    for (size_t id_i = 0; id_i < strlen(id); ++id_i)
-                    {
-                        if (isdigit(id[id_i]))
-                        {
-                            id[id_i] = 0;
-                            break;
-                        }
-                    }
+                    str_to_lower(id);
 
                     auto alnid = (*fastaid_to_alnid).find(id);
                     if (alnid == (*fastaid_to_alnid).end())

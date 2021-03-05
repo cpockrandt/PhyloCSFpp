@@ -250,16 +250,6 @@ void load_genome_file(const std::string & genome_file, std::vector<std::tuple<st
     {
         sscanf(line, "%s\t%s", name, path); // e.g., Human \t hg38
 
-        // remove leading digits (e.g., hg38 -> hg)
-        for (size_t i = 0; i < strlen(name); ++i)
-        {
-            if (isdigit(name[i]))
-            {
-                name[i] = 0;
-                break;
-            }
-        }
-
         if (first_entry)
         {
             reference_genome_name = name;

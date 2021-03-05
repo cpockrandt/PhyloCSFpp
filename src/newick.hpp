@@ -34,8 +34,8 @@ void _newick_parse(std::string& str, newick_node* node)
     {
         while (str[0] != '(' && str[0] != ',' && str[0] != ')' && str[0] != ':')
         {
-            node->label += str[0];
-            str = str.substr(1);
+            node->label += tolower(str[0]);
+            str = str.substr(1); // TODO: inefficient!
         }
 
         str = str.substr(1); // remove ':'
@@ -55,7 +55,7 @@ void _newick_parse(std::string& str, newick_node* node)
         left->parent = node;
         node->left = left;
         //
-        str = str.substr(1); // remove '('
+        str = str.substr(1); // remove '(' // TODO: inefficient
         _newick_parse(str, left);
 
         newick_node* right = new newick_node;
