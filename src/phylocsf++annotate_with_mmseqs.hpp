@@ -268,10 +268,10 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
                               const Model & model, const ScoreMSACLIParams & scoring_params,
                               std::unordered_set<std::string> & missing_sequences)
 {
-    constexpr bool debug_index_genomes                  = 0;
-    constexpr bool debug_extract_cds                    = 0;
-    constexpr bool debug_align_sequences                = 0;
-    constexpr bool debug_transform_and_score_alignments = 1;
+//    constexpr bool debug_index_genomes                  = 0;
+//    constexpr bool debug_extract_cds                    = 0;
+//    constexpr bool debug_align_sequences                = 0;
+//    constexpr bool debug_transform_and_score_alignments = 1;
 
     const std::string dir_mmseqs_work = params.output_path;
 
@@ -285,7 +285,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
 
     const std::string dir_tmp = dir_mmseqs_work + "/tmp";
 
-    if (debug_extract_cds)
+//    if (debug_extract_cds)
     {
         printf("Reading reference genome of GFF file %s ...\n", params.reference_genome_path.c_str());
 
@@ -367,7 +367,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
     std::string cmd;
 
     // 1. index genomes
-    if (debug_index_genomes)
+//    if (debug_index_genomes)
     {
         printf("MMseqs2: Indexing genomes ...\n");
         std::string all_genomes_paths = "";
@@ -434,7 +434,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
         const std::string maf_file = aln_dir + "/msa.maf";
 
         // index query sequences
-        if (debug_align_sequences)
+//        if (debug_align_sequences)
         {
             printf("MMseqs2: Align CDS sequences ...\n");
             cmd = params.mmseqs2_bin + " createdb " + cds_fasta_path + " " + exon_index_path; // TODO: index ist der falsche begriff
@@ -469,7 +469,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
         }
 
         // score alignments
-        if (debug_transform_and_score_alignments)
+//        if (debug_transform_and_score_alignments)
         {
             printf("MMseqs2: Score aligned CDS ...\n");
             // TODO: cut off phase before even starting to score. when reading from the maf we have to consider this when computing the end-coordinate for lookup
@@ -774,7 +774,8 @@ int main_annotate_with_mmseqs(int argc, char** argv)
     const std::string genome_file = args.get_positional_argument("genome-file");
     load_genome_file(genome_file, params.aligning_genomes, params.reference_genome_name, params.reference_genome_path);
 
-    std::string species = ""; // TODO: set species subset according to provided reference genomes in genome-file
+    // set species subset according to provided reference genomes in genome-file
+    std::string species = "";
     // TODO: remove ids
     for (const auto & g : params.aligning_genomes)
     {
@@ -793,10 +794,8 @@ int main_annotate_with_mmseqs(int argc, char** argv)
         }
         if (!common_name_found)
             species += std::get<0>(g) + ",";
-//        const std::vector<std::string> scientific_names = sequence_name_mapping[e.label];
     }
     // add reference genome name
-    // TODO
     bool common_name_found = false;
     for (const auto & names_list : sequence_name_mapping)
     {

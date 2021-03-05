@@ -535,6 +535,7 @@ public:
             }
         }
 
+        // TODO: no code duplication
         bool abort_next_alignment = !this->concatenate_alignments;
 
         // check whether we can extend the alignment (i.e., next alignment starts on the next base where the last one ended)
@@ -578,8 +579,14 @@ public:
                     auto alnid = (*fastaid_to_alnid).find(id);
                     if (alnid == (*fastaid_to_alnid).end())
                     {
-//                    printf("ERROR: Species %s in alignment file does not exist in model (or is not translated correctly)!\n", id);
-//                    exit(-1);
+                        #pragma omp critical(unresolved_identifier)
+                        {
+                            if (unresolved_identifiers.find(id) == unresolved_identifiers.end())
+                            {
+                                unresolved_identifiers.emplace(id);
+                                printf(OUT_INFO "WARNING: Not able to match species %s in alignment file to model (Use `--mapping` to fix it)!\n" OUT_RESET, id);
+                            }
+                        }
 
                         free(id);
                         free(seq);
