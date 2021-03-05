@@ -274,9 +274,9 @@ void load_genome_file(const std::string & genome_file, std::vector<std::tuple<st
     fclose(file);
 }
 
-void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACLIParams & params,
-                           const Model & model, const ScoreMSACLIParams & scoring_params,
-                           std::unordered_set<std::string> & missing_sequences)
+void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMSACLIParams & params,
+                              const Model & model, const ScoreMSACLIParams & scoring_params,
+                              std::unordered_set<std::string> & missing_sequences)
 {
     constexpr bool debug_index_genomes                  = 0;
     constexpr bool debug_extract_cds                    = 0;
@@ -653,15 +653,20 @@ void run_annotate_with_msa(const std::string & gff_path, const AnnotateWithMSACL
     fclose(gff_out);
 }
 
-int main_annotate_with_msa(int argc, char** argv)
+int main_annotate_with_mmseqs(int argc, char** argv)
 {
     ArgParse args("phylocsf++ annotate-with-msa",
                   "Computes PhyloCSF scores for CDS features in GFF/GTF files and outputs them in \n"
-                  "the same format. Requires MMseqs2 to be installed and reference genomes to compute multiple sequence"
-                  "alignments from scratch.");
+                  "the same format. Requires MMseqs2 to be installed and a set of reference genomes \n"
+                  "to compute multiple sequence alignments from scratch.\n"
+                  "To get an average score over all codons of posterior probabilities (similar to \n"
+                  "annotate-with-tracks), use --strategy FIXED_MEAN.");
 
     AnnotateWithMSACLIParams params;
     ScoreMSACLIParams scoring_params; // parameters for the scoring part
+    scoring_params.comp_phylo = true;
+    scoring_params.comp_bls = true;
+    scoring_params.comp_anc = false;
 
     const std::string model_list = get_list_of_models();
 
@@ -679,24 +684,20 @@ int main_annotate_with_msa(int argc, char** argv)
             break;
     }
 
-    args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
-    args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, true);
+    args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
+    args.add_option("output", ArgParse::Type::STRING, "Path where output GFF/GTF will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, true);
 
-    args.add_option("strategy", ArgParse::Type::STRING, "PhyloCSF scoring algorithm: MLE, FIXED or OMEGA. Default: " + default_strategy, ArgParse::Level::GENERAL, false);
+    args.add_option("strategy", ArgParse::Type::STRING, "PhyloCSF scoring algorithm: MLE, FIXED, OMEGA or FIXED_MEAN. Default: " + default_strategy, ArgParse::Level::GENERAL, false);
     args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
     args.add_option("mmseqs-bin", ArgParse::Type::STRING, "Path to MMseqs2 binary. Default: " + params.mmseqs2_bin, ArgParse::Level::GENERAL, false);
 
-    args.add_option("score-codons", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.avg_codon_score), ArgParse::Level::GENERAL, false);
-    args.add_option("score-codons-smooth", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.avg_codon_score_smoothing), ArgParse::Level::GENERAL, false);
-    args.add_option("score-codons-smooth-with-threshold", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.avg_codon_score_smoothing_threshold), ArgParse::Level::GENERAL, false);
-
-    args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
-    args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
+    args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --strategy FIXED_MEAN).", ArgParse::Level::GENERAL, false);
+    args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --strategy FIXED_MEAN).", ArgParse::Level::GENERAL, false);
 
     args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
-    args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::GENERAL, false);
+    args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::HELP, false);
 
-    args.add_positional_argument("genome-file", ArgParse::Type::STRING, "Two-column text file with species name and path to its genomic fasta file. First line has to be the reference genome of the GFF file.", true);
+    args.add_positional_argument("genome-file", ArgParse::Type::STRING, "Two-column tsv file with species name and path to its genomic fasta file. First line has to be the reference genome of the GFF file.", true);
     args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", true);
     args.add_positional_argument("gff-files", ArgParse::Type::STRING, "One or more GFF/GTF files with coding exons to be scored.", true, true);
     args.parse_args(argc, argv);
@@ -743,30 +744,23 @@ int main_annotate_with_msa(int argc, char** argv)
             scoring_params.strategy = FIXED;
         else if (strategy == "OMEGA")
             scoring_params.strategy = OMEGA;
+        else if (strategy == "FIXED_MEAN")
+        {
+            scoring_params.strategy = FIXED;
+            scoring_params.avg_codon_score = true;
+
+            // this has to hold true: FIXED_MEAN => (args.is_set("genome-length") && args.is_set("coding-exons"))
+            if (!args.is_set("genome-length") || !args.is_set("coding-exons"))
+            {
+                printf(OUT_ERROR "For FIXED_MEAN you need to provide --genome-length and --coding-exons.\n" OUT_RESET);
+                return -1;
+            }
+        }
         else
         {
             printf(OUT_ERROR "Please choose a valid strategy (MLE, FIXED or OMEGA)!\n" OUT_RESET);
             return -1;
         }
-    }
-
-    if (args.is_set("score-codons") && args.get_bool("score-codons"))
-    {
-        scoring_params.avg_codon_score = true;
-        scoring_params.avg_codon_score_smoothing = false;
-        scoring_params.avg_codon_score_smoothing_threshold = false;
-    }
-    if (args.is_set("score-codons-smooth") && args.get_bool("score-codons-smooth"))
-    {
-        scoring_params.avg_codon_score = true;
-        scoring_params.avg_codon_score_smoothing = true;
-        scoring_params.avg_codon_score_smoothing_threshold = false;
-    }
-    if (args.is_set("score-codons-smooth-with-threshold") && args.get_bool("score-codons-smooth-with-threshold"))
-    {
-        scoring_params.avg_codon_score = true;
-        scoring_params.avg_codon_score_smoothing = true;
-        scoring_params.avg_codon_score_smoothing_threshold = true;
     }
 
     if (args.is_set("output"))
@@ -784,12 +778,8 @@ int main_annotate_with_msa(int argc, char** argv)
         update_sequence_name_mapping(mapping_file);
     }
 
-    scoring_params.comp_phylo = true;
-    scoring_params.comp_anc = false;
     if (args.is_set("comp-power"))
         scoring_params.comp_bls = args.get_bool("comp-power");
-    else
-        scoring_params.comp_bls = false;
 
     const std::string genome_file = args.get_positional_argument("genome-file");
     load_genome_file(genome_file, params.aligning_genomes, params.reference_genome_name, params.reference_genome_path);
@@ -839,10 +829,8 @@ int main_annotate_with_msa(int argc, char** argv)
     if (args.is_set("coding-exons"))
         coding_exons_path = args.get_string("coding-exons");
 
-    // TODO: only pass "true" if coding-exons and genome-length are set
-
     Model model;
-    load_model(model, args.get_positional_argument("model"), species, true/*smooth=false*/, genome_length, coding_exons_path);
+    load_model(model, args.get_positional_argument("model"), species, scoring_params.avg_codon_score, genome_length, coding_exons_path);
 
     // run for every gff file
     std::unordered_set<std::string> missing_sequences;
@@ -851,7 +839,7 @@ int main_annotate_with_msa(int argc, char** argv)
         if (args.positional_argument_size() > 2)
             printf("Processing GFF %s\n", args.get_positional_argument(i).c_str());
 
-        run_annotate_with_msa(args.get_positional_argument(i), params, model, scoring_params, missing_sequences);
+        run_annotate_with_mmseqs(args.get_positional_argument(i), params, model, scoring_params, missing_sequences);
 
         if (args.positional_argument_size() > 2)
             printf("----------------------------\n");

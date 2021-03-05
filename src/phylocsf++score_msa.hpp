@@ -14,11 +14,8 @@ struct ScoreMSACLIParams
     std::string output_path = "";
     algorithm_t strategy = MLE;
 
-    // internal flag for annotate-with-msa
-    // score every codon separately, flatten and compute the average
-    bool avg_codon_score = false;
-    bool avg_codon_score_smoothing = false;
-    bool avg_codon_score_smoothing_threshold = false;
+    // score every codon separately, compute posterior probability and compute the mean
+    bool avg_codon_score = false; // NOTE: only in FIXED mode
 };
 
 struct scoring_result
@@ -162,15 +159,16 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
                 for (size_t xx = 0, bls_pos = 0; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
                 {
                     sum_all_lpr += lpr_per_codon[thread_id][xx];
-                    const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
-                                              + bls_per_bp[thread_id][bls_pos + 1]
-                                              + bls_per_bp[thread_id][bls_pos + 2];
-                    if (params.avg_codon_score_smoothing_threshold && bls_codon_sum < 0.1 * 3) // TODO: document this fixed threshold
-                    {
-                        if (scores.empty())
-                            startBlockPos = aln.start_pos + ((xx + 1) * 3);
-                        continue;
-                    }
+                    // TODO: do we want to ignore low confidence values?
+//                    const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
+//                                              + bls_per_bp[thread_id][bls_pos + 1]
+//                                              + bls_per_bp[thread_id][bls_pos + 2];
+//                    if (bls_codon_sum < 0.1 * 3) // TODO: document this fixed threshold
+//                    {
+//                        if (scores.empty())
+//                            startBlockPos = aln.start_pos + ((xx + 1) * 3);
+//                        continue;
+//                    }
 
                     int64_t newPos = aln.start_pos + (xx * 3);
 
@@ -212,10 +210,6 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
                 }
 
                 results.back().phylo = sum_smoothened_scores / cnt_smoothened_scores;
-
-                // if we don't want smoothing, just overwrite the value with the unsmoothened avg value
-                if (!params.avg_codon_score_smoothing)
-                    results.back().phylo = sum_all_lpr / lpr_per_codon[thread_id].size();
             }
 
             data[thread_id].clear();
@@ -280,17 +274,12 @@ int main_score_msa(int argc, char **argv)
     args.add_option("comp-anc", ArgParse::Type::BOOL, "Compute the ancestral sequence composition score (only in MLE and FIXED mode). Default: " + std::to_string(params.comp_anc), ArgParse::Level::GENERAL, false);
     args.add_option("comp-bls", ArgParse::Type::BOOL, "Compute the branch length score (confidence). Default: " + std::to_string(params.comp_bls), ArgParse::Level::GENERAL, false);
 
-    args.add_option("score-codons", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.avg_codon_score), ArgParse::Level::GENERAL, false);
-    args.add_option("score-codons-smooth", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.avg_codon_score_smoothing), ArgParse::Level::GENERAL, false);
-    args.add_option("score-codons-smooth-with-threshold", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(params.avg_codon_score_smoothing_threshold), ArgParse::Level::GENERAL, false);
-
-    args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
+    args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
     args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
 
     args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
     args.add_option("species", ArgParse::Type::STRING, "Comma separated list of species to reduce <model> to a subset of species to improve running time, e.g., \"Human,Chimp,Seaturtle\"", ArgParse::Level::GENERAL, false);
-    args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::GENERAL, false);
-    // TODO: ignore sequences not occuring in model (instead of failing)
+    args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::HELP, false);
 
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
@@ -312,25 +301,6 @@ int main_score_msa(int argc, char **argv)
     if (args.is_set("threads"))
         params.threads = args.get_int("threads");
 
-    if (args.is_set("score-codons") && args.get_bool("score-codons"))
-    {
-        params.avg_codon_score = true;
-        params.avg_codon_score_smoothing = false;
-        params.avg_codon_score_smoothing_threshold = false;
-    }
-    if (args.is_set("score-codons-smooth") && args.get_bool("score-codons-smooth"))
-    {
-        params.avg_codon_score = true;
-        params.avg_codon_score_smoothing = true;
-        params.avg_codon_score_smoothing_threshold = false;
-    }
-    if (args.is_set("score-codons-smooth-with-threshold") && args.get_bool("score-codons-smooth-with-threshold"))
-    {
-        params.avg_codon_score = true;
-        params.avg_codon_score_smoothing = true;
-        params.avg_codon_score_smoothing_threshold = true;
-    }
-
     if (args.is_set("strategy"))
     {
         std::string strategy = args.get_string("strategy");
@@ -342,6 +312,18 @@ int main_score_msa(int argc, char **argv)
             params.strategy = FIXED;
         else if (strategy == "OMEGA")
             params.strategy = OMEGA;
+        else if (strategy == "FIXED_MEAN")
+        {
+            params.strategy = FIXED;
+            params.avg_codon_score = true;
+
+            // this has to hold true: FIXED_MEAN => (args.is_set("genome-length") && args.is_set("coding-exons"))
+            if (!args.is_set("genome-length") || !args.is_set("coding-exons"))
+            {
+                printf(OUT_ERROR "For FIXED_MEAN you need to provide --genome-length and --coding-exons.\n" OUT_RESET);
+                return -1;
+            }
+        }
         else
         {
             printf(OUT_ERROR "Please choose a valid strategy (MLE, FIXED or OMEGA)!\n" OUT_RESET);
@@ -391,10 +373,8 @@ int main_score_msa(int argc, char **argv)
     if (args.is_set("coding-exons"))
         coding_exons_path = args.get_string("coding-exons");
 
-    // TODO: only pass "true" if coding-exons and genome-length are set
-
     Model model;
-    load_model(model, args.get_positional_argument("model"), args.get_string("species"), false/*true*/, genome_length, coding_exons_path);
+    load_model(model, args.get_positional_argument("model"), args.get_string("species"), params.avg_codon_score, genome_length, coding_exons_path);
 
     // run for every alignment file
     for (uint16_t i = 1; i < args.positional_argument_size(); ++i)

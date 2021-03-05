@@ -186,7 +186,7 @@ int main_annotate_with_tracks(int argc, char** argv)
 
     AnnotateWithTracksCLIParams params;
 
-    args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
+    args.add_option("output", ArgParse::Type::STRING, "Path where output GFF/GTF will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
     args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Requires the file PhyloCSFpower.bw in the same directory as the tracks. Default: " + std::to_string(params.comp_bls), ArgParse::Level::GENERAL, false);
 
     args.add_positional_argument("tracks", ArgParse::Type::STRING, "Path to the bigWig file PhyloCSF+1.bw (expects the other 5 frames to be in the same directory, optionally the power track).", true);

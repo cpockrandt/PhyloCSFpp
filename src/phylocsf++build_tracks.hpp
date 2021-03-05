@@ -304,10 +304,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 int main_build_tracks(int argc, char **argv)
 {
     ArgParse args("phylocsf++ build-tracks",
-                  "Computes PhyloCSF score tracks for each codon and all 6 frames from alignments \n"
-                  "in FASTA or MAF files. Output is written to wig files. Optionally a PhyloCSF \n"
-                  "power track containing the branch length scores can written to a wig file \n"
-                  "(confidence of the PhyloCSF scores).");
+                  "Computes PhyloCSF tracks for each codon and all 6 frames from alignment files in MAF \n"
+                  "format as well as the power track containing the branch length scores (confidence of \n"
+                  "the PhyloCSF scores). Optionally the PhyloCSF scores can be smoothened and posterior \n"
+                  "probabilities can be computed. Outputs wig files.");
 
     TrackCLIParams params;
 
@@ -323,14 +323,12 @@ int main_build_tracks(int argc, char **argv)
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
-    args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
+    args.add_option("output", ArgParse::Type::STRING, "Directory where tracks in wig format will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
     args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
     args.add_option("species", ArgParse::Type::STRING, "Comma separated list of species to reduce <model> to a subset of species to improve running time, e.g., \"Human,Chimp,Seaturtle\"", ArgParse::Level::GENERAL, false);
-    args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::GENERAL, false);
+    args.add_option("model-info", ArgParse::Type::STRING, "Output the organisms included in a specific model. Included models are: " + model_list + ".", ArgParse::Level::HELP, false);
     // TODO: add dry-run option (to check whether all species names can be mapped and it doesn't fail after 2 days of runtime)
     // or even better: continue where the tool left off!
-
-    // TODO: ignore sequences not occuring in model (instead of failing)
 
     args.add_positional_argument("model", ArgParse::Type::STRING, "Path to parameter files, or one of the following predefined models: " + model_list + ".", true);
     args.add_positional_argument("alignments", ArgParse::Type::STRING, "One or more files containing multiple sequence alignments. Formats: MAF and multi FASTA. Multiple MSAs can be stored in a single file separated by empty lines.", true, true);

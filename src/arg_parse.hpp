@@ -25,7 +25,7 @@
 class ArgParse {
 public:
     enum Type { FLAG, BOOL, INT, FLOAT, STRING };
-    enum Level { GENERAL, EXPERT };
+    enum Level { GENERAL, HELP };
 
     static const std::string version;
     static const std::string git_hash;
@@ -385,7 +385,7 @@ public:
 
     void print_help() const
     {
-        printf(OUT_BOLD "PhyloCSF++ %s (build date: %s, git commit: %s)\n\n" OUT_RESET, version.c_str(), git_date.c_str(), git_hash.c_str());
+        printf(OUT_BOLD "PhyloCSF++ (build date: %s, git commit: %s)\n\n" OUT_RESET, git_date.c_str(), git_hash.c_str());
         printf("%s\n\n", desc_.c_str());
 
         printf("Usage: %s [OPTIONS]", program_name.c_str());
@@ -446,12 +446,21 @@ public:
         }
         printf("\n");
 
-//        printf("Expert options:\n\n");
-//        for (const auto & a : args)
-//        {
-//        if (a.level == EXPERT)
-//        printf("  --%s %s%s%s\n", a.name.c_str(), type_str[a.type], std::string(longest_opt_arg - a.name.size() - strlen(type_str[a.type]) - 1, ' ').c_str(), a.desc.c_str());
-//        }
+        bool first_help_option = true;
+        for (const auto & a : args)
+        {
+            if (a.level == HELP)
+            {
+                if (first_help_option)
+                {
+                    first_help_option = false;
+                    printf("Help options:\n\n");
+                }
+                printf("  --%s %s", a.name.c_str(), type_str[a.type]);
+                print_desc(a.desc, longest_opt_arg - a.name.size() - strlen(type_str[a.type]) - 1);
+                printf("\n");
+            }
+        }
     }
 };
 
