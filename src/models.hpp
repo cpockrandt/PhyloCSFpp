@@ -1882,7 +1882,6 @@ void load_model(Model & model, const std::string & model_name_or_path, const std
                     {
                         newick_name_found = true;
                         selected_species_set.insert(name_mapping_row.first);
-                        printf("--species mapping: %s => %s\n", s.c_str(), name_mapping_row.first.c_str()); // TODO: remove
                     }
                 }
                 if (!newick_name_found)

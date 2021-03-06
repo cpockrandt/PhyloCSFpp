@@ -51,7 +51,7 @@ void merge_job_output_files(const std::string & base_name, const unsigned jobs, 
 }
 
 void run_tracks(const std::string & alignment_path, const Model & model, const TrackCLIParams & params,
-                const uint32_t file_id, const uint32_t files)
+                const uint32_t file_id, const uint32_t files, std::vector<std::vector<bool> > & species_seen_in_alignment)
 {
     unsigned jobs = (params.threads > 1) ? params.threads * 10 : 1;
 
@@ -138,7 +138,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
         maf_rd.skip_partial_alignment(aln, job_id);
 
-        while (maf_rd.get_next_alignment(aln, job_id))
+        while (maf_rd.get_next_alignment(aln, job_id, &species_seen_in_alignment[thread_id]))
         {
             maf_rd.print_progress();
 
@@ -401,13 +401,37 @@ int main_build_tracks(int argc, char **argv)
     load_model(model, args.get_positional_argument("model"), species,
                params.phylo_smooth, genome_length, coding_exons_path);
 
+    // see whether there are species in the model that did not occur in any
+    std::vector<std::vector<bool> > species_seen_in_alignment;
+    species_seen_in_alignment.resize(params.threads);
+    const uint16_t leaves = (model.phylo_array.size() + 1)/2;
+    for (uint32_t i = 0; i < params.threads; ++i)
+        species_seen_in_alignment[i].resize(leaves, false);
+
     // run for every alignment file
     for (uint16_t i = 1; i < args.positional_argument_size(); ++i)
     {
-        run_tracks(args.get_positional_argument(i).c_str(), model, params, i, args.positional_argument_size() - 1);
+        run_tracks(args.get_positional_argument(i).c_str(), model, params, i, args.positional_argument_size() - 1, species_seen_in_alignment);
     }
 
     printf("Done!\n");
+
+    // OR all bit vectors and store them in the first (0th)
+    for (uint32_t t = 1; t < params.threads; ++t)
+    {
+        for (uint32_t pos = 0; pos < species_seen_in_alignment[0].size(); ++pos)
+        {
+            species_seen_in_alignment[0][pos] = species_seen_in_alignment[0][pos] | species_seen_in_alignment[t][pos];
+        }
+    }
+
+    for (uint32_t pos = 0; pos < species_seen_in_alignment[0].size(); ++pos)
+    {
+        if (!species_seen_in_alignment[0][pos])
+        {
+            printf(OUT_INFO "WARNING: %s in the model does not occur in alignment file(s). Check --species to select a subset (this affects the power/confidence track).\n" OUT_RESET, model.phylo_array[pos].label.c_str());
+        }
+    }
 
     return 0;
 }

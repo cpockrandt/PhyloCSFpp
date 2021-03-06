@@ -439,7 +439,7 @@ public:
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
     // if "\na" is at the end of the range for a thread, process it
-    bool get_next_alignment(alignment_t & aln, const unsigned job_id)
+    bool get_next_alignment(alignment_t & aln, const unsigned job_id, std::vector<bool> * species_seen_in_alignment = NULL)
     {
         #pragma omp atomic
         total_bytes_processed += bytes_processing[job_id];
@@ -497,6 +497,8 @@ public:
 
                 assert(seq != NULL); // check because of a former bug
                 aln.seqs[alnid->second] = seq; // TODO: std::move?
+                if (species_seen_in_alignment != NULL)
+                    (*species_seen_in_alignment)[alnid->second] = true;
 
                 // first sequence we encounter is the reference sequence. store its length!
                 if (ref_seq_id == -1)
@@ -595,6 +597,8 @@ public:
 
                     assert(seq != NULL); // check because of a former bug
                     aln.seqs[alnid->second] += seq; // TODO: std::move?
+                    if (species_seen_in_alignment != NULL)
+                        (*species_seen_in_alignment)[alnid->second] = true;
 
                     // first sequence we encounter is the reference sequence. store its length!
                     if (ref_seq_id2 == -1)
