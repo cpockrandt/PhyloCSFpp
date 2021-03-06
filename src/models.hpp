@@ -1729,7 +1729,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "sbay",                       { "sacbay" } },
     { "scarlet_macaw",              { "aramac1" } },
     { "scas",                       { "saccas" } },
-    { "scer",                       { "saccer" } },
+    { "scer",                       { "saccer", "saccer3" } },
     { "sheep",                      { } },
     { "shrew",                      { } },
     { "sklu",                       { "sacklu" } },
