@@ -1543,7 +1543,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "achra1",                     { } },
     { "acula1",                     { } },
     { "adarc2",                     { } },
-    { "adelie_penguin",             { "pygade3" } }, // TODO: FIXXX!!! into 1
+    { "adelie_penguin",             { "pygade1" } },
     { "adirw1",                     { } },
     { "aepie1",                     { } },
     { "afarf1",                     { } },
@@ -1585,7 +1585,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "cape_golden_mole",           { } },
     { "carmine_bee_eater",          { } },
     { "cat",                        { "felcat8" } },
-    { "chicken",                    { "galgal4", "galgal5", "galgal6" } },
+    { "chicken",                    { "galgal3", "galgal4", "galgal5", "galgal6" } },
     { "chimney_swift",              { } },
     { "chimp",                      { "pantro4", "pantro5" } },
     { "chinchilla",                 { } },
@@ -1624,7 +1624,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "dmel",                       { } },
     { "dmir",                       { } },
     { "dmoj",                       { } },
-    { "dog",                        { "canfam3" } },
+    { "dog",                        { "canfam2", "canfam3" } },
     { "dog_heartworm",              { } },
     { "dolphin",                    { "turtru2" } },
     { "domestic_goat",              { } },
@@ -1644,7 +1644,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "eye_worm",                   { } },
     { "ferret",                     { } },
     { "filarial_worm",              { } },
-    { "frog_x._tropicalis",         { "xentro7", "xentro9" } },
+    { "frog_x._tropicalis",         { "xentro2", "xentro7", "xentro9" } },
     { "fugu",                       { "fr3" } },
     { "gibbon",                     { "nomleu3" } },
     { "golden_collared_manakin",    { } },
@@ -1664,7 +1664,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "hooded_crow",                { "corcor1" } },
     { "horse",                      { } },
     { "houbara_bustard",            { } },
-    { "human",                      { "hg38", "hg37", "hg19" } },
+    { "human",                      { "hg38", "hg37", "hg19", "hg18" } },
     { "h_bacteriophora",            { } },
     { "japanese_quail",             { "cotjap2" } },
     { "kangaroo_rat",               { } },
@@ -1686,7 +1686,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "mexican_tetra",              { "astmex1" } },
     { "microbat",                   { } },
     { "microworm",                  { } },
-    { "mouse",                      { "mm10", "mm39" } },
+    { "mouse",                      { "mm10", "mm39", "mm9" } },
     { "mouse_lemur",                { } },
     { "m_hapla",                    { } },
     { "m_incognita",                { } },
@@ -1757,7 +1757,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "trichinella",                { } },
     { "turkey",                     { "melgal1", "melgal5" } },
     { "turkey_vulture",             { } },
-    { "wallaby",                    { "maceug2" } },
+    { "wallaby",                    { "maceug1", "maceug2" } },
     { "weddell_seal",               { "lepwed1" } },
     { "whipworm",                   { } },
     { "white_rhinoceros",           { } },
@@ -1768,7 +1768,7 @@ std::unordered_map<std::string, std::vector<std::string> > sequence_name_mapping
     { "wild_bactrian_camel",        { } },
     { "yellowbelly_pufferfish",     { "takfla1" } },
     { "yellow_throated_sandgrouse", { "ptegut1" } },
-    { "zebrafish",                  { "danrer7", "danrer10", "danrer11" } },
+    { "zebrafish",                  { "danrer5", "danrer7", "danrer10", "danrer11" } },
     { "zebra_finch",                { "taegut2" } },
     { "zebra_mbuna",                { "mayzeb1" } }
 };
@@ -1856,7 +1856,6 @@ void load_model(Model & model, const std::string & model_name_or_path, const std
     newick_flatten(model.phylo_tree, tmp_phylo_array);
 
     // reduce tree when --species is passed
-    // TODO: allow common and scientific names)
     if (selected_species != "")
     {
         std::unordered_set<std::string> selected_species_set;
@@ -1886,7 +1885,7 @@ void load_model(Model & model, const std::string & model_name_or_path, const std
                 }
                 if (!newick_name_found)
                 {
-                    selected_species_set.insert(s); // TODO: to trigger ERROR below. recode this in a cleaner way
+                    selected_species_set.insert(s); // TODO: this triggers ERROR below. recode this in a cleaner way
                 }
             }
         }
