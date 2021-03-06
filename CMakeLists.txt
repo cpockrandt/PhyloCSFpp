@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.2)
 string(ASCII 27 Esc)
 set(ColourBold  "${Esc}[1m")
 set(ColourReset "${Esc}[m")
@@ -45,6 +45,7 @@ message("\n${ColourBold}Dependency detection${ColourReset}")
 
 find_package(OpenMP QUIET)
 find_package(Git)
+find_package(GSL REQUIRED)
 
 ExternalProject_Add(libBigWig
     GIT_REPOSITORY "https://github.com/cpockrandt/libBigWig"
@@ -74,6 +75,7 @@ if (GIT_FOUND)
 endif()
 
 message(STATUS "These dependencies where found:")
+message(   "     GSL        ${GSL_FOUND}      ${GSL_VERSION}")
 message(   "     OPENMP     ${OPENMP_FOUND}      ${OpenMP_CXX_FLAGS}")
 message(   "     GIT        ${GIT_FOUND}      (optional)")
 
@@ -85,20 +87,22 @@ else ()
             "This is probably not what you want! Use GCC >= 4.9.1 or Clang >= 3.8.0\nWARNING WARNING WARNING")
 endif ()
 
+include_directories(${GSL_INCLUDE_DIRS})
+
 message(STATUS "The requirements were met.")
 
 # ----------------------------------------------------------------------------
 # Build configuration
 # ----------------------------------------------------------------------------
 
-message ("\n${ColourBold}Build configuration${ColourReset}")
+message("\n${ColourBold}Build configuration${ColourReset}")
 
 # ----------------------------------------------------------------------------
 # Make "Release" the default cmake build type
 # ----------------------------------------------------------------------------
 
 if (NOT CMAKE_BUILD_TYPE)
-    set (CMAKE_BUILD_TYPE Release CACHE STRING
+    set(CMAKE_BUILD_TYPE Release CACHE STRING
             "Choose the type of build, options are: Debug Release RelWithDebInfo"
             FORCE)
 endif ()
@@ -108,31 +112,31 @@ endif ()
 # ----------------------------------------------------------------------------
 
 if (NOT CMAKE_BUILD_TYPE STREQUAL Release)
-    message (STATUS "${ColourRed}CMAKE_BUILD_TYPE is not \"Release\", your binaries will be slow.${ColourReset}")
+    message(STATUS "${ColourRed}CMAKE_BUILD_TYPE is not \"Release\", your binaries will be slow.${ColourReset}")
 endif ()
 
-option (PHYLOCSFPP_NATIVE_BUILD "Architecture-specific optimizations, i.e., g++ -march=native." ON)
+option(PHYLOCSFPP_NATIVE_BUILD "Architecture-specific optimizations, i.e., g++ -march=native." ON)
 if (PHYLOCSFPP_NATIVE_BUILD)
-    add_definitions (-DPHYLOCSFPP_NATIVE_BUILD=1)
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    add_definitions(-DPHYLOCSFPP_NATIVE_BUILD=1)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
     if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -xHOST -ipo -no-prec-div -fp-model fast=2")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -xHOST -ipo -no-prec-div -fp-model fast=2")
     endif ()
 endif ()
 
 include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
 
-message (STATUS "The following options are selected for the build:")
-message (   "     PHYLOCSFPP_NATIVE_BUILD             ${PHYLOCSFPP_NATIVE_BUILD}")
-message (STATUS "Run 'cmake -LH' to get a comment on each option.")
-message (STATUS "Remove CMakeCache.txt and re-run cmake with -DOPTIONNAME=ON|OFF to change an option.")
+message(STATUS "The following options are selected for the build:")
+message(   "     PHYLOCSFPP_NATIVE_BUILD             ${PHYLOCSFPP_NATIVE_BUILD}")
+message(STATUS "Run 'cmake -LH' to get a comment on each option.")
+message(STATUS "Remove CMakeCache.txt and re-run cmake with -DOPTIONNAME=ON|OFF to change an option.")
 
 # ----------------------------------------------------------------------------
 # Build Setup
 # ----------------------------------------------------------------------------
 
-add_definitions (-DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
+add_definitions(-DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
 
 # TODO: -Wconversion
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -DNOCURL -std=c++11 -fpermissive -DHAVE_INLINE")
@@ -146,4 +150,4 @@ target_link_libraries(phylocsf++ BigWig)
 
 install(TARGETS phylocsf++ DESTINATION bin)
 
-message ("\n${ColourBold}Finishing up${ColourReset}")
+message("\n${ColourBold}Finishing up${ColourReset}")
