@@ -6,7 +6,9 @@ THREADS=$1
 ### build-tracks
 
 # download data: wget -m -nd ftp://ftp.ccb.jhu.edu/pub/pocki/phylocsf++/tests/s
-gunzip test/chr22_25_28_each_30k_bases.maf.gz
+if [ ! -f "test/chr22_25_28_each_30k_bases.maf" ]; then
+  gunzip test/chr22_25_28_each_30k_bases.maf.gz
+fi
 
 $PhyloCSFpp build-tracks --genome-length 1065365434 --coding-exons test/ChickenCodingExons.txt \
   --output-phylo 1 --output-raw-phylo 1 --output-power 1 --threads $THREADS --output ./build/results \

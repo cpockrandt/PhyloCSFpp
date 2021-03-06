@@ -47,11 +47,12 @@ find_package(OpenMP QUIET)
 find_package(Git)
 find_package(GSL REQUIRED)
 
+# TODO: don't build in source in case we have multiple build folders with different compiler flags
 ExternalProject_Add(libBigWig
     GIT_REPOSITORY "https://github.com/cpockrandt/libBigWig"
     UPDATE_COMMAND ""
-    DOWNLOAD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/"
-    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig"
+    DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/external/"
+    SOURCE_DIR "${CMAKE_BINARY_DIR}/libBigWig"
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ${MAKE}
@@ -124,8 +125,8 @@ if (PHYLOCSFPP_NATIVE_BUILD)
     endif ()
 endif ()
 
-include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/libBigWig)
+include_directories(SYSTEM ${CMAKE_BINARY_DIR}/libBigWig)
+link_directories(${CMAKE_BINARY_DIR}/libBigWig)
 
 message(STATUS "The following options are selected for the build:")
 message(   "     PHYLOCSFPP_NATIVE_BUILD             ${PHYLOCSFPP_NATIVE_BUILD}")
