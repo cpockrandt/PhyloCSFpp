@@ -23,17 +23,18 @@ Introduction
 
 PhyloCSF can identify protein-coding regions in the genome based on multiple-sequence alignments.
 PhyloCSF++ is an implementation of the original methods `PhyloCSF`_ and `PhyloCSF HMM`_.
-It allows you to easily create browser tracks for any genome to identify coding regions or score local alignments.
+It allows you to easily create browser tracks for any genome to identify coding regions, score local alignments or
+annotate GFF/GTF files with PhyloCSF and its confidence scores.
 
-If you find our implementation useful, please consider citing it:
+If you find our implementation useful and use it in your work, please consider citing it:
 
-    Christopher Pockrandt, Martin Steinegger, Steven Salzberg. **PhyloCSF++: Making PhyloCSF available for more species to improve gene annotation pipelines**. `Bioinformatics`_, 2021.
+    Christopher Pockrandt, Martin Steinegger, Steven Salzberg. **PhyloCSF++: A fast and user-friendly implementation of PhyloCSF with annotation tools**. `bioRxiv`_, 2021.
 
 Please also consider citing the original method paper:
 
     Lin MF, Jungreis I, and Kellis M. PhyloCSF: a comparative genomics method to distinguish protein-coding and non-coding regions. Bioinformatics, 2011.
 
-.. _Bioinformatics: https://doi.org/10.1093/bioinformatics/btaa222
+.. _bioRxiv: https://doi.org/TODO
 
 Installation
 ^^^^^^^^^^^^
@@ -54,7 +55,7 @@ Building from source
 """"""""""""""""""""
 
 If you want to build it from source, we recommend cloning the git repository as shown below.
-Please note that building from source can easily take 10 minutes and longer depending on your machine and compiler.
+You will need the GNU scientific library (gsl), which should be available in your package manager.
 
 ::
 
@@ -68,13 +69,13 @@ You can then install and run PhyloCSF++ as follows
 ::
 
     $ sudo make install
-    $ phylocsf++
+    $ phylocsf++ --help
 
 or run the binary directly:
 
 ::
 
-    $ ./phylocsf++
+    $ ./phylocsf++ --help
 
 **Requirements**
 
@@ -82,10 +83,10 @@ Operating System
   GNU/Linux, Mac
 
 Compiler
-  GCC ≥ 4.9, LLVM/Clang ≥ 3.8 (requires C++11)
+  GCC ≥ 4.9 (LLVM/Clang is not supported yet)
 
 Build system
-  CMake ≥ 2.8.12
+  CMake ≥ 3.2
 
 Dependencies
   OpenMP, GNU scientific library (gsl)
@@ -98,44 +99,71 @@ A detailed list of arguments and explanations can be retrieved with ``--help``:
 ::
 
     $ phylocsf++ --help
-    $ phylocsf++ tracks --help
-    $ phylocsf++ regions --help
+    $ phylocsf++ build-tracks --help
 
 Please also check out the `FAQ in our wiki <https://github.com/cpockrandt/PhyloCSFpp/wiki>`_.
 
 Building tracks
 """""""""""""""
 
-To produce PhyloCSF tracks including the Power track (confidence scores), you can run the following command.
+To produce PhyloCSF tracks including the power track (confidence scores), you can run the following command.
 Afterwards, you can use `wigToBigWig <http://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/>`_ to transform the outputted ``wig`` files to ``bw`` files and load them into a genome browser.
 
 ::
 
-    $ phylocsf++ tracks 58mammals hg38.100way.maf
+    $ phylocsf++ build-tracks 58mammals hg38.100way.maf
 
-To additionally smoothen the tracks, you can set ``--output-phylo 1``.
-This requires to pass the total genome length and a list of known coding regions (check the `wiki <https://github.com/cpockrandt/PhyloCSFpp/wiki>`_ for a command how to extract it from a gtf/gff file) as training data.
+We recommend to additionally smoothen the tracks (i.e., compute posterior probabilities) by setting ``--output-phylo 1``.
+This requires to pass the total genome length and a list of known coding regions as training data.
+Here we extract the known coding regions from a GFF file using awk (for more information on the file format, please have a look at the `wiki <https://github.com/cpockrandt/PhyloCSFpp/wiki>`_.
 
 ::
 
-    $ phylocsf++ tracks --output-phylo 1 --genome-length 3272116950 --coding-exons HumanCodingExonsV29.txt 58mammals hg38.100way.maf
+    $ awk -F'\t' 'BEGIN { OFS="\t" } ($3 == "CDS") { print $1, $7, $8, $4, $5 }' gene_catalogue.gff > CodingExons.txt
+    $ phylocsf++ build-tracks --output-phylo 1 --genome-length 3272116950 --coding-exons CodingExons.txt 58mammals hg38.100way.maf
+
+If not all of the species from the model are present in your alignments, reducing the model can speed up the computation significantly. For this pass all species from your alignment, e.g., ``--species Human,Chimp,Gorilla``.
 
 Scoring alignments
 """"""""""""""""""
 
-If you want to score entire alignments and not every codon separately, simply run:
+If you want to score alignments and not create tracks for an entire genome, simply run:
 
 ::
 
-    $ phylocsf++ region 100vertebrates hg38.100way.maf
+    $ phylocsf++ score-msa 58mammals hg38.100way.maf
 
-You can also specify the strategy (default: mle) and choose which scores to compute (PhyloCSF, ancestral sequence composition score, branch length score).
+You can also specify the strategy (fixed, mle and omega; default: mle) and choose which scores to compute (PhyloCSF score, ancestral sequence composition score, branch length score).
 
-Training my own model
-"""""""""""""""""""""
+NOTE: compared to the original implementation of PhyloCSF, PhyloCSF++ only scores the forward strand starting from the first base.
+For other frames and strands, you need to remove the first 1-2 bases and/or compute the reverse complement of the sequences.
 
-For training your own model, a phylogenetic tree with evolutionary distances, as well as codon frequencies and codon substitution rates for both coding and non-coding regions are required.
-At the moment neither PhyloCSF nor PhyloCSF++ have a tool to compute this model, but we are planning to include it into PhyloCSF++ in the near future.
+To make these scores easier to interpret, we added the mode ``fixed_mean``.
+It scores every codon in the MSA, computes posterior probabilities and computes a mean over all codons.
+Hence, the final score is in the interval [-15, +15] just as the tracks.
+
+Annotating GFF files with tracks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you have tracks in bigWig computed or downloaded, PhyloCSF++ can annotate CDS with PhyloCSF and confidence scores:
+
+::
+
+    $ phylocsf++ annotate-with-tracks /path/to/PhyloCSF+1.bw genes.gff
+
+For this you need to have all six files in the same directory (PhyloCSF+1.bw, PhyloCSF+2.bw, etc.) as well as PhyloCSFpower.bw if you also want to compute confidence scores.
+
+Annotating GFF files with MMseqs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you don't have tracks available for your genome of interest, PhyloCSF++ can annotate CDS with PhyloCSF and confidence scores by computing an alignment on the fly using MMseqs:
+
+::
+
+    $ phylocsf++ annotate-with-mmseqs genomes.txt 58mammals genes.gff
+
+``genomes.txt`` has to contain the paths to genomes from the selected model to align to (one per line).
+After all CDS lines were extracted and aligned with MMseqs, PhyloCSF++ scores each CDS alignment with the sub-tool ``score-msa``.
 
 Motivation
 ^^^^^^^^^^
@@ -144,9 +172,9 @@ We think that PhyloCSF is a very useful method for gene finding and annotation.
 Unfortunately no binaries are available and we think the outdated Ocaml code might be difficult to get running for inexperienced users.
 To build tracks the user also has to set up their own pipeline and do some coding.
 Hence, we thought it would be helpful to make an easy-to-use program that merges all necessary steps into a single step to quickly create tracks for entire genomes.
-As part of this project we computed tracks for many algorithms and included them into the UCSC genome browser as well as offer them for download:
+As part of this project we computed tracks for more species and included them into the UCSC genome browser as well as offer them for download:
 
-ftp://ftp.ccb.jhu.edu/pub/pocki/phylocsf++
+ftp://ftp.ccb.jhu.edu/pub/software/phylocsf++
 
 License
 ^^^^^^^
