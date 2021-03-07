@@ -420,7 +420,6 @@ public:
 				print_desc(desc, longest_opt_arg - name.size() + 2);
                 printf("\n\n");
 	        }
-            printf("\n");
 		}
 
 		if (!pos_args.empty())
@@ -434,17 +433,23 @@ public:
 	        }
 		}
 
-        printf("Options:\n\n");
+        bool first_option = true;
         for (const auto & a : args)
         {
             if (a.level == GENERAL)
 			{
+                if (first_option)
+                {
+                    first_option = false;
+                    printf("Options:\n\n");
+                }
                 printf("  --%s %s", a.name.c_str(), type_str[a.type]);
 				print_desc(a.desc, longest_opt_arg - a.name.size() - strlen(type_str[a.type]) - 1);
                 printf("\n");
 			}
         }
-        printf("\n");
+        if (!first_option)
+            printf("\n");
 
         bool first_help_option = true;
         for (const auto & a : args)

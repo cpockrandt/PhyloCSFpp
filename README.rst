@@ -143,7 +143,7 @@ It scores every codon in the MSA, computes posterior probabilities and computes 
 Hence, the final score is in the interval [-15, +15] just as the tracks.
 
 Annotating GFF files with tracks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""""""""""
 
 If you have tracks in bigWig computed or downloaded, PhyloCSF++ can annotate CDS with PhyloCSF and confidence scores:
 
@@ -154,7 +154,7 @@ If you have tracks in bigWig computed or downloaded, PhyloCSF++ can annotate CDS
 For this you need to have all six files in the same directory (PhyloCSF+1.bw, PhyloCSF+2.bw, etc.) as well as PhyloCSFpower.bw if you also want to compute confidence scores.
 
 Annotating GFF files with MMseqs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""""""""""
 
 If you don't have tracks available for your genome of interest, PhyloCSF++ can annotate CDS with PhyloCSF and confidence scores by computing an alignment on the fly using MMseqs:
 
