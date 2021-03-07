@@ -221,42 +221,17 @@ double compute_log_odds(double prob) {
     }
 }
 
-enum score_mode{
-    SCORE_REGION,
-    SCORE_CODON
-};
 /*
  * Processes a set of contiguous scores and returns coding regions with its respective maximal log-odds score
  */
 void process_scores(hmm const & hmm, std::vector<double> &scores,
-                    uint32_t blockStartPos, std::vector<scored_region> & result,
-                    score_mode mode){
+                    uint32_t blockStartPos, std::vector<scored_region> & result){
     double ** state_probabilities = hmm::state_posterior_probabilities(hmm, scores);
-    if(mode == SCORE_REGION){
-        std::vector<uint32_t> path = hmm::get_best_path_by_viterbi(hmm, scores);
-        for(size_t cur_codon_count = 0; cur_codon_count < path.size() - 1; cur_codon_count++){
-            if(path[cur_codon_count] == 0 && path[cur_codon_count + 1] == 0) {
-                size_t cur_codon_start_pos = cur_codon_count;
-                double max_coding_prob = 0.0;
-                while (cur_codon_count < path.size() && path[cur_codon_count] == 0) {
-                    // max only over coding probability
-                    max_coding_prob = std::max(state_probabilities[cur_codon_count][0], max_coding_prob);
-                    cur_codon_count++;
-                }
-                uint32_t region_len = cur_codon_count - cur_codon_start_pos;
-                double log_odds = compute_log_odds(max_coding_prob);
-                uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_start_pos;
-                uint32_t chunk_end_pos = chunk_start_pos + 3 * region_len - 1;
-                result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
-            }
-        }
-    }else if(mode == SCORE_CODON) {
-        for (size_t cur_codon_count = 0; cur_codon_count < scores.size(); cur_codon_count++) {
-            uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_count;
-            uint32_t chunk_end_pos = chunk_start_pos + 2;
-            double log_odds = compute_log_odds(state_probabilities[cur_codon_count][0]);
-            result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
-        }
+    for (size_t cur_codon_count = 0; cur_codon_count < scores.size(); cur_codon_count++) {
+        uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_count;
+        uint32_t chunk_end_pos = chunk_start_pos + 2;
+        double log_odds = compute_log_odds(state_probabilities[cur_codon_count][0]);
+        result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
     }
     delete [] state_probabilities[0];
     delete [] state_probabilities;

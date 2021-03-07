@@ -505,7 +505,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
         }
         if (fgets(line, sizeof line, score_file) == NULL) // skip column name line
         {
-            printf(OUT_ERROR "Error in msa.maf.scores file (1)!\n" OUT_RESET);
+            printf(OUT_ERROR "Error in msa.maf.scores file (2)!\n" OUT_RESET);
             exit(1);
         }
 
@@ -517,7 +517,6 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
                                   + '#' + strand + '#' + std::to_string(phases[alignment_id]);
             computed_scores.emplace(key, std::tuple<float, float>(score, NAN));
             ++alignment_id;
-//            printf("%s\t%lu\t%lu\t%c\t%f\n", chr, start, end, strand, score);
         }
         fclose(score_file);
     }
@@ -581,12 +580,12 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
                     const uint64_t cds_length = c.end - c.begin + 1;
                     bases_with_scores += cds_length;
                     c.phylo_score = std::get<0>(scores_it->second);
-                    weighted_phylo_score += c.phylo_score * cds_length; // TODO: does this make sense?
+                    weighted_phylo_score += c.phylo_score * cds_length;
 
                     if (scoring_params.comp_bls)
                     {
                         c.phylo_power = std::get<1>(scores_it->second);
-                        weighted_phylo_power += c.phylo_power * cds_length; // TODO: does this make sense?
+                        weighted_phylo_power += c.phylo_power * cds_length;
                     }
                 }
             }
@@ -776,7 +775,6 @@ int main_annotate_with_mmseqs(int argc, char** argv)
 
     // set species subset according to provided reference genomes in genome-file
     std::string species = "";
-    // TODO: remove ids
     for (const auto & g : params.aligning_genomes)
     {
         const std::string & species_name = std::get<0>(g);

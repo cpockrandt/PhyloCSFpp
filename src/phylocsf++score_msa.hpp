@@ -177,7 +177,7 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
                         if (!scores.empty())
                         {
                             // fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
-                            process_scores(model._hmm, scores, startBlockPos, region, SCORE_CODON);
+                            process_scores(model._hmm, scores, startBlockPos, region);
 
                             for(size_t i = 0; i < region.size(); i++)
                                 sum_smoothened_scores += region[i].log_odds_prob;
@@ -198,7 +198,7 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
                 if (!scores.empty())
                 {
                     //fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
-                    process_scores(model._hmm, scores, startBlockPos, region, SCORE_CODON);
+                    process_scores(model._hmm, scores, startBlockPos, region);
 
                     for(size_t i = 0; i < region.size(); i++)
                         sum_smoothened_scores += region[i].log_odds_prob;

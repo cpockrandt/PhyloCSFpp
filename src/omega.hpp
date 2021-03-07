@@ -8,7 +8,7 @@
 double pi_expr_sc(const gsl_vector * const variables, const uint8_t codon_id) noexcept
 {
     uint8_t i1, i2, i3;
-    // TODO: what happens with N's or gaps???
+    // TODO: what happens with N's or gaps?
     from_amino_acid_id(codon_id, i1, i2, i3);
 
     const double f1 = ((i1 == 3) ? 1.0 : gsl_vector_get(variables, 3 + i1)) / (1.0 + gsl_vector_get(variables, 3) + gsl_vector_get(variables,  4) + gsl_vector_get(variables,  5));
@@ -150,11 +150,10 @@ double get_lpr_kappa(const double kappa) noexcept
 
 void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, const double /*t*/, double & lpr)
 {
-    // let workspace = PhyloLik.new_workspace (PM.tree (PM.P14n.model inst)) Codon.dim
     workspace_t workspace;
     const uint16_t nbr_leaves_in_tree = (instance.model.tree.size() + 1) / 2;
     const uint16_t rows = 2 * instance.p14n.tree_shape.size() - nbr_leaves_in_tree;
-    workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
+    workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63? std::numeric_limits<int64_t>::min()
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
     lpr = 0.0;
@@ -163,7 +162,6 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
         // let info = PM.prepare_lik workspace instance.model lvs
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
         // prior is a function that either returns instance.model.prior or computes the equilibrium
-//        auto & m = instance.model;
 
         // now since (prior instance.model) is computed, we can evaluate the actual value:
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
@@ -173,9 +171,8 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
         const uint16_t n = instance.model.tree.size();
         const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
 
-//        std::cout << nl << ' ' << alignment.peptides.size() << '\n';
-        assert(nl == alignment.peptides.size()); // if nl <> Array.length leaves then invalid_arg "CamlPaml.Infer.prepare: length(leaves) != leaves(t)"
-        assert(instance.model.pms.size() >= (size_t)(n - 1)); // if Array.length pms < n-1 then invalid_arg "CamlPaml.Infer.prepare: not enough P matrices"
+        assert(nl == alignment.peptides.size());
+        assert(instance.model.pms.size() >= (size_t)(n - 1));
 
         // NOTE: ignored, since until now, we always passed a workspace in Ocaml
         // let workspace = match workspace with Some x -> x | None -> new_workspace tree k
@@ -187,7 +184,6 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
 
         // let alpha = Bigarray.Array2.sub_left workspace.data 0 (n-nl)
         // let beta = Bigarray.Array2.sub_left workspace.data (n-nl) n
-        // I don't think submatrices are really necessary here. we can do the calculations ourselves
         workspace.have_alpha = false;
         workspace.have_beta = false;
         workspace.alpha = gsl_matrix_submatrix(workspace.workspace_data, 0, 0, n - nl, 64); // upper "half"
@@ -197,7 +193,7 @@ void lpr_leaves_omega(instance_t & instance, const alignment_t & alignment, cons
 
         for (uint8_t a = 0; a < k; ++a)
         {
-            gsl_matrix_set(&workspace.beta.matrix, n - 1, a, gsl_vector_get(tmp_prior, a)); // TODO: check whether submatrix works and setting values here!
+            gsl_matrix_set(&workspace.beta.matrix, n - 1, a, gsl_vector_get(tmp_prior, a));
         }
 
         ensure_alpha(instance, workspace, alignment, aa_pos); // eventually return more than just the info.z score, because it might be used for the ancestor computation
@@ -215,7 +211,7 @@ double minimizer_lpr_leaves_rho(const double x, void * params)
     min_params->instance.instantiate_tree(x); // x is a variable that is used for maximization in maximize_lpr
     PhyloModel_make(min_params->instance, NULL, false);
 
-    lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr/*, min_params->elpr_anc*/);
+    lpr_leaves_omega(min_params->instance, min_params->alignment, x, min_params->lpr);
 
     min_params->lpr += get_lpr_rho(x);
     return (-1) * min_params->lpr;
@@ -224,8 +220,6 @@ double minimizer_lpr_leaves_rho(const double x, void * params)
 double minimizer_lpr_leaves_kappa(const double x, void * params)
 {
     minimizer_params_t * min_params = (minimizer_params_t*) params;
-
-    // qms identical, pms is not! how can that be? pms is computed based on qms???
 
     // PM.P14n.update ~tree_settings:ts inst
     min_params->x = x;

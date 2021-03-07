@@ -73,7 +73,7 @@ struct alpha_result
 {
     gsl_vector * alpha = gsl_vector_alloc(64);
     uint8_t aa = 0;
-    bool is_distribution = false; // TODO: is the naming correct? bl < nl
+    bool is_distribution = false; // bl < nl
 
     ~alpha_result()
     {
@@ -200,7 +200,6 @@ void ensure_beta(const instance_t & instance, workspace_t & workspace, const ali
                 for (uint16_t a = 0; a < k; ++a) // instead of this loop it'd probably be a little faster to transpose ps
                 {
                     gsl_vector_set(ps_colb, a, gsl_matrix_get(ps, a, b));
-//                    Bigarray.Array1.unsafe_set ps_colb a (Bigarray.Array2.unsafe_get ps a b)
                 }
                 double dot_result;
                 gsl_blas_ddot(inter, ps_colb, &dot_result);
@@ -336,7 +335,6 @@ gsl_vector * get_prior(instance_t & instance)
 //                assert (min_Lp >= 0);
             if (fabs(min_L) > q.tol)
                 printf("equilibrium: smallest-magnitude eigenvalue %e is unacceptably large; check rate matrix validity or increase tol", min_L);
-//                auto lev = gsl_matrix_row(q.eig.r_s2, min_Lp);
             double mass = 0.0;
             for (uint16_t j = 0; j < n; ++j)
             {
@@ -397,7 +395,6 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         // let info = PM.prepare_lik workspace instance.model lvs
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
         // prior is a function that either returns instance.model.prior or computes the equilibrium
-//        auto & m = instance.model;
 
         // now since (prior instance.model) is computed, we can evaluate the actual value:
         // let info = PhyloLik.prepare workspace instance.model.tree instance.model.pms (prior instance.model) lvs
@@ -405,7 +402,6 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         const uint16_t n = instance.model.tree.size();
         const uint16_t nl = (instance.model.tree.size() + 1)/2; // let nl = T.leaves tree
 
-//        std::cout << nl << ' ' << alignment.peptides.size() << '\n';
         assert(nl == alignment.peptides.size()); // if nl <> Array.length leaves then invalid_arg "CamlPaml.Infer.prepare: length(leaves) != leaves(t)"
         assert(instance.model.pms.size() >= (size_t)(n - 1)); // if Array.length pms < n-1 then invalid_arg "CamlPaml.Infer.prepare: not enough P matrices"
 
@@ -419,7 +415,6 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
 
         // let alpha = Bigarray.Array2.sub_left workspace.data 0 (n-nl)
         // let beta = Bigarray.Array2.sub_left workspace.data (n-nl) n
-        // I don't think submatrices are really necessary here. we can do the calculations ourselves
         workspace.have_alpha = false;
         workspace.have_beta = false;
         workspace.alpha = gsl_matrix_submatrix(workspace.workspace_data, 0, 0, n - nl, 64); // upper "half"
@@ -506,7 +501,7 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
     }
     // NOTE: otherwise x and lpr in params already set by call to (*f)(x, params)
 
-    (*f)(params->x, params); // NOTE: this is suuuuper improtant! (maybe!) we need to set stuff like tree_settings and pms to the values for the x that we eventually chose!
+    (*f)(params->x, params); // NOTE: we might need to set stuff like tree_settings and pms to the values for the x that we eventually chose!
 }
 
 template <typename function_t>

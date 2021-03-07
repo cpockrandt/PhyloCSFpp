@@ -171,8 +171,6 @@ public:
                 ++col_id;
             }
 
-//            printf("\n");
-
             if (feature == "transcript")
                 ++transcript_occs;
 
