@@ -645,7 +645,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
 
 int main_annotate_with_mmseqs(int argc, char** argv)
 {
-    ArgParse args("phylocsf++ annotate-with-msa",
+    ArgParse args("phylocsf++ annotate-with-mmseqs",
                   "Computes PhyloCSF scores for CDS features in GFF/GTF files and outputs them in \n"
                   "the same format. Requires MMseqs2 to be installed and a set of reference genomes \n"
                   "to compute multiple sequence alignments from scratch.\n"

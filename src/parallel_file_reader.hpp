@@ -401,15 +401,10 @@ public:
                                        (char*) file_mem, // haysteck_begin
                                        "\na "); // pattern
 
-        if (prev_aln_begin == NULL) // no alignment before this section, so no concatenation happening
+        if (prev_aln_begin != NULL)
         {
-            //file_range_pos[job_id] = file_size;
-        }
-        else
-        {
-            prev_aln_begin += 1; // +1 to skip \n
             // get the previous alignment (last one from previous job)
-            file_range_pos[job_id] = prev_aln_begin - (char*)file_mem;
+            file_range_pos[job_id] = (prev_aln_begin + 1) - (char*)file_mem; // +1 to skip \n
             get_next_alignment(aln, job_id);
 
             // make sure the "progress" (in bytes) is not counted on the next call of get_next_alignment() from reading the previous alignment
@@ -422,6 +417,7 @@ public:
             // or it "steals" some alignments from this job (which we have to skip), i.e., do nothing
             // and the first call of get_next_alignment() will retrieve the very first complete alignment
         }
+        // else: it's the very first alignment. don't do anything
 
 //        printf("AFTER SKIPPING  : Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n\n", job_id, file_range_pos[job_id], file_range_end[job_id], file_range_end[job_id] - file_range_pos[job_id]);
     }
