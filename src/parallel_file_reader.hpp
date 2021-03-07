@@ -397,13 +397,13 @@ public:
             return;
 
         // does this alignment get concatenated to the previous one?
-        char *prev_aln_begin = rstrstr((char*) file_mem + file_range_pos[job_id] - 2, // haystack_end
+        char *prev_aln_begin = rstrstr((char*) file_mem, // haystack_end
                                        (char*) file_mem + file_range_pos_orig[job_id - 1], // haysteck_begin
                                        "\na ") + 1; // pattern; +1 to skip \n
 
-        if (prev_aln_begin == NULL) // no alignment begin in this section, so there are no alignments to process for this job
+        if (prev_aln_begin == NULL) // no alignment before this section, so no concatenation happening
         {
-            file_range_pos[job_id] = file_size;
+            // file_range_pos[job_id] = file_size;
         }
         else
         {
