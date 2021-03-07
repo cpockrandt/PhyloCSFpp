@@ -399,7 +399,7 @@ public:
         // does this alignment get concatenated to the previous one?
         char *prev_aln_begin = rstrstr((char*) file_mem + file_range_pos[job_id] - 2, // haystack_end
                                        (char*) file_mem, // haysteck_begin
-                                       "\na ") + 1; // pattern; +1 to skip \n
+                                       "\na "); // pattern
 
         if (prev_aln_begin == NULL) // no alignment before this section, so no concatenation happening
         {
@@ -407,9 +407,7 @@ public:
         }
         else
         {
-            // backup
-            const size_t orig_file_range_pos = file_range_pos[job_id];
-
+            prev_aln_begin += 1; // +1 to skip \n
             // get the previous alignment (last one from previous job)
             file_range_pos[job_id] = prev_aln_begin - (char*)file_mem;
             get_next_alignment(aln, job_id);
@@ -421,16 +419,8 @@ public:
                 seq = "";
 
             // it either cannot be concatenated with the fist alignment of this job
-            if (orig_file_range_pos == file_range_pos[job_id])
-            {
-
-            }
             // or it "steals" some alignments from this job (which we have to skip), i.e., do nothing
             // and the first call of get_next_alignment() will retrieve the very first complete alignment
-            else
-            {
-
-            }
         }
 
 //        printf("AFTER SKIPPING  : Job %2d starting from %10ld (incl.) to %10ld (excl.). Size: %10ld\n\n", job_id, file_range_pos[job_id], file_range_end[job_id], file_range_end[job_id] - file_range_pos[job_id]);
