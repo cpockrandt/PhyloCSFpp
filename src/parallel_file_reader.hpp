@@ -397,13 +397,13 @@ public:
             return;
 
         // does this alignment get concatenated to the previous one?
-        char *prev_aln_begin = rstrstr((char*) file_mem, // haystack_end
-                                       (char*) file_mem + file_range_pos_orig[job_id - 1], // haysteck_begin
+        char *prev_aln_begin = rstrstr((char*) file_mem + file_range_pos[job_id] - 2, // haystack_end
+                                       (char*) file_mem, // haysteck_begin
                                        "\na ") + 1; // pattern; +1 to skip \n
 
         if (prev_aln_begin == NULL) // no alignment before this section, so no concatenation happening
         {
-            // file_range_pos[job_id] = file_size;
+            //file_range_pos[job_id] = file_size;
         }
         else
         {
@@ -438,7 +438,7 @@ public:
 
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
-    // if "\na" is at the end of the range for a thread, process it
+    // if "\na" isn at the end of the range for a thread, process it
     bool get_next_alignment(alignment_t & aln, const unsigned job_id, std::vector<bool> * species_seen_in_alignment = NULL)
     {
         #pragma omp atomic
