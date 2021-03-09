@@ -47,7 +47,16 @@ find_package(OpenMP QUIET)
 find_package(Git)
 find_package(GSL REQUIRED)
 
-# TODO: don't build in source in case we have multiple build folders with different compiler flags
+option(PHYLOCSFPP_BUILD_LIBBIGWIG "Turn on/off building step of libBigWig (used for bioconda)." ON)
+if (NOT PHYLOCSFPP_BUILD_LIBBIGWIG)
+    add_definitions(-DPHYLOCSFPP_BUILD_LIBBIGWIG=0)
+    set(LIBBIGWIG_MAKE_CMD "")
+else ()
+    add_definitions(-DPHYLOCSFPP_BUILD_LIBBIGWIG=1)
+    set(LIBBIGWIG_MAKE_CMD "make")
+endif ()
+
+# TODO: separate source and binary dir?
 ExternalProject_Add(libBigWig
     GIT_REPOSITORY "https://github.com/cpockrandt/libBigWig"
     UPDATE_COMMAND ""
@@ -55,7 +64,7 @@ ExternalProject_Add(libBigWig
     SOURCE_DIR "${CMAKE_BINARY_DIR}/libBigWig"
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND ${MAKE}
+    BUILD_COMMAND "${LIBBIGWIG_MAKE_CMD}"
     INSTALL_COMMAND ""
 )
 
@@ -147,6 +156,7 @@ link_directories(${CMAKE_BINARY_DIR}/libBigWig)
 message(STATUS "The following options are selected for the build:")
 message(   "     PHYLOCSFPP_NATIVE_BUILD             ${PHYLOCSFPP_NATIVE_BUILD}")
 message(   "     PHYLOCSFPP_STATIC_BUILD             ${PHYLOCSFPP_STATIC_BUILD}")
+message(   "     PHYLOCSFPP_BUILD_LIBBIGWIG          ${PHYLOCSFPP_BUILD_LIBBIGWIG}")
 message(STATUS "Run 'cmake -LH' to get a comment on each option.")
 message(STATUS "Remove CMakeCache.txt and re-run cmake with -DOPTIONNAME=ON|OFF to change an option.")
 
