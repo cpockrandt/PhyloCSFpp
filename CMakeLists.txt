@@ -26,10 +26,6 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     elseif (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.8)
         message(WARNING "Your Clang version is too old, you will not have parallelism! Upgrade to 3.8.0 or newer.")
     endif ()
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17)
-        message(WARNING "Your Intel Compiler version is too old. Please upgrade to 17.0.0 or newer!")
-    endif ()
 else ()
     message(WARNING "Unknown compiler, you are on your own!")
 endif ()
@@ -40,34 +36,31 @@ message(STATUS "The requirements were met.")
 # ----------------------------------------------------------------------------
 # Dependency detection
 # ----------------------------------------------------------------------------
-
 message("\n${ColourBold}Dependency detection${ColourReset}")
 
 find_package(OpenMP QUIET)
 find_package(Git)
 find_package(GSL REQUIRED)
 
-option(PHYLOCSFPP_BUILD_LIBBIGWIG "Turn on/off building step of libBigWig (used for bioconda)." ON)
-if (NOT PHYLOCSFPP_BUILD_LIBBIGWIG)
-    add_definitions(-DPHYLOCSFPP_BUILD_LIBBIGWIG=0)
-    set(LIBBIGWIG_MAKE_CMD "")
+message(STATUS "These dependencies where found:")
+message(   "     GSL        ${GSL_FOUND}      ${GSL_VERSION}")
+message(   "     OPENMP     ${OPENMP_FOUND}      ${OpenMP_CXX_FLAGS}")
+message(   "     GIT        ${GIT_FOUND}      (optional, for building releases)")
+
+# GSL
+include_directories(${GSL_INCLUDE_DIRS})
+
+# OPENMP
+if (OPENMP_FOUND)
+    add_definitions(-DENABLE_OPENMP)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    include_directories(${OpenMP_CXX_INCLUDE_DIRS})
 else ()
-    add_definitions(-DPHYLOCSFPP_BUILD_LIBBIGWIG=1)
-    set(LIBBIGWIG_MAKE_CMD "make")
+    message(WARNING "WARNING WARNING WARNING\nWARNING: OpenMP not found. PhyloCSF++ will be built without multi-threading! "
+            "This is probably not what you want! Use GCC >= 4.9.1 or Clang >= 3.8.0\nWARNING WARNING WARNING")
 endif ()
 
-# TODO: separate source and binary dir?
-ExternalProject_Add(libBigWig
-    GIT_REPOSITORY "https://github.com/cpockrandt/libBigWig"
-    UPDATE_COMMAND ""
-    DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/external/"
-    SOURCE_DIR "${CMAKE_BINARY_DIR}/libBigWig"
-    BUILD_IN_SOURCE 1
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND "${LIBBIGWIG_MAKE_CMD}"
-    INSTALL_COMMAND ""
-)
-
+# GIT
 # Pass git hash and git date to C++ compiler as macros to include them into the help string.
 # Source: https://stackoverflow.com/a/21028226 (by Drew Noakes)
 if (GIT_FOUND)
@@ -84,45 +77,18 @@ if (GIT_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGIT_HASH=\"${GIT_HASH}\" -DGIT_DATE=\"${GIT_DATE}\"")
 endif()
 
-message(STATUS "These dependencies where found:")
-message(   "     GSL        ${GSL_FOUND}      ${GSL_VERSION}")
-message(   "     OPENMP     ${OPENMP_FOUND}      ${OpenMP_CXX_FLAGS}")
-message(   "     GIT        ${GIT_FOUND}      (optional)")
-
-if (OPENMP_FOUND)
-    add_definitions(-DENABLE_OPENMP)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-else ()
-    message(WARNING "WARNING WARNING WARNING\nWARNING: OpenMP not found. PhyloCSF++ will be built without multi-threading! "
-            "This is probably not what you want! Use GCC >= 4.9.1 or Clang >= 3.8.0\nWARNING WARNING WARNING")
-endif ()
-
-include_directories(${GSL_INCLUDE_DIRS})
-
 message(STATUS "The requirements were met.")
 
 # ----------------------------------------------------------------------------
-# Build configuration
+# Build options
 # ----------------------------------------------------------------------------
-
-message("\n${ColourBold}Build configuration${ColourReset}")
-
-# ----------------------------------------------------------------------------
-# Make "Release" the default cmake build type
-# ----------------------------------------------------------------------------
-
-if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING
-            "Choose the type of build, options are: Debug Release RelWithDebInfo"
-            FORCE)
-endif ()
-
-# ----------------------------------------------------------------------------
-# Warn if cmake build type is not "Release"
-# ----------------------------------------------------------------------------
-
-if (NOT CMAKE_BUILD_TYPE STREQUAL Release)
-    message(STATUS "${ColourRed}CMAKE_BUILD_TYPE is not \"Release\", your binaries will be slow.${ColourReset}")
+option(PHYLOCSFPP_BUILD_LIBBIGWIG "Turn on/off building step of libBigWig (used for bioconda)." ON)
+if (NOT PHYLOCSFPP_BUILD_LIBBIGWIG)
+    add_definitions(-DPHYLOCSFPP_BUILD_LIBBIGWIG=0)
+    set(LIBBIGWIG_MAKE_CMD "")
+else ()
+    add_definitions(-DPHYLOCSFPP_BUILD_LIBBIGWIG=1)
+    set(LIBBIGWIG_MAKE_CMD "make")
 endif ()
 
 option(PHYLOCSFPP_NATIVE_BUILD "Architecture-specific optimizations, i.e., g++ -march=native." OFF)
@@ -150,6 +116,41 @@ if (PHYLOCSFPP_STATIC_BUILD)
     # endif ()
 endif ()
 
+# Download (and if necessary build) libBigWig
+# NOTE: either way we need some source files that I think are not part of the library
+# TODO: separate source and binary dir?
+ExternalProject_Add(libBigWig
+    GIT_REPOSITORY "https://github.com/cpockrandt/libBigWig"
+    UPDATE_COMMAND ""
+    DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/external/"
+    SOURCE_DIR "${CMAKE_BINARY_DIR}/libBigWig"
+    BUILD_IN_SOURCE 1
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND "${LIBBIGWIG_MAKE_CMD}"
+    INSTALL_COMMAND ""
+)
+
+# ----------------------------------------------------------------------------
+# Build configuration
+# ----------------------------------------------------------------------------
+message("\n${ColourBold}Build configuration${ColourReset}")
+
+# ----------------------------------------------------------------------------
+# Make "Release" the default cmake build type
+# ----------------------------------------------------------------------------
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING
+            "Choose the type of build, options are: Debug Release RelWithDebInfo"
+            FORCE)
+endif ()
+
+# ----------------------------------------------------------------------------
+# Warn if cmake build type is not "Release"
+# ----------------------------------------------------------------------------
+if (NOT CMAKE_BUILD_TYPE STREQUAL Release)
+    message(STATUS "${ColourRed}CMAKE_BUILD_TYPE is not \"Release\", your binaries will be slow.${ColourReset}")
+endif ()
+
 include_directories(SYSTEM ${CMAKE_BINARY_DIR}/libBigWig)
 link_directories(${CMAKE_BINARY_DIR}/libBigWig)
 
@@ -163,7 +164,6 @@ message(STATUS "Remove CMakeCache.txt and re-run cmake with -DOPTIONNAME=ON|OFF 
 # ----------------------------------------------------------------------------
 # Build Setup
 # ----------------------------------------------------------------------------
-
 add_definitions(-DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
 
 # TODO: -Wconversion
