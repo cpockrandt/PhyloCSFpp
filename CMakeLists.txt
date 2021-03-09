@@ -116,7 +116,7 @@ if (NOT CMAKE_BUILD_TYPE STREQUAL Release)
     message(STATUS "${ColourRed}CMAKE_BUILD_TYPE is not \"Release\", your binaries will be slow.${ColourReset}")
 endif ()
 
-option(PHYLOCSFPP_NATIVE_BUILD "Architecture-specific optimizations, i.e., g++ -march=native." ON)
+option(PHYLOCSFPP_NATIVE_BUILD "Architecture-specific optimizations, i.e., g++ -march=native." OFF)
 if (PHYLOCSFPP_NATIVE_BUILD)
     add_definitions(-DPHYLOCSFPP_NATIVE_BUILD=1)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
