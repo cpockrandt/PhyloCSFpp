@@ -1,5 +1,5 @@
-PhyloCSF++: A fast and easy-to-use implementation of PhyloCSF
-=============================================================
+PhyloCSF++: A fast and user-friendly implementation of PhyloCSF with annotation tools
+=====================================================================================
 
 .. image:: https://img.shields.io/conda/dn/bioconda/phylocsfpp.svg?style=flag&label=BioConda%20install
     :target: https://anaconda.org/bioconda/phylocsfpp
@@ -33,6 +33,8 @@ If you find our implementation useful and use it in your work, please consider c
 Please also consider citing the original method paper:
 
     Lin MF, Jungreis I, and Kellis M. PhyloCSF: a comparative genomics method to distinguish protein-coding and non-coding regions. Bioinformatics, 2011.
+
+    Mudge JM, Jungreis I, Hunt T, Gonzalez JM, Wright J, Kay M, Davidson C, Fitzgerald S, Seal R, Tweedie S, He L, Waterhouse RM, Li Y, Bruford E, Choudhary J, Frankish A, Kellis M (2019). Discovery of high-confidence human protein-coding genes and exons by whole-genome PhyloCSF helps elucidate 118 GWAS loci. Genome Research gr-246462. doi: 10.1101/gr.246462.118.
 
 .. _bioRxiv: https://doi.org/TODO
 
