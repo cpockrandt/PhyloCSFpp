@@ -497,6 +497,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
         uint64_t end;
         char strand;
         float score;
+        float power;
 
         if (fgets(line, sizeof line, score_file) == NULL) // skip comment line
         {
@@ -512,10 +513,10 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
         uint64_t alignment_id = 0;
         while (fgets(line, sizeof line, score_file) != NULL)
         {
-            sscanf(line, "%s\t%" PRIu64 "\t%" PRIu64 "\t%c\t%f", chr, &start, &end, &strand, &score);
+            sscanf(line, "%s\t%" PRIu64 "\t%" PRIu64 "\t%c\t%f\t%f", chr, &start, &end, &strand, &score, &power);
             const std::string key = std::string(chr) + ':' + std::to_string(start) + '-' + std::to_string(end)
                                   + '#' + strand + '#' + std::to_string(phases[alignment_id]);
-            computed_scores.emplace(key, std::tuple<float, float>(score, NAN));
+            computed_scores.emplace(key, std::tuple<float, float>(score, power));
             ++alignment_id;
         }
         fclose(score_file);
@@ -677,7 +678,6 @@ int main_annotate_with_mmseqs(int argc, char** argv)
     args.add_option("output", ArgParse::Type::STRING, "Path where output GFF/GTF will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, true);
 
     args.add_option("strategy", ArgParse::Type::STRING, "PhyloCSF scoring algorithm: MLE, FIXED, OMEGA or FIXED_MEAN. Default: " + default_strategy, ArgParse::Level::GENERAL, false);
-    args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Default: " + std::to_string(scoring_params.comp_bls), ArgParse::Level::GENERAL, false);
     args.add_option("mmseqs-bin", ArgParse::Type::STRING, "Path to MMseqs2 binary. Default: " + params.mmseqs2_bin, ArgParse::Level::GENERAL, false);
 
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --strategy FIXED_MEAN).", ArgParse::Level::GENERAL, false);
@@ -766,9 +766,6 @@ int main_annotate_with_mmseqs(int argc, char** argv)
         std::string mapping_file = args.get_string("mapping");
         update_sequence_name_mapping(mapping_file);
     }
-
-    if (args.is_set("comp-power"))
-        scoring_params.comp_bls = args.get_bool("comp-power");
 
     const std::string genome_file = args.get_positional_argument("genome-file");
     load_genome_file(genome_file, params.aligning_genomes, params.reference_genome_name, params.reference_genome_path);
