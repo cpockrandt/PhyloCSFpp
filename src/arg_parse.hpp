@@ -385,7 +385,7 @@ public:
 
     void print_help() const
     {
-        printf(OUT_BOLD "PhyloCSF++ (build date: %s, git commit: %s)\n\n" OUT_RESET, git_date.c_str(), git_hash.c_str());
+        printf(OUT_BOLD "PhyloCSF++ %s (build date: %s, git commit: %s)\n\n" OUT_RESET, version.c_str(), git_date.c_str(), git_hash.c_str());
         printf("%s\n\n", desc_.c_str());
 
         printf("Usage: %s [OPTIONS]", program_name.c_str());
