@@ -245,11 +245,11 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
 int main_score_msa(int argc, char **argv)
 {
     ArgParse args("phylocsf++ score-msa",
-                  "Computes PhyloCSF scores for whole alignments in FASTA or MAF files. Output is \n"
-                  "written to bed file(s). Other scores such as the ancestral sequence composition \n"
-                  "sores and branch length scores can be computed as well. Only one forward frame \n"
-                  "is computed, i.e., for other frames reverse the alignments and/or remove the \n"
-                  "first one or two bases.");
+                  "Computes PhyloCSF scores and confidence scores for whole alignments in FASTA or \n"
+                  "MAF files. Output is written to bed file(s). Optionally the ancestral sequence \n"
+                  "composition score can be computed as well. Only one forward frame is computed, \n"
+                  "i.e., for other frames reverse the alignments and/or remove the first one or two \n"
+                  "bases.");
 
     ScoreMSACLIParams params;
 
@@ -272,7 +272,6 @@ int main_score_msa(int argc, char **argv)
     args.add_option("strategy", ArgParse::Type::STRING, "PhyloCSF scoring algorithm: MLE, FIXED or OMEGA. Default: " + default_strategy, ArgParse::Level::GENERAL, false);
     args.add_option("comp-phylo", ArgParse::Type::BOOL, "Compute the PhyloCSF score for each alignment. Default: " + std::to_string(params.comp_phylo), ArgParse::Level::GENERAL, false);
     args.add_option("comp-anc", ArgParse::Type::BOOL, "Compute the ancestral sequence composition score (only in MLE and FIXED mode). Default: " + std::to_string(params.comp_anc), ArgParse::Level::GENERAL, false);
-    args.add_option("comp-bls", ArgParse::Type::BOOL, "Compute the branch length score (confidence). Default: " + std::to_string(params.comp_bls), ArgParse::Level::GENERAL, false);
 
     args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
     args.add_option("output", ArgParse::Type::STRING, "Path where tracks in wig format will be written. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
@@ -335,8 +334,6 @@ int main_score_msa(int argc, char **argv)
         params.comp_phylo = args.get_bool("comp-phylo");
     if (args.is_set("comp-anc"))
         params.comp_anc = args.get_bool("comp-anc");
-    if (args.is_set("comp-bls"))
-        params.comp_bls = args.get_bool("comp-bls");
 
     if (params.strategy == OMEGA && params.comp_anc)
     {

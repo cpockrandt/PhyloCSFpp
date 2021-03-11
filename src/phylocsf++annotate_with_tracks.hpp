@@ -187,7 +187,6 @@ int main_annotate_with_tracks(int argc, char** argv)
     AnnotateWithTracksCLIParams params;
 
     args.add_option("output", ArgParse::Type::STRING, "Path where output GFF/GTF will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
-    args.add_option("comp-power", ArgParse::Type::BOOL, "Output confidence score (branch length score). Requires the file PhyloCSFpower.bw in the same directory as the tracks. Default: " + std::to_string(params.comp_bls), ArgParse::Level::GENERAL, false);
 
     args.add_positional_argument("tracks", ArgParse::Type::STRING, "Path to the bigWig file PhyloCSF+1.bw (expects the other 5 frames to be in the same directory, optionally the power track).", true);
     args.add_positional_argument("gff-files", ArgParse::Type::STRING, "One or more GFF/GTF files with coding exons to be scored.", true, true);
@@ -196,9 +195,6 @@ int main_annotate_with_tracks(int argc, char** argv)
     args.check_args();
 
     // retrieve flags/options that were set
-    if (args.is_set("comp-power"))
-        params.comp_bls = args.get_bool("comp-power");
-
     if (args.is_set("output"))
     {
         params.output_path = args.get_string("output");
@@ -230,22 +226,22 @@ int main_annotate_with_tracks(int argc, char** argv)
             suffix = ((i < 3) ? "+" : "-") + std::to_string((i % 3) + 1);
         params.bw_path.replace(bw_path_suffix_pos, 2, suffix); // NOTE: length of "+1" is 2
 
-        if (i < 6 || params.comp_bls)
+        params.bw_files[i] = bwOpen(const_cast<char * >(params.bw_path.c_str()), NULL, "r");
+        if (!params.bw_files[i])
         {
-            params.bw_files[i] = bwOpen(const_cast<char * >(params.bw_path.c_str()), NULL, "r");
-            if (!params.bw_files[i])
+            // check whether the user has used an unindexed wig file, then print a useful hint
+            if (access(params.bw_path.c_str(), F_OK) == 0 &&
+                params.bw_path.size() >= 4 && params.bw_path.compare(params.bw_path.size() - 4, 4, ".wig") == 0
+            )
             {
                 printf(OUT_ERROR "An error occurred while opening the PhyloCSF file '%s'.\n" OUT_RESET, params.bw_path.c_str());
-
-                // check whether the user has used an unindexed wig file, then print a useful hint
-                if (access(params.bw_path.c_str(), F_OK) == 0 &&
-                    params.bw_path.size() >= 4 && params.bw_path.compare(params.bw_path.size() - 4, 4, ".wig") == 0
-                )
-                    printf(OUT_INFO "It seems you provided a *.wig file. You need to simply index them first with wigToBigWig and then use the *.bw files.\n" OUT_RESET);
-                else if (i == 6)
-                    printf(OUT_INFO "If you set `--comp-power 0` you can compute it without PhyloCSFpower.bw.\n" OUT_RESET);
-
+                printf(OUT_INFO "It seems you provided a *.wig file. You need to simply index them first with wigToBigWig and then use the *.bw files.\n" OUT_RESET);
                 return -1;
+            }
+            else if (i == 6)
+            {
+                params.comp_bls = false;
+                printf(OUT_INFO "PhyloCSFpower.bw not found. Annotation will not have confidence scores.\n" OUT_RESET);
             }
         }
     }

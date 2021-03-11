@@ -317,7 +317,6 @@ int main_build_tracks(int argc, char **argv)
 
     args.add_option("output-phylo", ArgParse::Type::BOOL, "Compute all 6 smoothened PhyloCSF tracks. Requires coding exon coordinates and genome length. Default: " + std::to_string(params.phylo_smooth), ArgParse::Level::GENERAL, false);
     args.add_option("output-raw-phylo", ArgParse::Type::BOOL, "Compute all 6 unsmoothened PhyloCSF tracks. Default: " + std::to_string(params.phylo_raw), ArgParse::Level::GENERAL, false);
-    args.add_option("output-power", ArgParse::Type::BOOL, "Output confidence track (branch length score). Default: " + std::to_string(params.phylo_power), ArgParse::Level::GENERAL, false);
     args.add_option("power-threshold", ArgParse::Type::FLOAT, "Minimum confidence score to output PhyloCSF score. Default: " + std::string(threshold_default_str), ArgParse::Level::GENERAL, false);
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
@@ -349,8 +348,6 @@ int main_build_tracks(int argc, char **argv)
         params.phylo_smooth = args.get_bool("output-phylo");
     if (args.is_set("output-raw-phylo"))
         params.phylo_raw = args.get_bool("output-raw-phylo");
-    if (args.is_set("output-power"))
-        params.phylo_power = args.get_bool("output-power");
     if (args.is_set("power-threshold"))
         params.phylo_threshold = args.get_bool("power-threshold");
 
