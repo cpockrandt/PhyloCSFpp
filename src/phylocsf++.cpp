@@ -22,7 +22,7 @@ int main(int argc, char **argv)
                   "For documentation and help, check out https://github.com/cpockrandt/PhyloCSFpp\n\n"
                   "Please consider citing:\n"
                   "  Pockrandt et al., PhyloCSF++: A fast and user-friendly implementation of PhyloCSF\n"
-                  "  with annotation tools, https://doi.org/10.1101/611160, bioRxiv 2021");
+                  "  with annotation tools, https://doi.org/TODO, bioRxiv 2021");
 
     args.add_subprogram("build-tracks", "Computes PhyloCSF and Power tracks for each codon and all 6 frames from alignments from MAF files. Outputs them in wig files.");
     args.add_subprogram("score-msa", "Computes PhyloCSF scores, ancestral sequence composition sores and branch length scores for entire alignments from MAF files. Outputs them in a BED-like format.");
