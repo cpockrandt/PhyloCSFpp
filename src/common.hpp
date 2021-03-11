@@ -87,3 +87,29 @@ void str_to_lower(std::string & str)
     for (size_t i = 0; i < str.size(); ++i)
         str[i] = std::tolower(str[i]);
 }
+
+bool is_gff_format(const std::string & line)
+{
+    uint8_t col = 1;
+    size_t line_pos = 0;
+    while (col > 0 && line_pos < line.size())
+    {
+        if (col == 9)
+        {
+            while (line_pos < line.size())
+            {
+                if (line[line_pos] == ' ') // key "value"
+                    return false;
+                else if (line[line_pos] == '=') // key=vale
+                    return true;
+                ++line_pos;
+            }
+        }
+
+        if (line[line_pos] == '\t')
+            ++col;
+
+        ++line_pos;
+    }
+    return true; // assume by default it's a gff file
+}

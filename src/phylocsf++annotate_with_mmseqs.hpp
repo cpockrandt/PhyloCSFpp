@@ -604,6 +604,8 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
         }
 
         // output gtf file (with annotation)
+        bool first_processed_line = true;
+        bool is_gff = true;
         uint16_t CDS_id = 0;
         for (auto line_tuple : t.lines)
         {
@@ -615,6 +617,13 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
             }
             else
             {
+                // detect format
+                if (first_processed_line)
+                {
+                    first_processed_line = false;
+                    is_gff = is_gff_format(line);
+                }
+
                 float score;
                 float power;
                 if (f == TRANSCRIPT)
@@ -629,11 +638,20 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
                     ++CDS_id;
                 }
 
-                // TODO: use correct format (gff/gtf)
-                if (scoring_params.comp_bls)
-                    fprintf(gff_out, "%s phylocsf_mean \"%.3f\"; phylocsf_power_mean \"%.3f\";\n", line.c_str(), score, power);
+                if (is_gff)
+                {
+                    if (scoring_params.comp_bls)
+                        fprintf(gff_out, "%s;phylocsf_mean=%.3f;phylocsf_power_mean=%.3f\n", line.c_str(), score, power);
+                    else
+                        fprintf(gff_out, "%s;phylocsf_mean=%.3f\n", line.c_str(), score);
+                }
                 else
-                    fprintf(gff_out, "%s phylocsf_mean \"%.3f\";\n", line.c_str(), score);
+                {
+                    if (scoring_params.comp_bls)
+                        fprintf(gff_out, "%s phylocsf_mean \"%.3f\"; phylocsf_power_mean \"%.3f\";\n", line.c_str(), score, power);
+                    else
+                        fprintf(gff_out, "%s phylocsf_mean \"%.3f\";\n", line.c_str(), score);
+                }
             }
         }
 
