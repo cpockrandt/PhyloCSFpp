@@ -36,7 +36,7 @@ Please also consider citing the original method paper:
 
     Mudge JM et al. Discovery of high-confidence human protein-coding genes and exons by whole-genome PhyloCSF helps elucidate 118 GWAS loci. Genome Research, 2019.
 
-.. _bioRxiv: https://doi.org/TODO
+.. _bioRxiv: https://doi.org/10.1101/2021.03.10.434297
 
 Installation
 ^^^^^^^^^^^^
