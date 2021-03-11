@@ -92,7 +92,7 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             }
 
             // instantiate_tree
-            inst.instantiate_tree(inst.tree_settings); // TODO: tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
+            inst.instantiate_tree(inst.tree_settings); // tree_p14n = Array.init (T.size tree_shape - 1) (fun br -> Mul (Var 0,Val (T.branch tree_shape br)))'
 
             // instantiate_qs
             inst.model.qms.reserve(inst.p14n.tree_p14n.size() - 1);
@@ -147,7 +147,7 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             double elpr_anc = 0.0;
 
             {
-                for (uint8_t i = 0; i < 3; ++i) // TODO: 3 iterations
+                for (uint8_t i = 0; i < 3; ++i)
                 {
                     const double init_rho = inst.tree_settings;
                     max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);

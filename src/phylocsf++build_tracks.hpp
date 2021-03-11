@@ -87,7 +87,6 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
     {
         unsigned thread_id = omp_get_thread_num();
         auto & aln = alignments[thread_id];
-        // TODO: merge arrays file_range_pos and _end are thread-safe for cache locality. should be thread-safe
 
         std::vector<double> scores;
         std::vector<scored_region> region;
