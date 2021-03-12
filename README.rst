@@ -30,7 +30,7 @@ If you find our implementation useful and use it in your work, please consider c
 
     Christopher Pockrandt, Martin Steinegger, Steven Salzberg. **PhyloCSF++: A fast and user-friendly implementation of PhyloCSF with annotation tools**. `bioRxiv`_, 2021.
 
-Please also consider citing the original method paper:
+Please also consider citing the original method papers:
 
     Lin MF et al. PhyloCSF: a comparative genomics method to distinguish protein-coding and non-coding regions. Bioinformatics, 2011.
 
@@ -51,7 +51,7 @@ Bioconda
 
 ::
 
-    $ conda install -c bioconda phylocsfpp
+    $ conda install -c conda-forge -c bioconda phylocsfpp
 
 Building from source
 """"""""""""""""""""
@@ -85,13 +85,13 @@ Operating System
   GNU/Linux, Mac
 
 Compiler
-  GCC ≥ 4.9 (LLVM/Clang is not supported yet)
+  GCC ≥ 4.9, Clang ≥ 3.8
 
 Build system
   CMake ≥ 3.2
 
 Dependencies
-  OpenMP, GNU scientific library (gsl)
+  GNU scientific library (gsl), OpenMP, zlib
 
 Getting started
 ^^^^^^^^^^^^^^^
