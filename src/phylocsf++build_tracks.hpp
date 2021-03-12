@@ -431,24 +431,3 @@ int main_build_tracks(int argc, char **argv)
 
     return 0;
 }
-
-// genome_length        = 2870184193
-// model_str            = 100vertebrates
-// selected_species_str = Rat,Frog_X._tropicalis,Zebrafish,Platypus,Chicken,Turkey,Panda,Mouse,Prairie_vole,Rhesus,Rabbit,Cat,Opossum,Cow,Human,Chimp,Dog,Guinea_pig
-// aln_path             = /ccb/salz4-2/pocki/PhyloCSF++data/rn6/rn6.20way.chr20.maf
-// hmm_data_path        = /ccb/salz4-2/pocki/PhyloCSF++data/rn6/RatCodingExons.txt
-// output_folder        = /ccb/salz4-2/pocki/PhyloCSF++data/rn6/out_chr20_30_times_100jobs
-
-// genome_length        = 1065365434
-// model_str            = 53birds
-// selected_species_str =
-// aln_path             = /home/chris/dev-uni/PhyloCSF++/phylo_galgal/galGal6_chrM.maf
-// hmm_data_path        = /home/chris/dev-uni/PhyloCSF++/phylo_galgal/ChickenCodingExonsV2.txt
-// output_folder        = /home/chris/dev-uni/PhyloCSF++/galgal_out
-
-// genome_length        = 12157105
-// model_str            = 7yeast
-// selected_species_str =
-// aln_path             = /home/chris/dev-uni/PhyloCSF++/phylo_yeast/chrI.maf
-// hmm_data_path        = /home/chris/dev-uni/PhyloCSF++/phylo_yeast/YeastCodingExons.txt
-// output_folder        = /home/chris/dev-uni/PhyloCSF++/yeast_out_test
