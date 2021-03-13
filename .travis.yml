@@ -228,5 +228,4 @@ script:
   - cmake .. ${CMAKE_ARGS} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror"
   - make VERBOSE=1
   - cd ..
-  - ./build/phylocsf++
-  - test/tests.sh ${THREADS}
+  - travis_wait 60 test/tests.sh ${THREADS}
