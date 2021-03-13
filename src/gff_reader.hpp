@@ -22,6 +22,7 @@ struct cds_entry
 enum feature_t
 {
     TRANSCRIPT,
+    EXON,
     CDS,
     OTHER
 };
@@ -35,6 +36,7 @@ struct gff_transcript
     float phylo_score = NAN;
     float phylo_power = NAN;
 
+    std::vector<std::tuple<uint64_t, uint64_t> > exons;
     std::vector<cds_entry> CDS;
     std::vector<std::tuple<feature_t, std::string> > lines;
 };
@@ -113,13 +115,14 @@ public:
     }
 
     template <bool copy_lines>
-    bool get_next_transcript(gff_transcript & transcript)
+    bool get_next_transcript(gff_transcript & transcript, bool get_exons = false)
     {
         if (file_range_pos >= (size_t)file_size)
             return false;
 
         uint8_t transcript_occs = 0;
         transcript.CDS.clear();
+        transcript.exons.clear();
         transcript.lines.clear();
 
         while (file_range_pos < (size_t)file_size)
@@ -196,6 +199,11 @@ public:
             {
                 f = CDS;
                 transcript.CDS.emplace_back(begin, end, phase - '0');
+            }
+            else if (feature == "exon" && get_exons)
+            {
+                f = EXON;
+                transcript.exons.emplace_back(begin, end);
             }
 
             if (copy_lines)

@@ -178,60 +178,6 @@ void mmseqs_fasta_to_maf(const std::string & src, const std::string & dest, cons
     fclose(f_out);
 }
 
-void load_fasta_file(const std::string & reference_path, std::unordered_map<std::string, std::string> & genome)
-{
-    FILE *file = fopen(reference_path.c_str(), "r");
-    if (file == NULL)
-    {
-        printf(OUT_ERROR "Cannot open genomic fasta file %s\n" OUT_RESET, reference_path.c_str());
-        exit(-1);
-    }
-
-    std::string id;
-    std::string seq;
-    seq.reserve(250000000); // reserve 250MB of seq (length of hg38.chr1)
-
-    char line[BUFSIZ];
-    while (fgets(line, sizeof line, file) != NULL)
-    {
-        if (line[0] == '>')
-        {
-            // write previous sequence out
-            if (seq != "")
-            {
-                genome.emplace(id, seq);
-                // printf("'%s'\t%ld\t%ld\n", id.c_str(), genome.find(id)->second.size(), genome.find(id)->second.capacity());
-            }
-
-            seq = "";
-
-            // extract new identifier
-            id = line;
-            id = id.substr(1); // remove first character '>'
-            while (id[0] == ' ')
-                id = id.substr(1); // remove space(s) after '>'
-
-            const size_t next_space = id.find(' ');
-            if (next_space != std::string::npos)
-                id = id.substr(0, next_space); // remove everything after the next space
-
-            if (id.back() == '\n')
-                id.erase(id.size() - 1);
-        }
-        else
-        {
-            char *newline = strchr(line, '\n');
-            *newline = 0;
-            seq += line;
-        }
-    }
-
-    if (seq != "")
-        genome.emplace(id, seq);
-
-    fclose(file);
-}
-
 void load_genome_file(const std::string & genome_file, std::vector<std::tuple<std::string, std::string> > & genome_file_paths,
                       std::string & reference_genome_name, std::string & reference_genome_path)
 {

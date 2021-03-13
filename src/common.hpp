@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include <string>
+#include <unordered_map>
 
 #define OUT_INFO    "\033[1;34m"
 #define OUT_ERROR   "\033[1;31m"
@@ -88,6 +89,12 @@ void str_to_lower(std::string & str)
         str[i] = std::tolower(str[i]);
 }
 
+void str_to_upper(std::string & str)
+{
+    for (size_t i = 0; i < str.size(); ++i)
+        str[i] = std::toupper(str[i]);
+}
+
 bool is_gff_format(const std::string & line)
 {
     uint8_t col = 1;
@@ -112,4 +119,55 @@ bool is_gff_format(const std::string & line)
         ++line_pos;
     }
     return true; // assume by default it's a gff file
+}
+
+void load_fasta_file(const std::string & path_to_fasta, std::unordered_map<std::string, std::string> & genome)
+{
+    FILE *file = fopen(path_to_fasta.c_str(), "r");
+    if (file == NULL)
+    {
+        printf(OUT_ERROR "Cannot open genomic fasta file %s\n" OUT_RESET, path_to_fasta.c_str());
+        exit(-1);
+    }
+
+    std::string id;
+    std::string seq;
+    seq.reserve(250000000); // reserve 250MB of seq (length of hg38.chr1)
+
+    char line[BUFSIZ];
+    while (fgets(line, sizeof line, file) != NULL)
+    {
+        if (line[0] == '>')
+        {
+            // write previous sequence out
+            if (seq != "")
+                genome.emplace(id, seq);
+
+            seq = "";
+
+            // extract new identifier
+            id = line;
+            id = id.substr(1); // remove first character '>'
+            while (id[0] == ' ')
+                id = id.substr(1); // remove space(s) after '>'
+
+            const size_t next_space = id.find(' ');
+            if (next_space != std::string::npos)
+                id = id.substr(0, next_space); // remove everything after the next space
+
+            if (id.back() == '\n')
+                id.erase(id.size() - 1);
+        }
+        else
+        {
+            char *newline = strchr(line, '\n');
+            *newline = 0;
+            seq += line;
+        }
+    }
+
+    if (seq != "")
+        genome.emplace(id, seq);
+
+    fclose(file);
 }
