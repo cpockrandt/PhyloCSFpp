@@ -150,23 +150,30 @@ public:
                 char *next_col = strchr(cur_pos, '\t');
                 if (next_col == NULL || next_col > newline_pos)
                     next_col = newline_pos;
+
                 col_size = next_col - cur_pos;
-                memcpy(buf, cur_pos, col_size);
-                buf[col_size] = 0;
                 switch(col_id)
                 {
                     case 1:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         chr = buf; break;
                     case 3:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         feature = buf; break;
                     case 4:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         begin = std::stoull(buf); break;
                     case 5:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         end = std::stoull(buf); break;
                     case 7:
-                        strand = buf[0]; break;
+                        strand = *cur_pos; break; // first char only
                     case 8:
-                        phase = buf[0]; break;
+                        phase = *cur_pos; break; // first char only
                     default:
                         break;
                 }
