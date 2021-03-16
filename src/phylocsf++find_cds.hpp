@@ -176,6 +176,7 @@ void compute_PhyloCSF_for_transcript(const gff_transcript & t, bigWigFile_t * co
         }
         else // negative strand
         {
+            std::reverse(extracted_scores[3][exon_id].begin(), extracted_scores[3][exon_id].end());
             for (uint8_t phase = 0; phase < 3; ++phase)
             {
                 // (chrLen - c.endPos - 1 + cds_phase + 1) % 3 == phase
@@ -198,8 +199,11 @@ compute_PhyloCSF(TExons & exons, TIter first, TIter last, char const strand,
                  const std::array<std::vector<std::vector<float> >, 4> & extracted_scores,
                  const uint32_t first_exon_id_in_CDS, const uint32_t last_exon_id_in_CDS, const uint32_t chrLen = 0)
 {
-    float total_phylo_sum2 = 0;
-    uint32_t total_phylo_count2 = 0;
+    float total_phylo_sum = 0.0;
+    float total_power_sum = 0.0;
+    uint32_t total_phylo_count = 0;
+    uint32_t total_power_count = 0;
+
     uint32_t cds_id = 0;
 
     for (auto it = first; it != last; ++it, ++cds_id)
@@ -239,25 +243,38 @@ compute_PhyloCSF(TExons & exons, TIter first, TIter last, char const strand,
             phylo_end = c.begin - BEGIN(exons[exon_id]);
         }
 
-        float phylo_sum = 0;
-        uint32_t phylo_count = (*phased_score).size() - phylo_end - phylo_start;
-        total_phylo_count2 += phylo_count;
-
+        float phylo_sum = 0.0;
+        uint32_t phylo_count = 0;
         for (auto phylo_it = (*phased_score).begin() + phylo_start; phylo_it != (*phased_score).end() - phylo_end; ++phylo_it)
         {
             if (*phylo_it != -999.0f)
+            {
                 phylo_sum += *phylo_it;
+                ++phylo_count;
+            }
+        }
+        total_phylo_count += phylo_count;
+
+        auto & power_scores = extracted_scores[3][exon_id];
+        float power_sum = 0.0;
+        uint32_t power_count = power_scores.size() - phylo_end - phylo_start;
+        total_power_count += power_count;
+        for (auto phylo_it = power_scores.begin() + phylo_start; phylo_it != power_scores.end() - phylo_end; ++phylo_it)
+        {
+            if (*phylo_it != -999.0f)
+                power_sum += *phylo_it;
         }
 
         c.phylo_score = (phylo_count > 0) ? phylo_sum / phylo_count : NAN;
-        c.phylo_power = NAN; // TODO
+        c.phylo_power = (power_count > 0) ? power_sum / power_count : NAN;
 
-        total_phylo_sum2 += phylo_sum;
+        total_phylo_sum += phylo_sum;
+        total_power_sum += power_sum;
     }
 
     return std::make_tuple(
-        (total_phylo_count2 > 0) ? total_phylo_sum2 / total_phylo_count2 : NAN, // total phylo_score
-        NAN // total phylo_power
+        (total_phylo_count > 0) ? total_phylo_sum / total_phylo_count : NAN, // total phylo_score
+        (total_power_count > 0) ? total_power_sum / total_power_count : NAN // total phylo_power
     );
 }
 
@@ -418,7 +435,8 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                 if (len_new > END(orf))
                     c.end -= len_new - END(orf) - 1;
 
-                if (len_new >= BEGIN(orf) && len <= END(orf) && !(c.begin == c.end)) // TODO: of-by-one check!
+                // does orf overlap with exon? check for empty exons (I have seen empty exons before somewhere ...)
+                if (BEGIN(orf) <= len_new && len <= END(orf) && c.begin < c.end)
                 {
                     CDS.push_back(std::move(c));
                     ++last_exon_id_in_CDS;
@@ -465,7 +483,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                 const std::string & line = std::get<1>(line_tuple);
 
                 // detect format
-                if (first_processed_line && f == EXON)
+                if (first_processed_line && f == TRANSCRIPT)
                 {
                     first_processed_line = false;
                     is_gff = is_gff_format(line);
@@ -475,18 +493,17 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                 {
                     if (is_gff)
                     {
+                        fprintf(gff_out, "%s;phylocsf_mean=%.3f", line.c_str(), t.phylo_score);
                         if (params.comp_bls)
-                            fprintf(gff_out, "%s;phylocsf_mean=%.3f;phylocsf_power_mean=%.3f\n", line.c_str(), t.phylo_score, t.phylo_power);
-                        else
-                            fprintf(gff_out, "%s;phylocsf_mean=%.3f\n", line.c_str(), t.phylo_score);
+                            fprintf(gff_out, ";phylocsf_power_mean=%.3f", t.phylo_power);
                     }
                     else
                     {
+                        fprintf(gff_out, "%s phylocsf_mean \"%.3f\";", line.c_str(), t.phylo_score);
                         if (params.comp_bls)
-                            fprintf(gff_out, "%s phylocsf_mean \"%.3f\"; phylocsf_power_mean \"%.3f\";\n", line.c_str(), t.phylo_score, t.phylo_power);
-                        else
-                            fprintf(gff_out, "%s phylocsf_mean \"%.3f\";\n", line.c_str(), t.phylo_score);
+                            fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", t.phylo_power);
                     }
+                    fprintf(gff_out, "\n");
                 }
                 else
                 {
@@ -503,17 +520,15 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
 
                 if (is_gff)
                 {
+                    fprintf(gff_out, "phylocsf_mean=%.3f", c.phylo_score);
                     if (params.comp_bls)
-                        fprintf(gff_out, "phylocsf_mean=%.3f;phylocsf_power_mean=%.3f", c.phylo_score, c.phylo_power);
-                    else
-                        fprintf(gff_out, "phylocsf_mean=%.3f", c.phylo_score);
+                        fprintf(gff_out, ";phylocsf_power_mean=%.3f", c.phylo_power);
                 }
                 else
                 {
+                    fprintf(gff_out, "phylocsf_mean \"%.3f\";", c.phylo_score);
                     if (params.comp_bls)
-                        fprintf(gff_out, "phylocsf_mean \"%.3f\"; phylocsf_power_mean \"%.3f\";", c.phylo_score, c.phylo_power);
-                    else
-                        fprintf(gff_out, "phylocsf_mean \"%.3f\";", c.phylo_score);
+                        fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", c.phylo_power);
                 }
 
                 fprintf(gff_out, "\n");
