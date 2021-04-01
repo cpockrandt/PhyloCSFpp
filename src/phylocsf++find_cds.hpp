@@ -24,6 +24,7 @@ struct FindCDSCLIParams
     uint32_t min_codons = 25;
 
     bool use_power = true;
+    bool evaluate = false;
 };
 
 void find_all_codons(const std::string & dna, const std::string & codon, std::array<std::vector<uint32_t>, 3> & hits) noexcept
@@ -93,7 +94,7 @@ std::vector<std::tuple<uint32_t, uint32_t> > get_all_ORFs(const std::string & sp
 
                     uint32_t orf_length = stop - start + 1;
                     assert(orf_length % 3 == 0);
-                    if (params.min_codons <= orf_length)
+                    if (3 * params.min_codons <= orf_length)
                     {
                         orfs.emplace_back(start, stop);
                         // auto orf_seq = spliced_transcript_seq.substr(start, orf_length);
@@ -109,7 +110,7 @@ std::vector<std::tuple<uint32_t, uint32_t> > get_all_ORFs(const std::string & sp
                     uint32_t orf_length = stop_rev - start_rev + 1;
                     assert(orf_length % 3 == 0);
 
-                    if (params.min_codons <= orf_length)
+                    if (3 * params.min_codons <= orf_length)
                     {
                         orfs.emplace_back(start_rev, stop_rev);
                         // auto orf_seq_pos = spliced_transcript_seq.substr(start, orf_length);
@@ -354,7 +355,7 @@ void output_transcript(const FindCDSCLIParams & params, const gff_transcript & t
             }
             fprintf(gff_out, "\n");
         }
-        else
+        else if (f != feature_t::CDS) // do not output any original CDS entries from the input
         {
             fprintf(gff_out, "%s\n", line.c_str());
         }
@@ -431,18 +432,26 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         exit(1);
     }
 
-    fprintf(gff_out, "# PhyloCSF scores computed with PhyloCSF++ %s (%s, %s) and precomputed tracks %s\n", ArgParse::version.c_str(), ArgParse::git_hash.c_str(), ArgParse::git_date.c_str(), params.bw_path.c_str());
+    fprintf(gff_out, "# CDS predicted with PhyloCSF++ %sles (%s, %s) and precomputed tracks %s\n", ArgParse::version.c_str(), ArgParse::git_hash.c_str(), ArgParse::git_date.c_str(), params.bw_path.c_str());
 
     std::string concatenated_exon_seq;
 
-    // unsigned total = 0;
-    // unsigned correct_cds_in_hits = 0;
-    // unsigned correct_longest_cds = 0;
-    // unsigned no_pos_hit = 0;
+    uint64_t nbr_transcripts = 0;
+    uint64_t nbr_transcripts_with_annotated_orf = 0;
+    uint64_t nbr_transcripts_with_annotated_orf_satisfies_criteria = 0;
+    uint64_t nbr_transcripts_with_annotated_orf_matches_predicted_stop = 0;
+    uint64_t nbr_transcripts_with_annotated_orf_matches_predicted_start_and_stop = 0;
+    uint64_t nbr_transcripts_with_annotated_invalid_orf = 0;
+    uint64_t nbr_transcripts_without_annotated_orf_with_orf_predicted = 0;
+
+    std::string annotated_cds_seq, computed_cds_seq;
+    std::vector<std::tuple<float, std::string, std::vector<cds_entry> > > hits;
 
     gff_transcript t;
     while (reader.get_next_transcript<true>(t, true))
     {
+        ++nbr_transcripts;
+
         // change 1-based gff-coordinates to 0-based gff-coordinates (like seqan)
         for (auto & e : t.exons)
         {
@@ -476,54 +485,57 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         }
         const std::string & chr = genome_it->second;
 
-        /*
-        // NOTE: CDS coordinates from input file are 1-based, we have to decrement the begin position
-        std::string annotated_cds_seq = "";
-        for (uint16_t i = 0; i < t.CDS.size(); ++i)
+        annotated_cds_seq = "";
+        if (params.evaluate)
         {
-            const auto & c = t.CDS[i];
-            // the CDS can have 1-2 bases before that START codon (i.e., phase != 0): we need to remove those bases
-            if (i == 0 && t.strand == '+' && c.phase != 0)
-                annotated_cds_seq += chr.substr(c.begin + c.phase - 1, c.end - (c.begin + c.phase) + 1);
-            else if (i == t.CDS.size() - 1 && t.strand == '-' && c.phase != 0)
-                annotated_cds_seq += chr.substr(c.begin - 1, c.end - c.phase - c.begin + 1);
-            else
-                annotated_cds_seq += chr.substr(c.begin - 1, c.end - c.begin + 1);
-        }
+            // NOTE: CDS coordinates from input file are 1-based, we have to decrement the begin position
+            for (uint16_t i = 0; i < t.CDS.size(); ++i)
+            {
+                const auto & c = t.CDS[i];
+                // the CDS can have 1-2 bases before that START codon (i.e., phase != 0): we need to remove those bases
+                if (i == 0 && t.strand == '+' && c.phase != 0)
+                    annotated_cds_seq += chr.substr(c.begin + c.phase - 1, c.end - (c.begin + c.phase) + 1);
+                else if (i == t.CDS.size() - 1 && t.strand == '-' && c.phase != 0)
+                    annotated_cds_seq += chr.substr(c.begin - 1, c.end - c.phase - c.begin + 1);
+                else
+                    annotated_cds_seq += chr.substr(c.begin - 1, c.end - c.begin + 1);
+            }
 
-        // if STOP codon is not part of the last resp. first CDS:
-        // if (t.strand == '+' && t.CDS.back().end + 3 - 1 < chr.size())
-        //     seq += chr.substr(t.CDS.back().end, 3);
-        // else if (t.strand == '-' && t.CDS.front().begin >= 4)
-        //     seq = chr.substr(t.CDS.front().begin - 4, 3) + seq;
+            // if STOP codon is not part of the last resp. first CDS:
+            // if (t.strand == '+' && t.CDS.back().end + 3 - 1 < chr.size())
+            //     seq += chr.substr(t.CDS.back().end, 3);
+            // else if (t.strand == '-' && t.CDS.front().begin >= 4)
+            //     seq = chr.substr(t.CDS.front().begin - 4, 3) + seq;
 
-        str_to_upper(annotated_cds_seq);
-        if (t.strand == '-')
-        {
-            std::reverse(annotated_cds_seq.begin(), annotated_cds_seq.end());
-            for (uint64_t j = 0; j < annotated_cds_seq.size(); ++j)
-                annotated_cds_seq[j] = complement(annotated_cds_seq[j]);
-        }
+            str_to_upper(annotated_cds_seq);
+            if (t.strand == '-')
+            {
+                std::reverse(annotated_cds_seq.begin(), annotated_cds_seq.end());
+                for (uint64_t j = 0; j < annotated_cds_seq.size(); ++j)
+                    annotated_cds_seq[j] = complement(annotated_cds_seq[j]);
+            }
 
-        if (annotated_cds_seq != "")
-        {
-            if (!(annotated_cds_seq.size() % 3 == 0 &&
-                  annotated_cds_seq.substr(0, 3) == "ATG" && (
+            if (annotated_cds_seq != "")
+            {
+                ++nbr_transcripts_with_annotated_orf;
+                if (!(annotated_cds_seq.size() % 3 == 0 && annotated_cds_seq.size() >= 3 &&
+                      annotated_cds_seq.substr(0, 3) == "ATG" && (
                           annotated_cds_seq.substr(annotated_cds_seq.size() - 3) == "TAA" ||
                           annotated_cds_seq.substr(annotated_cds_seq.size() - 3) == "TGA" ||
                           annotated_cds_seq.substr(annotated_cds_seq.size() - 3) == "TAG")))
-            {
-                printf("\nWARNING: %s, %s, %ld, %c, %s, %lld, %lld, %ld\n", annotated_cds_seq.substr(0, 3).c_str(), annotated_cds_seq.substr(annotated_cds_seq.size() - 3).c_str(), annotated_cds_seq.size() % 3, t.strand,
-                       t.chr.c_str(), t.begin, t.end, t.CDS.size());
-                continue;
+                {
+                    ++nbr_transcripts_with_annotated_invalid_orf;
+                    // printf("\nWARNING: %s, %s, %ld, %c, %s, %lld, %lld, %ld\n", annotated_cds_seq.substr(0, 3).c_str(), annotated_cds_seq.substr(annotated_cds_seq.size() - 3).c_str(), annotated_cds_seq.size() % 3, t.strand,
+                    //        t.chr.c_str(), t.begin, t.end, t.CDS.size());
+                    // continue;
+                }
             }
         }
-        ++total;*/
 
         // TODO: run it with both strands
         if (t.strand != '+' && t.strand != '-')
         {
-            printf(OUT_DEL OUT_INFO "Transcript with no strand information skipped.\n" OUT_RESET);
+            printf(OUT_DEL OUT_INFO "Skipped a transcript with no strand information.\n" OUT_RESET);
             continue;
         }
 
@@ -546,12 +558,14 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         std::array<std::vector<std::vector<float> >, 4> extracted_scores; // phase 0, phase 1, phase 2, power
         compute_PhyloCSF_for_transcript(t, params.bw_files, extracted_scores, params);
 
-        std::string computed_cds_seq;
+        hits.clear();
 
-        // std::vector<std::tuple<float, std::string, std::vector<cds_entry> > > hits, pos_hits;
-
+        std::string longest_or_best_seq = "";
+        bool CDS_outputted_or_found = false;
+        bool found_an_orf_satisfying_criteria = false;
         float best_CDS_score = -999.0f;
-        std::vector<cds_entry> best_CDS;
+        std::vector<cds_entry> longest_or_best_CDS;
+        std::tuple<float, float> longest_or_best_phylo_stats;
         for (auto const & orf : orfs)
         {
             // orf: 0-based closed intervals. E.g., orf = [0..10] is of length 11
@@ -603,8 +617,6 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                 annotateCDSPhases(CDS.rbegin(), CDS.rend());
                 phylo_stats = compute_PhyloCSF(t.exons, CDS.rbegin(), CDS.rend(), t.strand, extracted_scores, first_exon_id_in_CDS, last_exon_id_in_CDS, chr_len, params);
             }
-            t.phylo_score = std::get<0>(phylo_stats);
-            t.phylo_power = std::get<1>(phylo_stats);
 
             // ignore transcripts with neg. score or that contain a negative CDS
             // bool consider_transcript_not_positive = false;
@@ -617,48 +629,86 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
             // }
 
             // output gtf file (with annotation)
-            if (t.phylo_score >= params.min_score) // ORF meets criteria
+            const float phylo_score = std::get<0>(phylo_stats);
+            if (phylo_score >= params.min_score) // ORF meets criteria
             {
+                found_an_orf_satisfying_criteria = true;
+
+                if (params.evaluate)
+                {
+                    computed_cds_seq = "";
+                    // NOTE: CDS stem from exons, and thus have been decremented to 0-based coordinates
+                    for (const auto & c : CDS)
+                        computed_cds_seq += chr.substr(c.begin, c.end - c.begin);
+                    str_to_upper(computed_cds_seq);
+                    if (t.strand == '-')
+                    {
+                        std::reverse(computed_cds_seq.begin(), computed_cds_seq.end());
+                        for (uint64_t j = 0; j < computed_cds_seq.size(); ++j)
+                            computed_cds_seq[j] = complement(computed_cds_seq[j]);
+                    }
+                    hits.emplace_back(phylo_score, computed_cds_seq, CDS);
+                }
+
                 if (params.mode == BEST_SCORE) // remember what ORF has to best score
                 {
-                    if (t.phylo_score > best_CDS_score)
+                    CDS_outputted_or_found = true;
+                    if (phylo_score > best_CDS_score)
                     {
-                        best_CDS_score = t.phylo_score;
-                        best_CDS = CDS;
+                        best_CDS_score = phylo_score;
+                        longest_or_best_CDS = CDS;
+                        longest_or_best_phylo_stats = phylo_stats;
+                        if (params.evaluate)
+                            longest_or_best_seq = computed_cds_seq;
                     }
                 }
-                else
+                else if (params.mode == ALL)
                 {
+                    CDS_outputted_or_found = true;
+                    t.phylo_score = std::get<0>(phylo_stats);
+                    t.phylo_power = std::get<1>(phylo_stats);
                     output_transcript(params, t, CDS, gff_out);
+                }
+                else if (params.mode == LONGEST && !CDS_outputted_or_found)
+                {
+                    CDS_outputted_or_found = true;
+                    longest_or_best_CDS = CDS;
+                    longest_or_best_phylo_stats = phylo_stats;
+                    if (params.evaluate)
+                        longest_or_best_seq = computed_cds_seq;
 
-                    if (params.mode == LONGEST)
+                    if (params.mode == LONGEST && !params.evaluate) // if we evaluate we need to see all ORFs to check whether the annotated one is found (can be made faster!)
                         break; // we are done (ORFs are sorted by length in descending order)
                 }
             }
-
-            /*computed_cds_seq = "";
-            // NOTE: CDS stem from exons, and thus have been decremented to 0-based coordinates
-            for (const auto & c : CDS)
-            {
-                computed_cds_seq += chr.substr(c.begin, c.end - c.begin);
-            }
-
-            str_to_upper(computed_cds_seq);
-            if (t.strand == '-')
-            {
-                std::reverse(computed_cds_seq.begin(), computed_cds_seq.end());
-                for (uint64_t j = 0; j < computed_cds_seq.size(); ++j)
-                    computed_cds_seq[j] = complement(computed_cds_seq[j]);
-            }
-
-            hits.emplace_back(t.phylo_score, computed_cds_seq, CDS);
-            if (has_pos_score(t.phylo_score)) // require CDS to be non-negative: !consider_transcript_not_positive
-                pos_hits.emplace_back(t.phylo_score, computed_cds_seq, CDS);*/
         }
 
-        if (params.mode == BEST_SCORE && best_CDS_score != -999.0f)
+        if (CDS_outputted_or_found && (params.mode == LONGEST || params.mode == BEST_SCORE))
         {
-            output_transcript(params, t, best_CDS, gff_out);
+            t.phylo_score = std::get<0>(longest_or_best_phylo_stats);
+            t.phylo_power = std::get<1>(longest_or_best_phylo_stats);
+            output_transcript(params, t, longest_or_best_CDS, gff_out);
+
+            if (longest_or_best_seq == annotated_cds_seq)
+                ++nbr_transcripts_with_annotated_orf_matches_predicted_start_and_stop;
+
+            size_t suffix_length = std::min(annotated_cds_seq.size(), longest_or_best_seq.size());
+            if (annotated_cds_seq != "" && annotated_cds_seq.substr(std::max<size_t>(0, annotated_cds_seq.size() - suffix_length)) == longest_or_best_seq.substr(std::max<size_t>(0, longest_or_best_seq.size() - suffix_length)))
+                ++nbr_transcripts_with_annotated_orf_matches_predicted_stop;
+        }
+        else if (!CDS_outputted_or_found)
+        {
+            output_transcript(params, t, std::vector<cds_entry>{}, gff_out);
+        }
+
+        if (found_an_orf_satisfying_criteria && annotated_cds_seq == "")
+        {
+            ++nbr_transcripts_without_annotated_orf_with_orf_predicted;
+        }
+
+        if (std::find_if(hits.begin(), hits.end(), [&annotated_cds_seq](const std::tuple<float, std::string, std::vector<cds_entry> > & x) { return std::get<1>(x) == annotated_cds_seq; }) != hits.end())
+        {
+            ++nbr_transcripts_with_annotated_orf_satisfies_criteria;
         }
 
         /*typedef std::tuple<float, std::string, std::vector<cds_entry> > _tuple;
@@ -711,12 +761,26 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
 
     fclose(gff_out);
 
-    /*printf("Total                             : %5d\n", total);
-    printf("Correct CDS is in (pos) hits      : %5d\n", correct_cds_in_hits);
-    printf("No positive hit                   : %5d\n", no_pos_hit);
-    printf("Correct prediction (longest ORF)  : %5d\n", correct_longest_cds);
-    printf("Incorrect prediction (longest ORF): %5d\n", total - correct_longest_cds - no_pos_hit);
-    printf("\n");*/
+    if (params.evaluate)
+    {
+        printf(OUT_INFO "Warning: the --evaluate mode is experimental. It requires that the STOP codon is part of the last CDS.\n" OUT_RESET);
+
+        printf("%-73s %6" PRIu64 "\n", "Transcripts in total:", nbr_transcripts);
+        printf("--------------------------------------------------------\n");
+        printf("%-73s %6" PRIu64 "\n", "Transcripts with annotated CDS:", nbr_transcripts_with_annotated_orf);
+        printf("%-73s %6" PRIu64 "\n", "- annotated CDS is a proper CDS (start/stop codon, no frame shifts,...):", nbr_transcripts_with_annotated_orf - nbr_transcripts_with_annotated_invalid_orf);
+        printf("%-73s %6" PRIu64 "\n", "- annotated CDS satisfies criteria (min-codons and min-score):", nbr_transcripts_with_annotated_orf_satisfies_criteria);
+        if (params.mode != ALL)
+        {
+            printf("%-73s %6" PRIu64 "\n", "- predicted ORF matches annotated ORF (same frame and stop position):", nbr_transcripts_with_annotated_orf_matches_predicted_stop);
+            printf("%-73s %6" PRIu64 "\n", "- predicted ORF matches annotated ORF (same start and stop position):", nbr_transcripts_with_annotated_orf_matches_predicted_start_and_stop);
+        }
+        printf("--------------------------------------------------------------------------------\n");
+        const uint64_t nbr_transcripts_without_annotated_cds = nbr_transcripts - nbr_transcripts_with_annotated_orf;
+        printf("%-73s %6" PRIu64 "\n", "Transcripts without annotated CDS:", nbr_transcripts_without_annotated_cds);
+        printf("%-73s %6" PRIu64 "\n", "- Transcripts with an ORF predicted:", nbr_transcripts_without_annotated_orf_with_orf_predicted);
+        //printf("%-73s %6" PRIu64 "\n", "- Transcripts with no ORF predicted:", nbr_transcripts_without_annotated_orf - nbr_transcripts_without_annotated_orf_with_orf_predicted);
+    }
 }
 
 int main_find_cds(int argc, char **argv)
@@ -725,7 +789,9 @@ int main_find_cds(int argc, char **argv)
                   "Takes a GFF file with transcripts and scores every possible ORF to find novel \n"
                   "protein-coding genes and outputs a GFF file with annotated CDS features.\n"
                   "Scores are computed by taking the mean of the PhyloCSF codons and weighted \n"
-                  "by the confidence scores of each codon (if the PhyloCSFpower.bw can be found).");
+                  "by the confidence scores of each codon (if the PhyloCSFpower.bw can be found).\n"
+                  "Any features other than transcripts and exons from the input file will be \n"
+                  "omitted in the output file.");
 
     FindCDSCLIParams params;
 
@@ -749,12 +815,33 @@ int main_find_cds(int argc, char **argv)
     args.add_option("min-score", ArgParse::Type::FLOAT, "Only consider ORFs with a (weighted) PhyloCSF mean score. Default: " + std::to_string(params.min_score), ArgParse::Level::GENERAL, false);
     args.add_option("min-codons", ArgParse::Type::INT, "Only consider ORFs with a minimum codon length. Default: " + std::to_string(params.min_codons), ArgParse::Level::GENERAL, false);
 
+    args.add_option("evaluate", ArgParse::Type::BOOL, "Additionally reads CDS features in input GFF/GTF and outputs statistics how well PhyloCSF++ has predicted CDS. Output stays the same, i.e., annotated CDS from the input are ignored in the output file. Default: " + std::to_string(params.evaluate), ArgParse::Level::GENERAL, false);
+
     args.add_positional_argument("fasta", ArgParse::Type::STRING, "Path to the genome fasta file.", true);
     args.add_positional_argument("tracks", ArgParse::Type::STRING, "Path to the bigWig file PhyloCSF+1.bw (expects the other 5 frames to be in the same directory, optionally the power track).", true);
     args.add_positional_argument("gff-files", ArgParse::Type::STRING, "One or more GFF/GTF files with coding exons to be scored.", true, true);
+    args.add_option("evaluate", ArgParse::Type::BOOL, "Additionally reads CDS features in input GFF/GTF and outputs statistics how well PhyloCSF++ has predicted CDS. Output stays the same, i.e., annotated CDS from the input are ignored in the output file, and only predicted ORFs are included. Default: " + std::to_string(params.evaluate), ArgParse::Level::GENERAL, false);
     args.parse_args(argc, argv);
 
     args.check_args();
+
+    if (args.is_set("mode"))
+    {
+        std::string mode = args.get_string("mode");
+        std::transform(mode.begin(), mode.end(), mode.begin(), toupper);
+
+        if (mode == "ALL")
+            params.mode = ALL;
+        else if (mode == "LONGEST")
+            params.mode = LONGEST;
+        else if (mode == "BEST_SCORE")
+            params.mode = BEST_SCORE;
+        else
+        {
+            printf(OUT_ERROR "Please choose a valid mode (ALL, LONGEST, BEST_SCORE)!\n" OUT_RESET);
+            return -1;
+        }
+    }
 
     // retrieve flags/options that were set
     if (args.is_set("output"))
@@ -764,6 +851,15 @@ int main_find_cds(int argc, char **argv)
         if (create_directory(params.output_path))
             printf(OUT_INFO "Created the output directory.\n" OUT_RESET);
     }
+
+    if (args.is_set("min-codons"))
+        params.min_codons = args.get_int("min-codons");
+
+    if (args.is_set("min-score"))
+        params.min_score = args.get_float("min-score");
+
+    if (args.is_set("evaluate"))
+        params.evaluate = args.get_bool("evaluate");
 
     std::string bw_path = args.get_positional_argument("tracks");
     params.bw_path = bw_path; // wo don't want to change params.bw_path below
