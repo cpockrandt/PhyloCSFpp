@@ -551,9 +551,11 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
 
         // sort by length/score descending. hence, we can abort as first as we see the first matching ORF
         if (params.mode == LONGEST)
+        {
             std::sort(orfs.begin(), orfs.end(), [](const std::tuple<uint32_t, uint32_t> & x, const std::tuple<uint32_t, uint32_t> & y) {
                 return std::get<1>(x) - std::get<0>(x) > std::get<1>(y) - std::get<0>(y);
             });
+        }
 
         std::array<std::vector<std::vector<float> >, 4> extracted_scores; // phase 0, phase 1, phase 2, power
         compute_PhyloCSF_for_transcript(t, params.bw_files, extracted_scores, params);
@@ -711,51 +713,6 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
             ++nbr_transcripts_with_annotated_orf_satisfies_criteria;
         }
 
-        /*typedef std::tuple<float, std::string, std::vector<cds_entry> > _tuple;
-        if (pos_hits.size() == 0)
-            ++no_pos_hit;
-        else if (annotated_cds_seq != "")
-        {
-            // if (std::find_if(pos_hits.begin(), pos_hits.end(), [&annotated_cds_seq](const _tuple & t) { return std::get<1>(t) == annotated_cds_seq; }) != pos_hits.end())
-            if (std::find_if(pos_hits.begin(), pos_hits.end(), [&annotated_cds_seq](const _tuple & t) {
-                auto & seq = std::get<1>(t);
-                size_t suffix_length = std::min(annotated_cds_seq.size(), seq.size());
-                return annotated_cds_seq.substr(std::max<size_t>(0, annotated_cds_seq.size() - suffix_length)) == seq.substr(std::max<size_t>(0, seq.size() - suffix_length));
-            }) != pos_hits.end())
-                ++correct_cds_in_hits;
-
-            auto longest_cds = std::max_element(pos_hits.begin(), pos_hits.end(), [](const _tuple & t1, const _tuple & t2){ return std::get<1>(t1).size() < std::get<1>(t2).size(); });
-            auto & longest_cds_seq = std::get<1>(*longest_cds);
-            size_t suffix_length = std::min(annotated_cds_seq.size(), longest_cds_seq.size());
-
-            // if (std::get<1>(*longest_cds) == annotated_cds_seq)
-            if (annotated_cds_seq.substr(std::max<size_t>(0, annotated_cds_seq.size() - suffix_length)) == longest_cds_seq.substr(std::max<size_t>(0, longest_cds_seq.size() - suffix_length)))
-                ++correct_longest_cds;
-            else
-            {
-                // printf("Annotated seq: %s\n", annotated_cds_seq.c_str());
-                // for (const auto & h : hits)
-                // {
-                //     std::string cds_coord_str = "";
-                //     for (const auto & c : std::get<2>(h))
-                //         cds_coord_str += std::to_string(c.begin) + "-" + std::to_string(c.end) + ", ";
-                //     if (std::get<1>(h) == annotated_cds_seq)
-                //         printf("%.3f\t%5ld ! \t%s\n", std::get<0>(h), std::get<1>(h).size(), std::get<1>(h).c_str());
-                //     else if (std::get<1>(h) == longest_cds_seq)
-                //         printf("%.3f\t%5ld * \t%s\n", std::get<0>(h), std::get<1>(h).size(), std::get<1>(h).c_str());
-                //     else if (has_pos_score(h))
-                //         printf("%.3f\t%5ld   \t%s\n", std::get<0>(h), std::get<1>(h).size(), std::get<1>(h).c_str());
-                // }
-                // printf("----------------------\n");
-                // for (auto & l : t.lines)
-                // {
-                //     if (std::get<0>(l) == TRANSCRIPT)
-                //         printf("%s\n", std::get<1>(l).c_str());
-                // }
-                // printf("-----------------------\n");
-            }
-        }*/
-
         reader.print_progress();
     }
 
@@ -763,8 +720,6 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
 
     if (params.evaluate)
     {
-        printf(OUT_INFO "Warning: the --evaluate mode is experimental. It requires that the STOP codon is part of the last CDS.\n" OUT_RESET);
-
         printf("%-73s %6" PRIu64 "\n", "Transcripts in total:", nbr_transcripts);
         printf("--------------------------------------------------------\n");
         printf("%-73s %6" PRIu64 "\n", "Transcripts with annotated CDS:", nbr_transcripts_with_annotated_orf);
@@ -860,6 +815,9 @@ int main_find_cds(int argc, char **argv)
 
     if (args.is_set("evaluate"))
         params.evaluate = args.get_bool("evaluate");
+
+    if (params.evaluate)
+        printf(OUT_INFO "Warning: the --evaluate mode is experimental. It requires that the STOP codon is part of the last CDS.\n" OUT_RESET);
 
     std::string bw_path = args.get_positional_argument("tracks");
     params.bw_path = bw_path; // wo don't want to change params.bw_path below
