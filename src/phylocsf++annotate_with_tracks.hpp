@@ -228,8 +228,9 @@ int main_annotate_with_tracks(int argc, char** argv)
     //     return -1;
     //}
 
-    params.bw_path = args.get_positional_argument("tracks");
-    const size_t bw_path_suffix_pos = params.bw_path.find("+1");
+    std::string bw_path = args.get_positional_argument("tracks");
+    params.bw_path = bw_path; // wo don't want to change params.bw_path below
+    const size_t bw_path_suffix_pos = bw_path.find("+1");
     if (bw_path_suffix_pos == std::string::npos)
     {
         printf(OUT_ERROR "Could not find '+1' in tracks file name. Expecting a name like 'PhyloCSF+1.bw'.\n" OUT_RESET);
@@ -242,17 +243,17 @@ int main_annotate_with_tracks(int argc, char** argv)
             suffix = "power";
         else
             suffix = ((i < 3) ? "+" : "-") + std::to_string((i % 3) + 1);
-        params.bw_path.replace(bw_path_suffix_pos, 2, suffix); // NOTE: length of "+1" is 2
+        bw_path.replace(bw_path_suffix_pos, 2, suffix); // NOTE: length of "+1" is 2
 
-        params.bw_files[i] = bwOpen(const_cast<char * >(params.bw_path.c_str()), NULL, "r");
+        params.bw_files[i] = bwOpen(const_cast<char * >(bw_path.c_str()), NULL, "r");
         if (!params.bw_files[i])
         {
             // check whether the user has used an unindexed wig file, then print a useful hint
-            if (access(params.bw_path.c_str(), F_OK) == 0 &&
-                params.bw_path.size() >= 4 && params.bw_path.compare(params.bw_path.size() - 4, 4, ".wig") == 0
+            if (access(bw_path.c_str(), F_OK) == 0 &&
+                bw_path.size() >= 4 && bw_path.compare(bw_path.size() - 4, 4, ".wig") == 0
             )
             {
-                printf(OUT_ERROR "An error occurred while opening the PhyloCSF file '%s'.\n" OUT_RESET, params.bw_path.c_str());
+                printf(OUT_ERROR "An error occurred while opening the PhyloCSF file '%s'.\n" OUT_RESET, bw_path.c_str());
                 printf(OUT_INFO "It seems you provided a *.wig file. You need to simply index them first with wigToBigWig and then use the *.bw files.\n" OUT_RESET);
                 return -1;
             }
