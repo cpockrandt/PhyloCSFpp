@@ -184,7 +184,16 @@ void compute_PhyloCSF_for_transcript(const gff_transcript & t, bigWigFile_t * co
                     if (params.use_power)
                     {
                         for (uint32_t i = 0; i < (*intervals).l; ++i)
-                            extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = (*intervals).value[i] * extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)];
+                        {
+                            if (extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)] == -999.0f)
+                            {
+                                extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = -999.0f;
+                            }
+                            else
+                            {
+                                extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = (*intervals).value[i] * extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)];
+                            }
+                        }
                     }
                     // just use normal scores
                     else
@@ -209,7 +218,16 @@ void compute_PhyloCSF_for_transcript(const gff_transcript & t, bigWigFile_t * co
                     if (params.use_power)
                     {
                         for (int32_t i = (*intervals).l - 1; i >= 0; --i)
-                            extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = (*intervals).value[i] * extracted_scores[3][exon_id][(END(exon) - 1) - (*intervals).start[i]];
+                        {
+                            if (extracted_scores[3][exon_id][(END(exon) - 1) - (*intervals).start[i]] == -999.0f)
+                            {
+                                extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = -999.0f;
+                            }
+                            else
+                            {
+                                extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = (*intervals).value[i] * extracted_scores[3][exon_id][(END(exon) - 1) - (*intervals).start[i]];
+                            }
+                        }
                     }
                         // just use normal scores
                     else
