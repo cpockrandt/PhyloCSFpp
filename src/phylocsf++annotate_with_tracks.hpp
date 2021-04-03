@@ -191,6 +191,10 @@ void run_annotate_with_tracks(const std::string & gff_path, const AnnotateWithTr
                     ++CDS_id;
                 }
 
+                // workaround for "-nan" output (which makes our tests fail)
+                if (std::isnan(score))
+                    score = NAN;
+
                 if (is_gff)
                 {
                     fprintf(gff_out, "%s;phylocsf_score_weighted_mean=%.3f;phylocsf_power_mean=%.3f\n", line.c_str(), score, power);

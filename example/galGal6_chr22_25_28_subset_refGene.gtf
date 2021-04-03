@@ -1,0 +1,17 @@
+chr22	refGene	transcript	239448	250848	.	+	.	ID=NM_001006305;geneID=NFU1;gene_name=NFU1
+chr22	refGene	exon	239448	239523	.	+	.	Parent=NM_001006305;exon_number=1;exon_id=NM_001006305.1;gene_name=NFU1
+chr22	refGene	exon	241538	241644	.	+	.	Parent=NM_001006305;exon_number=2;exon_id=NM_001006305.2;gene_name=NFU1
+chr22	refGene	exon	243433	243568	.	+	.	Parent=NM_001006305;exon_number=3;exon_id=NM_001006305.3;gene_name=NFU1
+chr22	refGene	exon	245551	245617	.	+	.	Parent=NM_001006305;exon_number=4;exon_id=NM_001006305.4;gene_name=NFU1
+chr22	refGene	exon	246716	246830	.	+	.	Parent=NM_001006305;exon_number=5;exon_id=NM_001006305.5;gene_name=NFU1
+chr22	refGene	exon	247850	247913	.	+	.	Parent=NM_001006305;exon_number=6;exon_id=NM_001006305.6;gene_name=NFU1
+chr22	refGene	exon	249916	250090	.	+	.	Parent=NM_001006305;exon_number=7;exon_id=NM_001006305.7;gene_name=NFU1
+chr22	refGene	exon	250618	250848	.	+	.	Parent=NM_001006305;exon_number=8;exon_id=NM_001006305.8;gene_name=NFU1
+chr22	refGene	CDS	239477	239523	.	+	0	Parent=NM_001006305;exon_number=1;exon_id=NM_001006305.1;gene_name=NFU1
+chr22	refGene	CDS	241538	241644	.	+	1	Parent=NM_001006305;exon_number=2;exon_id=NM_001006305.2;gene_name=NFU1
+chr22	refGene	CDS	243433	243568	.	+	2	Parent=NM_001006305;exon_number=3;exon_id=NM_001006305.3;gene_name=NFU1
+chr22	refGene	CDS	245551	245617	.	+	1	Parent=NM_001006305;exon_number=4;exon_id=NM_001006305.4;gene_name=NFU1
+chr22	refGene	CDS	246716	246830	.	+	0	Parent=NM_001006305;exon_number=5;exon_id=NM_001006305.5;gene_name=NFU1
+chr22	refGene	CDS	247850	247913	.	+	2	Parent=NM_001006305;exon_number=6;exon_id=NM_001006305.6;gene_name=NFU1
+chr22	refGene	CDS	249916	250090	.	+	1	Parent=NM_001006305;exon_number=7;exon_id=NM_001006305.7;gene_name=NFU1
+chr22	refGene	CDS	250618	250665	.	+	0	Parent=NM_001006305;exon_number=8;exon_id=NM_001006305.8;gene_name=NFU1

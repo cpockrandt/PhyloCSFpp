@@ -3,6 +3,8 @@
 PhyloCSFpp="build/phylocsf++"
 THREADS=$1
 
+mkdir ./build/results
+
 ### build-tracks
 
 # download data: wget -m -nd ftp://ftp.ccb.jhu.edu/pub/pocki/phylocsf++/tests/s
@@ -11,10 +13,17 @@ if [ ! -f "example/galGal6_chr22_25_28_each_30k_bases.maf" ]; then
 fi
 
 $PhyloCSFpp build-tracks --genome-length 1065365434 --coding-exons example/galGal6_coding_exons.txt \
-  --output-phylo 1 --output-raw-phylo 1 --threads $THREADS --output ./build/results \
+  --output-phylo 1 --output-raw-phylo 1 --threads $THREADS --output ./build/results/build-tracks \
   53birds example/galGal6_chr22_25_28_each_30k_bases.maf
 
-diff -r ./build/results ./test/expected_results/build-tracks
+diff -r ./build/results/build-tracks ./test/expected_results/build-tracks
+
+### annotate-with-tracks
+
+$PhyloCSFpp annotate-with-tracks --output ./build/results/annotated-gtf ./example/tracks/PhyloCSF+1.bw ./example/galGal6_chr22_25_28_subset_*
+
+# ignore comments
+diff -u -I '#.*' -r ./build/results/annotated-gtf ./test/expected_results/annotate-with-tracks
 
 ### score-msa
 
