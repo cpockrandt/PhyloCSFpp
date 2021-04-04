@@ -435,106 +435,21 @@ public:
         if (file_range_pos[job_id] >= file_range_end[job_id])
             return false;
 
-        // points to the beginning of "a score=....\n"
-        skip(job_id);
-
+        bool first_alignment_block = true;
+        bool abort_next_alignment = !this->concatenate_alignments;
         int64_t ref_seq_id = -1;
-
         char line_type;
         uint64_t prev_cumulative_len_wo_ref_gaps = 0;
-
-        // get the next alignment
-        while (file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')
-        {
-            if (line_type == 's')
-            {
-                // "s ID int int char int SEQ\n"
-                char *id = nullptr, *seq = nullptr;
-                uint64_t start_pos = 0;
-                uint64_t chrom_len = 0;
-                uint64_t tmp_len_wo_ref_gaps = 0;
-                char ref_strand = '.';
-                get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, chrom_len);
-
-                // cut id starting after "."
-                char *ptr = strchr(id, '.');
-                assert(ptr != NULL); // expect format "species_name.chrom_name"
-                *ptr = 0;
-                char *chrom = ptr + 1;
-
-                str_to_lower(id);
-
-                auto alnid = (*fastaid_to_alnid).find(id);
-                if (alnid == (*fastaid_to_alnid).end())
-                {
-                    #pragma omp critical(unresolved_identifier)
-                    {
-                        if (unresolved_identifiers.find(id) == unresolved_identifiers.end())
-                        {
-                            unresolved_identifiers.emplace(id);
-                            printf(OUT_INFO "WARNING: Not able to match species %s in alignment file to model (Use `--mapping` to fix it)!\n" OUT_RESET, id);
-                        }
-                    }
-
-                    free(id);
-                    free(seq);
-                    continue;
-                }
-
-                assert(seq != NULL); // check because of a former bug
-                aln.seqs[alnid->second] = seq; // TODO: std::move?
-                if (species_seen_in_alignment != NULL)
-                    (*species_seen_in_alignment)[alnid->second] = true;
-
-                // first sequence we encounter is the reference sequence. store its length!
-                if (ref_seq_id == -1)
-                {
-                    aln.start_pos = start_pos + 1; // maf file is to be 0-indexed
-                    aln.chrom = chrom;
-                    aln.chrom_len = chrom_len;
-                    aln.strand = ref_strand;
-                    ref_seq_id = alnid->second;
-                    prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
-                    //assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
-                }
-                else
-                {
-                    assert(aln.seqs[ref_seq_id].size() == aln.seqs[alnid->second].size()); // all seqs same length
-                }
-
-                free(id);
-                free(seq);
-            }
-            else
-            {
-                skip(job_id);
-            }
-        }
-
-        // TODO: load next alignment if the current alignment was empty (because no species was successfully mapped to the model)
-
-        // for species not included in the alignment assign them the sequence NNNN...NNNN.
-        const size_t new_ref_seq_len2 = aln.seqs[ref_seq_id].size();
-        for (uint64_t i = 0; i < aln.seqs.size(); ++i)
-        {
-            if (aln.seqs[i].size() == 0)
-            {
-                aln.seqs[i] = std::string(new_ref_seq_len2, 'N');
-            }
-        }
-
-        // TODO: no code duplication
-        bool abort_next_alignment = !this->concatenate_alignments;
-
         // check whether we can extend the alignment (i.e., next alignment starts on the next base where the last one ended)
-        while (!abort_next_alignment && file_range_pos[job_id] < (size_t)file_size)
+        while ((!abort_next_alignment || first_alignment_block) && file_range_pos[job_id] < (size_t)file_size)
         {
             const size_t old_file_range_pos = file_range_pos[job_id];
             skip(job_id); // skip "a score=..."
 
-            int64_t ref_seq_id2 = -1;
+            int64_t ref_seq_id_subsequent_block = -1;
+
             // get the next alignment
-            while (!abort_next_alignment && file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')
+            while ((!abort_next_alignment || first_alignment_block) && file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')
             {
                 if (line_type == 's')
                 {
@@ -543,8 +458,7 @@ public:
                     uint64_t start_pos = 0;
                     uint64_t chrom_len = 0;
                     uint64_t tmp_len_wo_ref_gaps = 0;
-                    char ref_strand;
-
+                    char ref_strand = '.';
                     get_line(job_id, &id, &seq, start_pos, tmp_len_wo_ref_gaps, ref_strand, chrom_len);
 
                     // cut id starting after "."
@@ -553,13 +467,16 @@ public:
                     *ptr = 0;
                     char *chrom = ptr + 1;
 
-                    // when the first seq is retrieved (for now it's the reference sequence), check whether it can extend the previous alignment
-                    if (ref_seq_id2 == -1 && !((aln.start_pos - 1) + prev_cumulative_len_wo_ref_gaps == start_pos && (strcmp(chrom, aln.chrom.c_str()) == 0)))
+                    if (!first_alignment_block)
                     {
-                        abort_next_alignment = true;
-                        free(id);
-                        free(seq);
-                        break;
+                        // when the first seq is retrieved (for now it's the reference sequence), check whether it can extend the previous alignment
+                        if (ref_seq_id_subsequent_block == -1 && !((aln.start_pos - 1) + prev_cumulative_len_wo_ref_gaps == start_pos && (strcmp(chrom, aln.chrom.c_str()) == 0)))
+                        {
+                            abort_next_alignment = true;
+                            free(id);
+                            free(seq);
+                            break;
+                        }
                     }
 
                     str_to_lower(id);
@@ -587,16 +504,39 @@ public:
                         (*species_seen_in_alignment)[alnid->second] = true;
 
                     // first sequence we encounter is the reference sequence. store its length!
-                    if (ref_seq_id2 == -1)
+                    if (ref_seq_id == -1 && first_alignment_block)
                     {
-                        ref_seq_id2 = alnid->second;
+                        aln.start_pos = start_pos + 1; // maf file is to be 0-indexed
+                        aln.chrom = chrom;
+                        aln.chrom_len = chrom_len;
+                        aln.strand = ref_strand;
+                        ref_seq_id = alnid->second;
+                        prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
+                        if (ref_strand != '+')
+                        {
+                            printf(OUT_ERROR "Reference sequence is not on the + strand (%s.%s at position %" PRIu64 ")!\n" OUT_RESET, id, chrom, start_pos);
+                            exit(-1);
+                        }
+                    }
+                    else if (ref_seq_id_subsequent_block == -1 && !first_alignment_block)
+                    {
+                        ref_seq_id_subsequent_block = alnid->second;
                         prev_cumulative_len_wo_ref_gaps += tmp_len_wo_ref_gaps;
-                        //assert(ref_strand == '+'); // We assume that the alignment is always on the forward strand of the reference sequence. TODO implement fix
-//                    printf("Ref_seq_id: %ld\n", ref_seq_id);
+                        if (ref_seq_id != ref_seq_id_subsequent_block)
+                        {
+                            unresolved_identifiers.emplace(id);
+                            printf(OUT_ERROR "Encountered an alignment block that didn't start with the reference species: %s.%s at position %" PRIu64 "!\n" OUT_RESET, id, chrom, start_pos);
+                            exit(1);
+                        }
+                        if (ref_strand != '+')
+                        {
+                            printf(OUT_ERROR "Reference sequence is not on the + strand (%s.%s at position %" PRIu64 ")!\n" OUT_RESET, id, chrom, start_pos);
+                            exit(-1);
+                        }
                     }
                     else
                     {
-                        assert(aln.seqs[ref_seq_id2].size() == aln.seqs[alnid->second].size()); // all seqs same length
+                        assert(aln.seqs[ref_seq_id].size() == aln.seqs[alnid->second].size()); // all seqs same length
                     }
 
                     free(id);
@@ -608,7 +548,7 @@ public:
                 }
             }
 
-            if (abort_next_alignment)
+            if (abort_next_alignment && !first_alignment_block)
             {
                 file_range_pos[job_id] = old_file_range_pos;
             }
@@ -624,6 +564,8 @@ public:
                     }
                 }
             }
+
+            first_alignment_block = false; // we now have finished reading the first alignment block
         }
 
         // replace gaps in reference sequence with X
@@ -654,7 +596,6 @@ public:
         for (uint64_t i = 0; i < aln.seqs.size(); ++i)
         {
             std::string & s = aln.seqs[i];
-            // for species not included in the alignment assign them the sequence NNNN...NNNN. Is this necessary? (TODO)
             size_t pos_w = 0;
             for (size_t pos_r = 0; pos_r < s.size(); ++pos_r)
             {
