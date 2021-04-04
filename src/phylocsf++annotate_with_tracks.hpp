@@ -4,6 +4,7 @@
 
 #include <unordered_map>
 
+#include <cmath>
 #include <stdio.h>
 #include <sys/wait.h>
 
@@ -20,21 +21,42 @@ struct AnnotateWithTracksCLIParams
 
     bigWigFile_t *bw_files[7] = { NULL }; // in this order: +1, +2, +3, -1, -2, -3, power/confidence
     std::unordered_map<std::string, uint64_t> chrom_sizes;
-
-    bool comp_bls = true;
 };
 
-void count_scores(float & sum, uint64_t & count, bigWigFile_t *file, const char *chrom,
-                  const uint64_t begin, const uint64_t end)
+void count_weighted_scores(float & weighted_score_sum, float & weighted_power_sum, float & power_sum, uint64_t & power_count,
+                           bigWigFile_t *file, bigWigFile_t *power_file, const char *chrom, const uint64_t begin, const uint64_t end)
 {
-    bwOverlappingIntervals_t *intervals = bwGetValues(file, (char*) chrom, begin, end, 0);
-    if (intervals != NULL)
+    // last parameter has to be 1 - because we need to retrieve missing values (otherwise, we cannot match them from both files)
+    // the power file might have values, where the score files doesn't (because the confidence was too low)
+    bwOverlappingIntervals_t *intervals = bwGetValues(file, (char*) chrom, begin, end, 1);
+    bwOverlappingIntervals_t *intervals_power = bwGetValues(power_file, (char*) chrom, begin, end, 1);
+    if (intervals != NULL && intervals_power != NULL)
     {
         for (uint32_t i = 0; i < (*intervals).l; ++i)
-            sum += (*intervals).value[i];
-        count = (*intervals).l;
-        bwDestroyOverlappingIntervals(intervals);
+        {
+            if (!std::isnan((*intervals).value[i]) && !std::isnan((*intervals_power).value[i]))
+            {
+                weighted_score_sum += (*intervals).value[i] * (*intervals_power).value[i];
+                weighted_power_sum += (*intervals_power).value[i];
+            }
+
+            // weighted_power_sum only considers confidence values that are above the threshold
+            // (if it's below the threshold, the phylocsf score is missing/nan).
+            if (!std::isnan((*intervals_power).value[i]))
+            {
+                power_sum += (*intervals_power).value[i];
+            }
+
+            // if there is no confidence available (i.e., no alignment), we still count the codon
+            // to reduce the mean confidence
+            ++power_count;
+        }
     }
+
+    if (intervals)
+        bwDestroyOverlappingIntervals(intervals);
+    if (intervals_power)
+        bwDestroyOverlappingIntervals(intervals_power);
 }
 
 void run_annotate_with_tracks(const std::string & gff_path, const AnnotateWithTracksCLIParams & params,
@@ -81,7 +103,7 @@ void run_annotate_with_tracks(const std::string & gff_path, const AnnotateWithTr
     {
         float transcript_sum = 0.0;
         float transcript_power_sum = 0.0;
-        uint64_t transcript_count = 0;
+        float transcript_all_power_sum = 0.0;
         uint64_t transcript_power_count = 0;
 
         if (t.CDS.size() > 0)
@@ -112,29 +134,25 @@ void run_annotate_with_tracks(const std::string & gff_path, const AnnotateWithTr
                         wig_phase = 3 + (chr_len - c.end - 1 + c.phase + 1) % 3;
 
                     float cds_sum = 0.0;
-                    uint64_t cds_count = 0;
 
                     float cds_power_sum = 0.0;
+                    float cds_all_power_sum = 0.0;
                     uint64_t cds_power_count = 0;
 
-                    count_scores(cds_sum, cds_count, params.bw_files[wig_phase], t.chr.c_str(), c.begin - 1, c.end);
-                    c.phylo_score = cds_sum / cds_count;
-
-                    if (params.comp_bls)
-                    {
-                        count_scores(cds_power_sum, cds_power_count, params.bw_files[6], t.chr.c_str(), c.begin - 1, c.end);
-                        c.phylo_power = cds_power_sum / cds_power_count;
-                    }
+                    // cds_sum and cds_power_sum are for the weighted computation (and only consider positions where a score is available)
+                    count_weighted_scores(cds_sum, cds_power_sum, cds_all_power_sum, cds_power_count, params.bw_files[wig_phase], params.bw_files[6], t.chr.c_str(), c.begin - 1, c.end);
+                    c.phylo_score = cds_sum / cds_power_sum;
+                    // here we consider all positions, even if the confidence is below the threshold (when the tracks were computed)
+                    c.phylo_power = (cds_power_count == 0) ? 0 : cds_all_power_sum / cds_power_count;
 
                     transcript_sum += cds_sum;
-                    transcript_count += cds_count;
-
                     transcript_power_sum += cds_power_sum;
+                    transcript_all_power_sum += cds_all_power_sum;
                     transcript_power_count += cds_power_count;
                 }
 
-                t.phylo_score = transcript_sum / transcript_count;
-                t.phylo_power = transcript_power_sum / transcript_power_count;
+                t.phylo_score = transcript_sum / transcript_power_sum;
+                t.phylo_power = (transcript_power_count == 0) ? 0 : transcript_all_power_sum / transcript_power_count;
             }
         }
 
@@ -173,19 +191,17 @@ void run_annotate_with_tracks(const std::string & gff_path, const AnnotateWithTr
                     ++CDS_id;
                 }
 
+                // workaround for "-nan" output (which makes our tests fail)
+                if (std::isnan(score))
+                    score = NAN;
+
                 if (is_gff)
                 {
-                    if (params.comp_bls)
-                        fprintf(gff_out, "%s;phylocsf_mean=%.3f;phylocsf_power_mean=%.3f\n", line.c_str(), score, power);
-                    else
-                        fprintf(gff_out, "%s;phylocsf_mean=%.3f\n", line.c_str(), score);
+                    fprintf(gff_out, "%s;phylocsf_score_weighted_mean=%.3f;phylocsf_power_mean=%.3f\n", line.c_str(), score, power);
                 }
                 else
                 {
-                    if (params.comp_bls)
-                        fprintf(gff_out, "%s phylocsf_mean \"%.3f\"; phylocsf_power_mean \"%.3f\";\n", line.c_str(), score, power);
-                    else
-                        fprintf(gff_out, "%s phylocsf_mean \"%.3f\";\n", line.c_str(), score);
+                    fprintf(gff_out, "%s phylocsf_score_weighted_mean \"%.3f\"; phylocsf_power_mean \"%.3f\";\n", line.c_str(), score, power);
                 }
             }
         }
@@ -257,15 +273,15 @@ int main_annotate_with_tracks(int argc, char** argv)
                 printf(OUT_INFO "It seems you provided a *.wig file. You need to simply index them first with wigToBigWig and then use the *.bw files.\n" OUT_RESET);
                 return -1;
             }
-            else if (i == 6)
+            else
             {
-                params.comp_bls = false;
-                printf(OUT_INFO "PhyloCSFpower.bw not found. Annotation will not have confidence scores.\n" OUT_RESET);
+                printf(OUT_ERROR "Could not find PhyloCSF track file '%s'.\n" OUT_RESET, bw_path.c_str());
+                return -1;
             }
         }
     }
 
-    const chromList_t *chr_list = bwReadChromList(params.bw_files[0]);
+    chromList_t *chr_list = bwReadChromList(params.bw_files[0]);
     for (int64_t i = 0; i < chr_list->nKeys; ++i)
     {
         params.chrom_sizes.emplace(chr_list->chrom[i], chr_list->len[i]);
@@ -278,6 +294,10 @@ int main_annotate_with_tracks(int argc, char** argv)
          run_annotate_with_tracks(args.get_positional_argument(i), params, missing_sequences,
                                   i, args.positional_argument_size() - 1);
     }
+
+    destroyChromList(chr_list);
+    for (uint16_t i = 0; i < 7; ++i)
+        bwClose(params.bw_files[i]);
 
     printf(OUT_DEL "Done!\n");
 
