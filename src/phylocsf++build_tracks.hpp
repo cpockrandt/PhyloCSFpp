@@ -240,22 +240,23 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                                                 "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
                                                 aln.chrom.c_str(),
                                                 bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                                bedregions[i].region_start,
+                                                bedregions[i].region_start+1,
                                                 bedregions[i].region_end, bedregions[i].region_start,
                                                 bedregions[i].region_end, bedregions[i].log_odds_prob,
                                                 bedregions[i].color, bedregions[i].color, bedregions[i].color);
                                     }
-                                } else {for (size_t i = 0; i < bedregions.size(); i++) {
+                                } else {
+                                    for (size_t i = 0; i < bedregions.size(); i++) {
                                         fprintf(file_score_bed[file_index],
                                                 "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
                                                 aln.chrom.c_str(),
                                                 bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                                bedregions[i].region_start,
+                                                bedregions[i].region_start+1,
                                                 bedregions[i].region_end, bedregions[i].region_start,
                                                 bedregions[i].region_end, bedregions[i].log_odds_prob,
                                                 bedregions[i].color, bedregions[i].color, bedregions[i].color);
-                                        }
                                     }
+                                }
                                 scores.clear();
                                 region.clear();
                                 bedregions.clear();
@@ -288,17 +289,18 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                                         "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
                                         aln.chrom.c_str(),
                                         bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                        bedregions[i].region_start,
+                                        bedregions[i].region_start+1,
                                         bedregions[i].region_end, bedregions[i].region_start,
                                         bedregions[i].region_end, bedregions[i].log_odds_prob,
                                         bedregions[i].color, bedregions[i].color, bedregions[i].color);
                             }
-                        } else {for (size_t i = 0; i < bedregions.size(); i++) {
+                        } else {
+                            for (size_t i = 0; i < bedregions.size(); i++) {
                                 fprintf(file_score_bed[file_index],
                                         "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
                                         aln.chrom.c_str(),
                                         bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                        bedregions[i].region_start,
+                                        bedregions[i].region_start+1,
                                         bedregions[i].region_end, bedregions[i].region_start,
                                         bedregions[i].region_end, bedregions[i].log_odds_prob,
                                         bedregions[i].color, bedregions[i].color, bedregions[i].color);

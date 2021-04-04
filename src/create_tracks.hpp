@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <string.h>
-#include <iostream>
 
 struct hmm{
     uint32_t num_states;
@@ -261,10 +260,10 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
         double prob=0;
         uint32_t color=0;
         if (i==0 && path[i]==0) {
-            starting_position=blockStartPos;
+            starting_position=blockStartPos-1;
             starting_count=0;
-        } else if (path[i+1]==0 && path[i]!=0 && i!=path.size()-1) {
-            starting_position=blockStartPos+3*(i+1);
+        } else if (path[i+1]==0 && path[i]!=0) {
+            starting_position=blockStartPos+3*i+2;
             starting_count=i+1;
         } else if (path[i+1]!=0 && path[i]==0) {
             end_position=blockStartPos+3*i+2;
@@ -274,48 +273,30 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
                     prob = state_probabilities[codon][0];
                 }
             }
-            if (prob<0.125) {
-                color=0;
-            } else if (0.125<=prob && prob<0.25) {
-                color=30;
-            } else if (0.250<=prob && prob<0.375) {
-                color=60;
-            } else if (0.375<=prob && prob<0.500) {
-                color=90;
-            }else if (0.50<=prob && prob<0.625) {
-                color=120;
-            }else if (0.625<=prob && prob<0.750) {
-                color=150;
-            }else if (0.75<=prob && prob<0.875) {
-                color=180;
-            }else if (0.875<=prob && prob<=1) {
+            double log_odd = compute_log_odds(prob);
+            if (log_odd < 1) {
                 color=210;
+            } else if (log_odd > 7) {
+                color=0;
+            } else {
+                color=210-30*int(floor(log_odd));
             }
             bedresult.emplace_back(starting_position, end_position, prob, color);
         } else if (i==path.size()-2 && path[i+1]==0) {
-            end_position=blockStartPos+3*i+2;
-            end_count=i;
+            end_position=blockStartPos+3*i+5;
+            end_count=i+1;
             for (uint32_t codon=starting_count; codon<=end_count; codon++) {
                 if (prob < state_probabilities[codon][0]) {
                     prob = state_probabilities[codon][0];
                 }
             }
-            if (prob<0.125) {
-                color=0;
-            } else if (0.125<=prob && prob<0.25) {
-                color=30;
-            } else if (0.250<=prob && prob<0.375) {
-                color=60;
-            } else if (0.375<=prob && prob<0.500) {
-                color=90;
-            }else if (0.50<=prob && prob<0.625) {
-                color=120;
-            }else if (0.625<=prob && prob<0.750) {
-                color=150;
-            }else if (0.75<=prob && prob<0.875) {
-                color=180;
-            }else if (0.875<=prob && prob<=1) {
+            double log_odd = compute_log_odds(prob);
+            if (log_odd < 1) {
                 color=210;
+            } else if (log_odd > 7) {
+                color=0;
+            } else {
+                color=210-30*int(floor(log_odd));
             }
             bedresult.emplace_back(starting_position, end_position, prob, color);
         }
