@@ -126,6 +126,40 @@ Here we extract the known coding regions from a GFF file using awk (for more inf
 
 If not all of the species from the model are present in your alignments, reducing the model can speed up the computation significantly. For this pass all species from your alignment, e.g., ``--species Human,Chimp,Gorilla``.
 
+Here is a minimal example with all files at hand in the repository.
+It includes a small set of alignments for chicken (galGal6).
+The wig files are written to ``./galgal6-tracks``.
+
+::
+
+    $ gunzip example/galGal6_chr22_25_28_each_30k_bases.maf.gz
+    $ phylocsf++ build-tracks \
+        --threads 4 --output ./galgal6-tracks \
+        --output-phylo 1 --genome-length 1065365434 --coding-exons example/galGal6_coding_exons.txt \
+        53birds example/galGal6_chr22_25_28_each_30k_bases.maf
+
+Annotating GFF files with tracks
+""""""""""""""""""""""""""""""""
+
+If you have tracks in bigWig computed or downloaded, PhyloCSF++ can annotate CDS with PhyloCSF and confidence scores:
+
+::
+
+    $ phylocsf++ annotate-with-tracks /path/to/PhyloCSF+1.bw genes.gff
+
+For this you need to have all six files in the same directory (PhyloCSF+1.bw, PhyloCSF+2.bw, etc.) as well as PhyloCSFpower.bw if you also want to compute confidence scores.
+
+Here is a minimal example with all files at hand in the repository.
+It includes a few transcripts from chicken (galGal6) and precomputed tracks.
+The output is written into the same directory with the suffix ``.PhyloCSF++.gtf``.
+
+::
+
+    $ phylocsf++ annotate-with-tracks ./example/tracks/PhyloCSF+1.bw ./example/galGal6_chr22_25_28_subset_ensGene.gtf
+    $ less ./example/galGal6_chr22_25_28_subset_ensGene.PhyloCSF++.gtf
+
+For some species you can download complete track files either on the `Broad institute server <https://data.broadinstitute.org/compbio1/PhyloCSFtracks/>`_ or here: ftp://ftp.ccb.jhu.edu/pub/software/phylocsfpp/
+
 Scoring alignments
 """"""""""""""""""
 
@@ -143,17 +177,6 @@ For other frames and strands, you need to remove the first 1-2 bases and/or comp
 To make these scores easier to interpret, we added the mode ``fixed_mean``.
 It scores every codon in the MSA, computes posterior probabilities and computes a mean over all codons.
 Hence, the final score is in the interval [-15, +15] just as the tracks.
-
-Annotating GFF files with tracks
-""""""""""""""""""""""""""""""""
-
-If you have tracks in bigWig computed or downloaded, PhyloCSF++ can annotate CDS with PhyloCSF and confidence scores:
-
-::
-
-    $ phylocsf++ annotate-with-tracks /path/to/PhyloCSF+1.bw genes.gff
-
-For this you need to have all six files in the same directory (PhyloCSF+1.bw, PhyloCSF+2.bw, etc.) as well as PhyloCSFpower.bw if you also want to compute confidence scores.
 
 Annotating GFF files with MMseqs
 """"""""""""""""""""""""""""""""
@@ -176,7 +199,7 @@ To build tracks the user also has to set up their own pipeline and do some codin
 Hence, we thought it would be helpful to make an easy-to-use program that merges all necessary steps into a single step to quickly create tracks for entire genomes.
 As part of this project we computed tracks for more species and included them into the UCSC genome browser as well as offer them for download:
 
-ftp://ftp.ccb.jhu.edu/pub/software/phylocsf++
+ftp://ftp.ccb.jhu.edu/pub/software/phylocsfpp
 
 License
 ^^^^^^^
