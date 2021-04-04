@@ -281,7 +281,7 @@ int main_annotate_with_tracks(int argc, char** argv)
         }
     }
 
-    const chromList_t *chr_list = bwReadChromList(params.bw_files[0]);
+    chromList_t *chr_list = bwReadChromList(params.bw_files[0]);
     for (int64_t i = 0; i < chr_list->nKeys; ++i)
     {
         params.chrom_sizes.emplace(chr_list->chrom[i], chr_list->len[i]);
@@ -294,6 +294,10 @@ int main_annotate_with_tracks(int argc, char** argv)
          run_annotate_with_tracks(args.get_positional_argument(i), params, missing_sequences,
                                   i, args.positional_argument_size() - 1);
     }
+
+    destroyChromList(chr_list);
+    for (uint16_t i = 0; i < 7; ++i)
+        bwClose(params.bw_files[i]);
 
     printf(OUT_DEL "Done!\n");
 
