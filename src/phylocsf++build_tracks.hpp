@@ -147,10 +147,6 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
             if (params.phylo_power)
             {
-                // since we iterate over a codon array, there must be 3 bp for each codon
-                // the last 0-2 remaining basepairs in the bls array do not have a codon entry
-                assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
-
                 // skip the first 0-2 bases as in aln.update_seqs(orig_start_pos, strand = '+', frame = 3);
                 int64_t skip_bases = static_cast<int64_t>(3 - aln.start_pos) % 3;
                 if (skip_bases < 0)
@@ -194,6 +190,11 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
                     int64_t prevPos = -4;
                     int64_t startBlockPos = aln.start_pos;
+
+                    // since we iterate over a codon array, there must be 3 bp for each codon
+                    // the last 0-2 remaining basepairs in the bls array do not have a codon entry
+                    assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
+
                     for (size_t xx = 0, bls_pos = aln.skip_bases; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
                     {
                         const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
