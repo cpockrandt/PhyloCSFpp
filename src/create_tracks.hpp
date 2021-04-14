@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <string.h>
+#include <iostream>
 
 struct hmm{
     uint32_t num_states;
@@ -210,6 +211,19 @@ struct scored_region{
                       log_odds_prob(log_odds_prob){}
 };
 
+struct scored_bed_region{
+    const uint32_t region_start;
+    const uint32_t region_end;
+    const double log_odds_prob;
+    const uint32_t color;
+    scored_bed_region(uint32_t region_start, uint32_t region_end,
+                  double log_odds_prob, uint32_t color) :
+            region_start(region_start),
+            region_end(region_end),
+            log_odds_prob(log_odds_prob),
+            color(color){}
+};
+
 double compute_log_odds(double prob) {
     const double MAX_LOG_ODDS = 15.0;
     if (prob < pow(10, -MAX_LOG_ODDS)) {
@@ -225,13 +239,86 @@ double compute_log_odds(double prob) {
  * Processes a set of contiguous scores and returns coding regions with its respective maximal log-odds score
  */
 void process_scores(hmm const & hmm, std::vector<double> &scores,
-                    uint32_t blockStartPos, std::vector<scored_region> & result){
+                    uint32_t blockStartPos, std::vector<scored_region> & result, std::vector<scored_bed_region> & bedresult){
     double ** state_probabilities = hmm::state_posterior_probabilities(hmm, scores);
+    std::vector<uint32_t> path = hmm::get_best_path_by_viterbi(hmm, scores);
     for (size_t cur_codon_count = 0; cur_codon_count < scores.size(); cur_codon_count++) {
         uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_count;
         uint32_t chunk_end_pos = chunk_start_pos + 2;
         double log_odds = compute_log_odds(state_probabilities[cur_codon_count][0]);
         result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
+    }
+    //TODO fill bedresult with start and end positon of 0 blocks
+    //   uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_count;
+    //   uint32_t chunk_end_pos = chunk_start_pos + 2;
+    // maxProb=find max. coding prob in 0 block
+    // bedresult.emplace_back(start0Region, end0Region, maxProb)
+    uint32_t starting_position;
+    uint32_t end_position;
+    uint32_t starting_count;
+    uint32_t end_count;
+    for (size_t i=0; i<path.size()-1; i++) {
+        double prob=0;
+        uint32_t color=0;
+        if (i==0 && path[i]==0) {
+            starting_position=blockStartPos;
+            starting_count=0;
+        } else if (path[i+1]==0 && path[i]!=0 && i!=path.size()-1) {
+            starting_position=blockStartPos+3*(i+1);
+            starting_count=i+1;
+        } else if (path[i+1]!=0 && path[i]==0) {
+            end_position=blockStartPos+3*i+2;
+            end_count=i;
+            for (uint32_t codon=starting_count; codon<=end_count; codon++) {
+                if (prob < state_probabilities[codon][0]) {
+                    prob = state_probabilities[codon][0];
+                }
+            }
+            if (prob<0.125) {
+                color=0;
+            } else if (0.125<=prob && prob<0.25) {
+                color=30;
+            } else if (0.250<=prob && prob<0.375) {
+                color=60;
+            } else if (0.375<=prob && prob<0.500) {
+                color=90;
+            }else if (0.50<=prob && prob<0.625) {
+                color=120;
+            }else if (0.625<=prob && prob<0.750) {
+                color=150;
+            }else if (0.75<=prob && prob<0.875) {
+                color=180;
+            }else if (0.875<=prob && prob<=1) {
+                color=210;
+            }
+            bedresult.emplace_back(starting_position, end_position, prob, color);
+        } else if (i==path.size()-2 && path[i+1]==0) {
+            end_position=blockStartPos+3*i+2;
+            end_count=i;
+            for (uint32_t codon=starting_count; codon<=end_count; codon++) {
+                if (prob < state_probabilities[codon][0]) {
+                    prob = state_probabilities[codon][0];
+                }
+            }
+            if (prob<0.125) {
+                color=0;
+            } else if (0.125<=prob && prob<0.25) {
+                color=30;
+            } else if (0.250<=prob && prob<0.375) {
+                color=60;
+            } else if (0.375<=prob && prob<0.500) {
+                color=90;
+            }else if (0.50<=prob && prob<0.625) {
+                color=120;
+            }else if (0.625<=prob && prob<0.750) {
+                color=150;
+            }else if (0.75<=prob && prob<0.875) {
+                color=180;
+            }else if (0.875<=prob && prob<=1) {
+                color=210;
+            }
+            bedresult.emplace_back(starting_position, end_position, prob, color);
+        }
     }
     delete [] state_probabilities[0];
     delete [] state_probabilities;

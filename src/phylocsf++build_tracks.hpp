@@ -11,6 +11,7 @@
 #include "run.hpp"
 
 #include <sstream>
+#include <iostream>
 
 struct TrackCLIParams
 {
@@ -90,6 +91,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
         std::vector<double> scores;
         std::vector<scored_region> region;
+        std::vector<scored_bed_region> bedregions;
 
         FILE *file_power = NULL;
 
@@ -106,7 +108,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
         FILE *file_score_raw[6];
         FILE *file_score[6];
-
+        FILE *file_score_bed[6];
         for (uint8_t i = 0; i < 6; ++i)
         {
             const char strand = (i < 3) ? '+' : '-';
@@ -127,9 +129,17 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
             {
                 const std::string filename_score = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig." + std::to_string(job_id);
                 file_score[i] = fopen(filename_score.c_str(), "w");
+
                 if (file_score[i] == NULL)
                 {
-                    printf(OUT_ERROR "Error creating file!\n" OUT_RESET);
+                    printf(OUT_ERROR "Error creating wig file!\n" OUT_RESET);
+                    exit(1);
+                }
+                const std::string filename_bed = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed." + std::to_string(job_id);
+                file_score_bed[i] = fopen(filename_bed.c_str(), "w");
+                if (file_score_bed[i] == NULL)
+                {
+                    printf(OUT_ERROR "Error creating bed file!\n" OUT_RESET);
                     exit(1);
                 }
             }
@@ -214,19 +224,41 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                             if (params.phylo_raw)
                                 fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), newPos);
 
-                            if (params.phylo_smooth && !scores.empty())
-                            {
-                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                            if (params.phylo_smooth && !scores.empty()) {
+                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n",
+                                        aln.chrom.c_str(), startBlockPos);
 
-                                process_scores(model._hmm, scores, startBlockPos, region);
+                                process_scores(model._hmm, scores, startBlockPos, region, bedregions);
 
-                                for(size_t i = 0; i < region.size(); i++)
-                                {
+                                for (size_t i = 0; i < region.size(); i++) {
                                     my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
                                 }
-
+                                //TODO write be output code
+                                if (strand == '+') {
+                                    for (size_t i = 0; i < bedregions.size(); i++) {
+                                        fprintf(file_score_bed[file_index],
+                                                "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                                aln.chrom.c_str(),
+                                                bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                                bedregions[i].region_start,
+                                                bedregions[i].region_end, bedregions[i].region_start,
+                                                bedregions[i].region_end, bedregions[i].log_odds_prob,
+                                                bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                                    }
+                                } else {for (size_t i = 0; i < bedregions.size(); i++) {
+                                        fprintf(file_score_bed[file_index],
+                                                "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                                aln.chrom.c_str(),
+                                                bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                                bedregions[i].region_start,
+                                                bedregions[i].region_end, bedregions[i].region_start,
+                                                bedregions[i].region_end, bedregions[i].log_odds_prob,
+                                                bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                                        }
+                                    }
                                 scores.clear();
                                 region.clear();
+                                bedregions.clear();
                                 startBlockPos = aln.start_pos + (xx * 3);
                             }
                         }
@@ -243,15 +275,38 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     if (params.phylo_smooth && !scores.empty())
                     {
                         fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
-                        process_scores(model._hmm, scores, startBlockPos, region);
+                        process_scores(model._hmm, scores, startBlockPos, region, bedregions);
 
                         for(size_t i = 0; i < region.size(); i++)
                         {
                             my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
                         }
-
+                        //TODO write be output code
+                        if (strand == '+') {
+                            for (size_t i = 0; i < bedregions.size(); i++) {
+                                fprintf(file_score_bed[file_index],
+                                        "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                        aln.chrom.c_str(),
+                                        bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                        bedregions[i].region_start,
+                                        bedregions[i].region_end, bedregions[i].region_start,
+                                        bedregions[i].region_end, bedregions[i].log_odds_prob,
+                                        bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                            }
+                        } else {for (size_t i = 0; i < bedregions.size(); i++) {
+                                fprintf(file_score_bed[file_index],
+                                        "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                        aln.chrom.c_str(),
+                                        bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                        bedregions[i].region_start,
+                                        bedregions[i].region_end, bedregions[i].region_start,
+                                        bedregions[i].region_end, bedregions[i].log_odds_prob,
+                                        bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                            }
+                        }
                         scores.clear();
                         region.clear();
+                        bedregions.clear();
                     }
                 }
 
@@ -279,8 +334,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
             if (params.phylo_raw)
                 fclose(file_score_raw[i]);
 
-            if (params.phylo_smooth)
+            if (params.phylo_smooth){
                 fclose(file_score[i]);
+                fclose(file_score_bed[i]);
+            }
         }
     }
 
@@ -298,8 +355,14 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
             if (params.phylo_raw)
                 merge_job_output_files(output_folder + "/PhyloCSFRaw" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs, file_id > 1);
 
-            if (params.phylo_smooth)
-                merge_job_output_files(output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs, file_id > 1);
+            if (params.phylo_smooth) {
+                merge_job_output_files(
+                        output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs,
+                        file_id > 1);
+                merge_job_output_files(
+                        output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed", jobs,
+                        file_id > 1);
+            }
         }
     }
 }
