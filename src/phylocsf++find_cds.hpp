@@ -23,9 +23,26 @@ struct FindCDSCLIParams
     float min_score = 0.0;
     uint32_t min_codons = 25;
 
-    bool use_power = true;
     bool evaluate = false;
 };
+
+std::string mode_to_str(const find_mode_t mode) noexcept
+{
+    std::string mode_str;
+    switch (mode)
+    {
+        case ALL:
+            mode_str = "ALL";
+            break;
+        case LONGEST:
+            mode_str = "LONGEST";
+            break;
+        case BEST_SCORE:
+            mode_str = "BEST_SCORE";
+            break;
+    }
+    return mode_str;
+}
 
 void find_all_codons(const std::string & dna, const std::string & codon, std::array<std::vector<uint32_t>, 3> & hits) noexcept
 {
@@ -142,8 +159,7 @@ void annotateCDSPhases(iter_t it, iter_t end) noexcept
 
 // phylo_scores[exon_id][coord_in_exon]
 void compute_PhyloCSF_for_transcript(const gff_transcript & t, bigWigFile_t * const * wigFiles,
-                                     std::array<std::vector<std::vector<float> >, 4> & extracted_scores,
-                                     const FindCDSCLIParams & params)
+                                     std::array<std::vector<std::vector<float> >, 4> & extracted_scores)
 {
     for (uint8_t i = 0; i < 4; ++i)
         extracted_scores[i].resize(t.exons.size());
@@ -158,19 +174,16 @@ void compute_PhyloCSF_for_transcript(const gff_transcript & t, bigWigFile_t * co
         bwOverlappingIntervals_t *intervals = NULL;
 
         // power
-        if (params.use_power)
+        intervals = bwGetValues(wigFiles[6], (char*)t.chr.c_str(), BEGIN(exon), END(exon), 0);
+        if (intervals != NULL)
         {
-            intervals = bwGetValues(wigFiles[6], (char*)t.chr.c_str(), BEGIN(exon), END(exon), 0);
-            if (intervals != NULL)
-            {
-                for (uint32_t i = 0; i < (*intervals).l; ++i)
-                    extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)] = (*intervals).value[i];
-                bwDestroyOverlappingIntervals(intervals);
-                intervals = NULL;
-            }
-            if (t.strand == '-')
-                std::reverse(extracted_scores[3][exon_id].begin(), extracted_scores[3][exon_id].end());
+            for (uint32_t i = 0; i < (*intervals).l; ++i)
+                extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)] = (*intervals).value[i];
+            bwDestroyOverlappingIntervals(intervals);
+            intervals = NULL;
         }
+        if (t.strand == '-')
+            std::reverse(extracted_scores[3][exon_id].begin(), extracted_scores[3][exon_id].end());
 
         if (t.strand == '+')
         {
@@ -181,25 +194,16 @@ void compute_PhyloCSF_for_transcript(const gff_transcript & t, bigWigFile_t * co
                 if (intervals != NULL)
                 {
                     // weighten the scores with the power/confidence
-                    if (params.use_power)
+                    for (uint32_t i = 0; i < (*intervals).l; ++i)
                     {
-                        for (uint32_t i = 0; i < (*intervals).l; ++i)
+                        if (extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)] == -999.0f)
                         {
-                            if (extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)] == -999.0f)
-                            {
-                                extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = -999.0f;
-                            }
-                            else
-                            {
-                                extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = (*intervals).value[i] * extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)];
-                            }
+                            extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = -999.0f;
                         }
-                    }
-                    // just use normal scores
-                    else
-                    {
-                        for (uint32_t i = 0; i < (*intervals).l; ++i)
-                            extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = (*intervals).value[i];
+                        else
+                        {
+                            extracted_scores[phase][exon_id][(*intervals).start[i] - BEGIN(exon)] = (*intervals).value[i] * extracted_scores[3][exon_id][(*intervals).start[i] - BEGIN(exon)];
+                        }
                     }
                     bwDestroyOverlappingIntervals(intervals);
                     intervals = NULL;
@@ -215,25 +219,16 @@ void compute_PhyloCSF_for_transcript(const gff_transcript & t, bigWigFile_t * co
                 if (intervals != NULL)
                 {
                     // weighten the scores with the power/confidence
-                    if (params.use_power)
+                    for (int32_t i = (*intervals).l - 1; i >= 0; --i)
                     {
-                        for (int32_t i = (*intervals).l - 1; i >= 0; --i)
+                        if (extracted_scores[3][exon_id][(END(exon) - 1) - (*intervals).start[i]] == -999.0f)
                         {
-                            if (extracted_scores[3][exon_id][(END(exon) - 1) - (*intervals).start[i]] == -999.0f)
-                            {
-                                extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = -999.0f;
-                            }
-                            else
-                            {
-                                extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = (*intervals).value[i] * extracted_scores[3][exon_id][(END(exon) - 1) - (*intervals).start[i]];
-                            }
+                            extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = -999.0f;
                         }
-                    }
-                        // just use normal scores
-                    else
-                    {
-                        for (int32_t i = (*intervals).l - 1; i >= 0; --i)
-                            extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = (*intervals).value[i];
+                        else
+                        {
+                            extracted_scores[phase][exon_id][(END(exon) - 1) - (*intervals).start[i]] = (*intervals).value[i] * extracted_scores[3][exon_id][(END(exon) - 1) - (*intervals).start[i]];
+                        }
                     }
                     bwDestroyOverlappingIntervals(intervals);
                     intervals = NULL;
@@ -247,8 +242,7 @@ template <typename TExons, typename TIter>
 std::tuple<float, float>
 compute_PhyloCSF(TExons & exons, TIter first, TIter last, char const strand,
                  const std::array<std::vector<std::vector<float> >, 4> & extracted_scores,
-                 const uint32_t first_exon_id_in_CDS, const uint32_t last_exon_id_in_CDS, const uint32_t chrLen,
-                 const FindCDSCLIParams & params)
+                 const uint32_t first_exon_id_in_CDS, const uint32_t last_exon_id_in_CDS, const uint32_t chrLen)
 {
     float total_phylo_sum = 0.0;
     float total_power_sum = 0.0;
@@ -316,7 +310,7 @@ compute_PhyloCSF(TExons & exons, TIter first, TIter last, char const strand,
                 power_sum += *phylo_it;
         }
 
-        c.phylo_score = (phylo_count > 0) ? phylo_sum / (params.use_power ? power_sum : phylo_count) : NAN; // weighten the scores with the power/confidence (or not)
+        c.phylo_score = (phylo_count > 0) ? phylo_sum / power_sum : NAN; // weighten the scores with the power/confidence (or not)
         c.phylo_power = (power_count > 0) ? power_sum / power_count : NAN;
 
         total_phylo_sum += phylo_sum;
@@ -324,12 +318,12 @@ compute_PhyloCSF(TExons & exons, TIter first, TIter last, char const strand,
     }
 
     return std::make_tuple(
-        (total_phylo_count > 0) ? total_phylo_sum / (params.use_power ? total_power_sum : total_phylo_count) : NAN, // weighten the scores with the power/confidence (or not)
+        (total_phylo_count > 0) ? total_phylo_sum / total_power_sum : NAN, // weighten the scores with the power/confidence (or not)
         (total_power_count > 0) ? total_power_sum / total_power_count : NAN // total phylo_power
     );
 }
 
-void output_transcript(const FindCDSCLIParams & params, const gff_transcript & t, const std::vector<cds_entry> & CDS, FILE * gff_out)
+void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & CDS, FILE * gff_out)
 {
     bool first_processed_line = true;
     bool is_gff = true;
@@ -349,27 +343,13 @@ void output_transcript(const FindCDSCLIParams & params, const gff_transcript & t
         {
             if (is_gff)
             {
-                if (params.use_power)
-                {
-                    fprintf(gff_out, "%s;phylocsf_weightened_mean=%.3f", line.c_str(), t.phylo_score);
-                    fprintf(gff_out, ";phylocsf_power_mean=%.3f", t.phylo_power);
-                }
-                else
-                {
-                    fprintf(gff_out, "%s;phylocsf_mean=%.3f", line.c_str(), t.phylo_score);
-                }
+                fprintf(gff_out, "%s;phylocsf_weightened_mean=%.3f", line.c_str(), t.phylo_score);
+                fprintf(gff_out, ";phylocsf_power_mean=%.3f", t.phylo_power);
             }
             else
             {
-                if (params.use_power)
-                {
-                    fprintf(gff_out, "%s phylocsf_weightened_mean \"%.3f\";", line.c_str(), t.phylo_score);
-                    fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", t.phylo_power);
-                }
-                else
-                {
-                    fprintf(gff_out, "%s phylocsf_mean \"%.3f\";", line.c_str(), t.phylo_score);
-                }
+                fprintf(gff_out, "%s phylocsf_weightened_mean \"%.3f\";", line.c_str(), t.phylo_score);
+                fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", t.phylo_power);
             }
             fprintf(gff_out, "\n");
         }
@@ -386,31 +366,23 @@ void output_transcript(const FindCDSCLIParams & params, const gff_transcript & t
 
         if (is_gff)
         {
-            if (params.use_power)
-            {
-                fprintf(gff_out, "phylocsf_weightened_mean=%.3f", c.phylo_score);
-                fprintf(gff_out, ";phylocsf_power_mean=%.3f", c.phylo_power);
-            }
-            else
-            {
-                fprintf(gff_out, "phylocsf_mean=%.3f", c.phylo_score);
-            }
+            fprintf(gff_out, "phylocsf_weightened_mean=%.3f", c.phylo_score);
+            fprintf(gff_out, ";phylocsf_power_mean=%.3f", c.phylo_power);
         }
         else
         {
-            if (params.use_power)
-            {
-                fprintf(gff_out, "phylocsf_weightened_mean \"%.3f\";", c.phylo_score);
-                fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", c.phylo_power);
-            }
-            else
-            {
-                fprintf(gff_out, "phylocsf_mean \"%.3f\";", c.phylo_score);
-            }
+            fprintf(gff_out, "phylocsf_weightened_mean \"%.3f\";", c.phylo_score);
+            fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", c.phylo_power);
         }
 
         fprintf(gff_out, "\n");
     }
+}
+
+bool is_stop_coding(const std::string & codon) noexcept
+{
+    assert(codon.size() == 3);
+    return codon == "TAA" || codon == "TGA" || codon == "TAG";
 }
 
 void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
@@ -450,7 +422,12 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         exit(1);
     }
 
-    fprintf(gff_out, "# CDS predicted with PhyloCSF++ %sles (%s, %s) and precomputed tracks %s\n", ArgParse::version.c_str(), ArgParse::git_hash.c_str(), ArgParse::git_date.c_str(), params.bw_path.c_str());
+    fprintf(gff_out, "# CDS predicted with PhyloCSF++ %sles (%s, %s) and precomputed tracks %s "
+                     "(options: --mode %s --min-score %f --min-codons %" PRIu32 ")\n",
+                     ArgParse::version.c_str(), ArgParse::git_hash.c_str(), ArgParse::git_date.c_str(),
+                     params.bw_path.c_str(),
+                     mode_to_str(params.mode).c_str(),
+                     params.min_score, params.min_codons);
 
     std::string concatenated_exon_seq;
 
@@ -503,8 +480,15 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         }
         const std::string & chr = genome_it->second;
 
+        // TODO: run it with both strands
+        if (t.strand != '+' && t.strand != '-')
+        {
+            printf(OUT_DEL OUT_INFO "Skipped a transcript with no strand information.\n" OUT_RESET);
+            continue;
+        }
+
         annotated_cds_seq = "";
-        if (params.evaluate)
+        if (params.evaluate && t.CDS.size() > 0)
         {
             // NOTE: CDS coordinates from input file are 1-based, we have to decrement the begin position
             for (uint16_t i = 0; i < t.CDS.size(); ++i)
@@ -519,12 +503,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                     annotated_cds_seq += chr.substr(c.begin - 1, c.end - c.begin + 1);
             }
 
-            // if STOP codon is not part of the last resp. first CDS:
-            // if (t.strand == '+' && t.CDS.back().end + 3 - 1 < chr.size())
-            //     seq += chr.substr(t.CDS.back().end, 3);
-            // else if (t.strand == '-' && t.CDS.front().begin >= 4)
-            //     seq = chr.substr(t.CDS.front().begin - 4, 3) + seq;
-
+            // compute reverse complement for transcripts on the negative strand
             str_to_upper(annotated_cds_seq);
             if (t.strand == '-')
             {
@@ -533,28 +512,45 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                     annotated_cds_seq[j] = complement(annotated_cds_seq[j]);
             }
 
-            if (annotated_cds_seq != "")
+            // if STOP codon is not part of the last resp. first CDS, append it
+            const std::string last_codon = annotated_cds_seq.substr(annotated_cds_seq.size() - 3);
+            if (!is_stop_coding(last_codon))
             {
-                ++nbr_transcripts_with_annotated_orf;
-                if (!(annotated_cds_seq.size() % 3 == 0 && annotated_cds_seq.size() >= 3 &&
-                      annotated_cds_seq.substr(0, 3) == "ATG" && (
-                          annotated_cds_seq.substr(annotated_cds_seq.size() - 3) == "TAA" ||
-                          annotated_cds_seq.substr(annotated_cds_seq.size() - 3) == "TGA" ||
-                          annotated_cds_seq.substr(annotated_cds_seq.size() - 3) == "TAG")))
+                std::string extended_codon = "";
+                if (t.strand == '+')
                 {
-                    ++nbr_transcripts_with_annotated_invalid_orf;
-                    // printf("\nWARNING: %s, %s, %ld, %c, %s, %lld, %lld, %ld\n", annotated_cds_seq.substr(0, 3).c_str(), annotated_cds_seq.substr(annotated_cds_seq.size() - 3).c_str(), annotated_cds_seq.size() % 3, t.strand,
-                    //        t.chr.c_str(), t.begin, t.end, t.CDS.size());
-                    // continue;
+                    if (t.CDS.back().end + 3 - 1 < chr.size())
+                    {
+                        extended_codon = chr.substr(t.CDS.back().end, 3);
+                        str_to_upper(extended_codon);
+                    }
                 }
-            }
-        }
+                else // t.strand == '-'
+                {
+                    if (t.CDS.front().begin >= 4)
+                    {
+                        extended_codon = chr.substr(t.CDS.front().begin - 4, 3);
+                        str_to_upper(extended_codon);
+                        std::reverse(extended_codon.begin(), extended_codon.end());
+                        for (uint64_t j = 0; j < extended_codon.size(); ++j)
+                            extended_codon[j] = complement(extended_codon[j]); // TODO: test this!
+                    }
+                }
 
-        // TODO: run it with both strands
-        if (t.strand != '+' && t.strand != '-')
-        {
-            printf(OUT_DEL OUT_INFO "Skipped a transcript with no strand information.\n" OUT_RESET);
-            continue;
+                if (is_stop_coding(extended_codon))
+                    annotated_cds_seq += extended_codon;
+            }
+
+            ++nbr_transcripts_with_annotated_orf;
+            if (!(annotated_cds_seq.size() % 3 == 0 && annotated_cds_seq.size() >= 3
+                && annotated_cds_seq.substr(0, 3) == "ATG"
+                && is_stop_coding(annotated_cds_seq.substr(annotated_cds_seq.size() - 3))))
+            {
+                ++nbr_transcripts_with_annotated_invalid_orf;
+                // printf("\nWARNING: %s, %s, %ld, %c, %s, %lld, %lld, %ld\n", annotated_cds_seq.substr(0, 3).c_str(), annotated_cds_seq.substr(annotated_cds_seq.size() - 3).c_str(), annotated_cds_seq.size() % 3, t.strand,
+                //        t.chr.c_str(), t.begin, t.end, t.CDS.size());
+                // continue;
+            }
         }
 
         concatenated_exon_seq = "";
@@ -576,7 +572,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         }
 
         std::array<std::vector<std::vector<float> >, 4> extracted_scores; // phase 0, phase 1, phase 2, power
-        compute_PhyloCSF_for_transcript(t, params.bw_files, extracted_scores, params);
+        compute_PhyloCSF_for_transcript(t, params.bw_files, extracted_scores);
 
         hits.clear();
 
@@ -630,12 +626,12 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
             if (t.strand == '+')
             {
                 annotateCDSPhases(CDS.begin(), CDS.end());
-                phylo_stats = compute_PhyloCSF(t.exons, CDS.begin(), CDS.end(), t.strand, extracted_scores, first_exon_id_in_CDS, last_exon_id_in_CDS, 0, params);
+                phylo_stats = compute_PhyloCSF(t.exons, CDS.begin(), CDS.end(), t.strand, extracted_scores, first_exon_id_in_CDS, last_exon_id_in_CDS, 0);
             }
             else
             {
                 annotateCDSPhases(CDS.rbegin(), CDS.rend());
-                phylo_stats = compute_PhyloCSF(t.exons, CDS.rbegin(), CDS.rend(), t.strand, extracted_scores, first_exon_id_in_CDS, last_exon_id_in_CDS, chr_len, params);
+                phylo_stats = compute_PhyloCSF(t.exons, CDS.rbegin(), CDS.rend(), t.strand, extracted_scores, first_exon_id_in_CDS, last_exon_id_in_CDS, chr_len);
             }
 
             // ignore transcripts with neg. score or that contain a negative CDS
@@ -687,7 +683,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                     CDS_outputted_or_found = true;
                     t.phylo_score = std::get<0>(phylo_stats);
                     t.phylo_power = std::get<1>(phylo_stats);
-                    output_transcript(params, t, CDS, gff_out);
+                    output_transcript(t, CDS, gff_out);
                 }
                 else if (params.mode == LONGEST && !CDS_outputted_or_found)
                 {
@@ -707,7 +703,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         {
             t.phylo_score = std::get<0>(longest_or_best_phylo_stats);
             t.phylo_power = std::get<1>(longest_or_best_phylo_stats);
-            output_transcript(params, t, longest_or_best_CDS, gff_out);
+            output_transcript(t, longest_or_best_CDS, gff_out);
 
             if (longest_or_best_seq == annotated_cds_seq)
                 ++nbr_transcripts_with_annotated_orf_matches_predicted_start_and_stop;
@@ -718,7 +714,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         }
         else if (!CDS_outputted_or_found)
         {
-            output_transcript(params, t, std::vector<cds_entry>{}, gff_out);
+            output_transcript(t, std::vector<cds_entry>{}, gff_out);
         }
 
         if (found_an_orf_satisfying_criteria && annotated_cds_seq == "")
@@ -762,38 +758,25 @@ int main_find_cds(int argc, char **argv)
                   "Takes a GFF file with transcripts and scores every possible ORF to find novel \n"
                   "protein-coding genes and outputs a GFF file with annotated CDS features.\n"
                   "Scores are computed by taking the mean of the PhyloCSF codons and weighted \n"
-                  "by the confidence scores of each codon (if the PhyloCSFpower.bw can be found).\n"
+                  "by the confidence scores of each codon.\n"
+                  "'find-cds' is experimental.\n" // TODO
                   "Any features other than transcripts and exons from the input file will be \n"
                   "omitted in the output file.");
 
     FindCDSCLIParams params;
 
-    std::string default_mode;
-    switch (params.mode)
-    {
-        case ALL:
-            default_mode = "ALL";
-            break;
-        case LONGEST:
-            default_mode = "LONGEST";
-            break;
-        case BEST_SCORE:
-            default_mode = "BEST_SCORE";
-            break;
-    }
+    std::string default_mode = mode_to_str(params.mode);
 
     args.add_option("output", ArgParse::Type::STRING, "Path where output GFF/GTF will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
-
     args.add_option("mode", ArgParse::Type::STRING, "Which CDS to report: ALL, LONGEST, BEST_SCORE. Default: " + default_mode, ArgParse::Level::GENERAL, false);
     args.add_option("min-score", ArgParse::Type::FLOAT, "Only consider ORFs with a (weighted) PhyloCSF mean score. Default: " + std::to_string(params.min_score), ArgParse::Level::GENERAL, false);
     args.add_option("min-codons", ArgParse::Type::INT, "Only consider ORFs with a minimum codon length. Default: " + std::to_string(params.min_codons), ArgParse::Level::GENERAL, false);
-
-    args.add_option("evaluate", ArgParse::Type::BOOL, "Additionally reads CDS features in input GFF/GTF and outputs statistics how well PhyloCSF++ has predicted CDS. Output stays the same, i.e., annotated CDS from the input are ignored in the output file. Default: " + std::to_string(params.evaluate), ArgParse::Level::GENERAL, false);
+    // TODO: "and only predicted ORFs are included" ???
+    args.add_option("evaluate", ArgParse::Type::BOOL, "Additionally reads CDS features in input GFF/GTF and outputs statistics how well PhyloCSF++ has predicted CDS. Output stays the same, i.e., annotated CDS from the input are ignored in the output file, and only predicted ORFs are included. Default: " + std::to_string(params.evaluate), ArgParse::Level::GENERAL, false);
 
     args.add_positional_argument("fasta", ArgParse::Type::STRING, "Path to the genome fasta file.", true);
     args.add_positional_argument("tracks", ArgParse::Type::STRING, "Path to the bigWig file PhyloCSF+1.bw (expects the other 5 frames to be in the same directory, optionally the power track).", true);
     args.add_positional_argument("gff-files", ArgParse::Type::STRING, "One or more GFF/GTF files with coding exons to be scored.", true, true);
-    args.add_option("evaluate", ArgParse::Type::BOOL, "Additionally reads CDS features in input GFF/GTF and outputs statistics how well PhyloCSF++ has predicted CDS. Output stays the same, i.e., annotated CDS from the input are ignored in the output file, and only predicted ORFs are included. Default: " + std::to_string(params.evaluate), ArgParse::Level::GENERAL, false);
     args.parse_args(argc, argv);
 
     args.check_args();
@@ -835,7 +818,7 @@ int main_find_cds(int argc, char **argv)
         params.evaluate = args.get_bool("evaluate");
 
     if (params.evaluate)
-        printf(OUT_INFO "Warning: the --evaluate mode is experimental. It requires that the STOP codon is part of the last CDS.\n" OUT_RESET);
+        printf(OUT_INFO "Warning: the --evaluate mode is experimental.\n" OUT_RESET);
 
     std::string bw_path = args.get_positional_argument("tracks");
     params.bw_path = bw_path; // wo don't want to change params.bw_path below
@@ -866,10 +849,10 @@ int main_find_cds(int argc, char **argv)
                 printf(OUT_INFO "It seems you provided a *.wig file. You need to simply index them first with wigToBigWig and then use the *.bw files.\n" OUT_RESET);
                 return -1;
             }
-            else if (i == 6)
+            else
             {
-                params.use_power = false;
-                printf(OUT_INFO "PhyloCSFpower.bw not found. Will use mean PhyloCSF scores instead of weighted mean PhyloCSF scores.\n" OUT_RESET);
+                printf(OUT_ERROR "Could not find PhyloCSF track file '%s'.\n" OUT_RESET, bw_path.c_str());
+                return -1;
             }
         }
     }
