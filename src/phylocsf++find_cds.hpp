@@ -757,11 +757,11 @@ int main_find_cds(int argc, char **argv)
     ArgParse args("phylocsf++ find-cds",
                   "Takes a GFF file with transcripts and scores every possible ORF to find novel \n"
                   "protein-coding genes and outputs a GFF file with annotated CDS features.\n"
-                  "Scores are computed by taking the mean of the PhyloCSF codons and weighted \n"
-                  "by the confidence scores of each codon.\n"
-                  "'find-cds' is experimental.\n" // TODO
-                  "Any features other than transcripts and exons from the input file will be \n"
-                  "omitted in the output file.");
+                  "Either all CDS meeting the criteria can be outputted, or the longest or \n"
+                  "best-scoring one.\n"
+                  "'find-cds' and especially '--evaluate' is experimental. It is recommended to \n"
+                  "only have 'transcript', 'exon', and optionally 'CDS' features (see --evaluate) \n"
+                  "in the GFF file. Other features can mess up the output.");
 
     FindCDSCLIParams params;
 
@@ -769,10 +769,9 @@ int main_find_cds(int argc, char **argv)
 
     args.add_option("output", ArgParse::Type::STRING, "Path where output GFF/GTF will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
     args.add_option("mode", ArgParse::Type::STRING, "Which CDS to report: ALL, LONGEST, BEST_SCORE. Default: " + default_mode, ArgParse::Level::GENERAL, false);
-    args.add_option("min-score", ArgParse::Type::FLOAT, "Only consider ORFs with a (weighted) PhyloCSF mean score. Default: " + std::to_string(params.min_score), ArgParse::Level::GENERAL, false);
+    args.add_option("min-score", ArgParse::Type::FLOAT, "Only consider ORFs with a minimum weighted PhyloCSF mean score (range from -15 to +15, >0 more likely to be protein-coding). Default: " + std::to_string(params.min_score), ArgParse::Level::GENERAL, false);
     args.add_option("min-codons", ArgParse::Type::INT, "Only consider ORFs with a minimum codon length. Default: " + std::to_string(params.min_codons), ArgParse::Level::GENERAL, false);
-    // TODO: "and only predicted ORFs are included" ???
-    args.add_option("evaluate", ArgParse::Type::BOOL, "Additionally reads CDS features in input GFF/GTF and outputs statistics how well PhyloCSF++ has predicted CDS. Output stays the same, i.e., annotated CDS from the input are ignored in the output file, and only predicted ORFs are included. Default: " + std::to_string(params.evaluate), ArgParse::Level::GENERAL, false);
+    args.add_option("evaluate", ArgParse::Type::BOOL, "Additionally reads CDS features in input GFF/GTF and outputs statistics how well PhyloCSF++ has predicted CDS. This does not affect the output GFF file, i.e., CDS from the input file are not included, only predicted CDS are outputted (regardless whether they matched the CDS in the input or not). Default: " + std::to_string(params.evaluate), ArgParse::Level::GENERAL, false);
 
     args.add_positional_argument("fasta", ArgParse::Type::STRING, "Path to the genome fasta file.", true);
     args.add_positional_argument("tracks", ArgParse::Type::STRING, "Path to the bigWig file PhyloCSF+1.bw (expects the other 5 frames to be in the same directory, optionally the power track).", true);

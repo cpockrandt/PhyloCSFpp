@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     args.add_subprogram("score-msa", "Computes PhyloCSF scores, ancestral sequence composition sores and branch length scores for entire alignments from MAF files. Outputs them in a BED-like format.");
     args.add_subprogram("annotate-with-tracks", "Scores the CDS features in GFF/GTF files using precomputed tracks (bw files) and outputs annotated GFF/GTF files.");
     args.add_subprogram("annotate-with-mmseqs", "Scores the CDS features in GFF/GTF files by computing multiple sequence alignments from scratch (requires MMseqs2) and outputs annotated GFF/GTF files.");
-    args.add_subprogram("find-cds", "Searches a GFF/GTF file with transcripts for ORF with high protein-coding likelihood using tracks.");
+    args.add_subprogram("find-cds", "Takes GFF/GTF files as input and for each transcript searches for CDS with high protein-coding likelihood using PhyloCSF tracks.");
 
     args.add_option("help", ArgParse::Type::FLAG, "Prints this help message. Run `phylocsf++ build-tracks --help` for help messages on the tools", ArgParse::Level::HELP, false);
 
