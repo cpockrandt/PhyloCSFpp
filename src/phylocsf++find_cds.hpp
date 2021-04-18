@@ -443,7 +443,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
     std::vector<std::tuple<float, std::string, std::vector<cds_entry> > > hits;
 
     gff_transcript t;
-    while (reader.get_next_transcript<true>(t, true))
+    while (reader.get_next_transcript<true>(t, true, true))
     {
         ++nbr_transcripts;
 

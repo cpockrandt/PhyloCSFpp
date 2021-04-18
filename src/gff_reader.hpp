@@ -115,7 +115,7 @@ public:
     }
 
     template <bool copy_lines>
-    bool get_next_transcript(gff_transcript & transcript, bool get_exons = false)
+    bool get_next_transcript(gff_transcript & transcript, bool get_exons = false, bool omit_other_features = false)
     {
         if (file_range_pos >= (size_t)file_size)
             return false;
@@ -214,7 +214,10 @@ public:
             }
 
             if (copy_lines)
-                transcript.lines.emplace_back(f, line);
+            {
+                if (f != OTHER || !omit_other_features)
+                    transcript.lines.emplace_back(f, line);
+            }
 
             free(line);
         }
