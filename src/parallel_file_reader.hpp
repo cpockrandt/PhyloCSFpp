@@ -251,7 +251,7 @@ public:
 
     parallel_maf_reader(const char * file_path, const unsigned jobs, const std::unordered_map<std::string, uint16_t> *fastaid_to_alnid,
                         const bool concatenate_alignments)
-            : concatenate_alignments(concatenate_alignments)
+        : concatenate_alignments(concatenate_alignments)
     {
         fd = open(file_path, O_RDONLY);
         if (fd < 0)
@@ -348,8 +348,8 @@ public:
         }
 
         total_bytes_processed += file_range_pos[0]; // skip the bytes that are skipped by the first job
-        // subsequent jobs are not considered because the bytes that they skipped here,
-        // will be processed (and counted) by previous jobs.
+                                                    // subsequent jobs are not considered because the bytes that they skipped here,
+                                                    // will be processed (and counted) by previous jobs.
 
         this->fastaid_to_alnid = fastaid_to_alnid;
     }
@@ -370,15 +370,15 @@ public:
         if (files == 1)
         {
             sprintf(progress_bar_format_str, OUT_DEL "%%.2f / %.2f %s (%%3.2f %%%%)\r",
-                    formatted_filesize, size_dimensions_labels[progress_bar_dimensions_label_index]);
+                        formatted_filesize, size_dimensions_labels[progress_bar_dimensions_label_index]);
         }
         else
         {
             sprintf(progress_bar_format_str, OUT_DEL "File %d of %d: %%.2f / %.2f %s (%%3.2f %%%%)\r",
-                    file_id,
-                    files,
-                    formatted_filesize,
-                    size_dimensions_labels[progress_bar_dimensions_label_index]);
+                        file_id,
+                        files,
+                        formatted_filesize,
+                        size_dimensions_labels[progress_bar_dimensions_label_index]);
         }
     }
 
@@ -427,7 +427,7 @@ public:
     // if "\na" isn at the end of the range for a thread, process it
     bool get_next_alignment(alignment_t & aln, const unsigned job_id, std::vector<bool> * species_seen_in_alignment = NULL)
     {
-#pragma omp atomic
+        #pragma omp atomic
         total_bytes_processed += bytes_processing[job_id];
 
         bytes_processing[job_id] = 0;
@@ -484,7 +484,7 @@ public:
                     auto alnid = (*fastaid_to_alnid).find(id);
                     if (alnid == (*fastaid_to_alnid).end())
                     {
-#pragma omp critical(unresolved_identifier)
+                        #pragma omp critical(unresolved_identifier)
                         {
                             if (unresolved_identifiers.find(id) == unresolved_identifiers.end())
                             {

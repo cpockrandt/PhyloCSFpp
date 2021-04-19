@@ -20,6 +20,7 @@ struct TrackCLIParams
     bool phylo_smooth = false;
     bool phylo_raw = true;
     bool phylo_power = true;
+    bool phylo_bed_file = false;
     std::string output_path;
 };
 
@@ -109,6 +110,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
         FILE *file_score_raw[6];
         FILE *file_score[6];
         FILE *file_score_bed[6];
+
         for (uint8_t i = 0; i < 6; ++i)
         {
             const char strand = (i < 3) ? '+' : '-';
@@ -137,8 +139,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                 }
                 const std::string filename_bed = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed." + std::to_string(job_id);
                 file_score_bed[i] = fopen(filename_bed.c_str(), "w");
-                if (file_score_bed[i] == NULL)
-                {
+                if (file_score_bed[i] == NULL) {
                     printf(OUT_ERROR "Error creating bed file!\n" OUT_RESET);
                     exit(1);
                 }
@@ -224,37 +225,40 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                             if (params.phylo_raw)
                                 fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), newPos);
 
-                            if (params.phylo_smooth && !scores.empty()) {
-                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n",
-                                        aln.chrom.c_str(), startBlockPos);
+                            if (params.phylo_smooth && !scores.empty())
+                            {
+                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
 
                                 process_scores(model._hmm, scores, startBlockPos, region, bedregions);
 
-                                for (size_t i = 0; i < region.size(); i++) {
+                                for (size_t i = 0; i < region.size(); i++)
+                                {
                                     my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
                                 }
                                 //TODO write be output code
-                                if (strand == '+') {
-                                    for (size_t i = 0; i < bedregions.size(); i++) {
-                                        fprintf(file_score_bed[file_index],
-                                                "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
-                                                aln.chrom.c_str(),
-                                                bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                                bedregions[i].region_start+1,
-                                                bedregions[i].region_end, bedregions[i].region_start,
-                                                bedregions[i].region_end, bedregions[i].log_odds_prob,
-                                                bedregions[i].color, bedregions[i].color, bedregions[i].color);
-                                    }
-                                } else {
-                                    for (size_t i = 0; i < bedregions.size(); i++) {
-                                        fprintf(file_score_bed[file_index],
-                                                "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
-                                                aln.chrom.c_str(),
-                                                bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                                bedregions[i].region_start+1,
-                                                bedregions[i].region_end, bedregions[i].region_start,
-                                                bedregions[i].region_end, bedregions[i].log_odds_prob,
-                                                bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                                if (params.phylo_bed_file) {
+                                    if (strand == '+') {
+                                        for (size_t i = 0; i < bedregions.size(); i++) {
+                                            fprintf(file_score_bed[file_index],
+                                                    "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                                    aln.chrom.c_str(),
+                                                    bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                                    bedregions[i].region_start + 1,
+                                                    bedregions[i].region_end, bedregions[i].region_start,
+                                                    bedregions[i].region_end,
+                                                    bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                                        }
+                                    } else {
+                                        for (size_t i = 0; i < bedregions.size(); i++) {
+                                            fprintf(file_score_bed[file_index],
+                                                    "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                                    aln.chrom.c_str(),
+                                                    bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                                    bedregions[i].region_start + 1,
+                                                    bedregions[i].region_end, bedregions[i].region_start,
+                                                    bedregions[i].region_end,
+                                                    bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                                        }
                                     }
                                 }
                                 scores.clear();
@@ -283,32 +287,35 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                             my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
                         }
                         //TODO write be output code
-                        if (strand == '+') {
-                            for (size_t i = 0; i < bedregions.size(); i++) {
-                                fprintf(file_score_bed[file_index],
-                                        "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
-                                        aln.chrom.c_str(),
-                                        bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                        bedregions[i].region_start+1,
-                                        bedregions[i].region_end, bedregions[i].region_start,
-                                        bedregions[i].region_end, bedregions[i].log_odds_prob,
-                                        bedregions[i].color, bedregions[i].color, bedregions[i].color);
-                            }
-                        } else {
-                            for (size_t i = 0; i < bedregions.size(); i++) {
-                                fprintf(file_score_bed[file_index],
-                                        "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%.7f\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
-                                        aln.chrom.c_str(),
-                                        bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
-                                        bedregions[i].region_start+1,
-                                        bedregions[i].region_end, bedregions[i].region_start,
-                                        bedregions[i].region_end, bedregions[i].log_odds_prob,
-                                        bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                        if (params.phylo_bed_file) {
+                            if (strand == '+') {
+                                for (size_t i = 0; i < bedregions.size(); i++) {
+                                    fprintf(file_score_bed[file_index],
+                                            "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                            aln.chrom.c_str(),
+                                            bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                            bedregions[i].region_start + 1,
+                                            bedregions[i].region_end, bedregions[i].region_start,
+                                            bedregions[i].region_end,
+                                            bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                                }
+                            } else {
+                                for (size_t i = 0; i < bedregions.size(); i++) {
+                                    fprintf(file_score_bed[file_index],
+                                            "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
+                                            aln.chrom.c_str(),
+                                            bedregions[i].region_start, bedregions[i].region_end, aln.chrom.c_str(),
+                                            bedregions[i].region_start + 1,
+                                            bedregions[i].region_end, bedregions[i].region_start,
+                                            bedregions[i].region_end,
+                                            bedregions[i].color, bedregions[i].color, bedregions[i].color);
+                                }
                             }
                         }
                         scores.clear();
                         region.clear();
                         bedregions.clear();
+
                     }
                 }
 
@@ -364,6 +371,11 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                 merge_job_output_files(
                         output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed", jobs,
                         file_id > 1);
+                if (!params.phylo_bed_file) {
+                    std::string bed_file_name = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed";
+                    const char *address = bed_file_name.c_str();
+                    remove(address);
+                }
             }
         }
     }
@@ -389,6 +401,7 @@ int main_build_tracks(int argc, char **argv)
     args.add_option("power-threshold", ArgParse::Type::FLOAT, "Minimum confidence score to output PhyloCSF score. Default: " + std::string(threshold_default_str), ArgParse::Level::GENERAL, false);
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
+    args.add_option("output-regions", ArgParse::Type::BOOL, "Generate bed files with coordinates of possible coding exons and color code for probability (need to put --output-phylo as 1 to run the command). Default: " + std::to_string(params.phylo_bed_file), ArgParse::Level::GENERAL,false);
     args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
     args.add_option("output", ArgParse::Type::STRING, "Directory where tracks in wig format will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
     args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
@@ -419,12 +432,20 @@ int main_build_tracks(int argc, char **argv)
         params.phylo_raw = args.get_bool("output-raw-phylo");
     if (args.is_set("power-threshold"))
         params.phylo_threshold = args.get_bool("power-threshold");
+    if (args.is_set("output-regions"))
+        params.phylo_bed_file = args.get_bool("output-regions");
 
     // this has to hold true: phylo_smooth => (args.is_set("genome-length") && args.is_set("coding-exons"))
     if (params.phylo_smooth && (!args.is_set("genome-length") || !args.is_set("coding-exons")))
     {
         printf(OUT_ERROR "For smoothened tracks (--output-phylo) you need to provide --genome-length and --coding-exons.\n" OUT_RESET);
         return -1;
+    }
+
+    // this has to hold true: output-regions => phylo_smooth
+    if (args.is_set("output-regions") && !(params.phylo_smooth))
+    {
+        printf(OUT_ERROR "To generate bed file of possible coding regions (--output-regions) you need to provide --output-phylo as 1, and also need to provide --genome-length and --coding-exons.\n" OUT_RESET);
     }
 
     if (args.is_set("output"))

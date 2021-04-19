@@ -267,7 +267,7 @@ int main_annotate_with_tracks(int argc, char** argv)
             // check whether the user has used an unindexed wig file, then print a useful hint
             if (access(bw_path.c_str(), F_OK) == 0 &&
                 bw_path.size() >= 4 && bw_path.compare(bw_path.size() - 4, 4, ".wig") == 0
-                    )
+            )
             {
                 printf(OUT_ERROR "An error occurred while opening the PhyloCSF file '%s'.\n" OUT_RESET, bw_path.c_str());
                 printf(OUT_INFO "It seems you provided a *.wig file. You need to simply index them first with wigToBigWig and then use the *.bw files.\n" OUT_RESET);
@@ -291,8 +291,8 @@ int main_annotate_with_tracks(int argc, char** argv)
     std::unordered_set<std::string> missing_sequences;
     for (uint16_t i = 1; i < args.positional_argument_size(); ++i)
     {
-        run_annotate_with_tracks(args.get_positional_argument(i), params, missing_sequences,
-                                 i, args.positional_argument_size() - 1);
+         run_annotate_with_tracks(args.get_positional_argument(i), params, missing_sequences,
+                                  i, args.positional_argument_size() - 1);
     }
 
     destroyChromList(chr_list);
