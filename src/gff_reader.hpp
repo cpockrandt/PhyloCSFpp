@@ -22,6 +22,7 @@ struct cds_entry
 enum feature_t
 {
     TRANSCRIPT,
+    EXON,
     CDS,
     OTHER
 };
@@ -35,6 +36,7 @@ struct gff_transcript
     float phylo_score = NAN;
     float phylo_power = NAN;
 
+    std::vector<std::tuple<uint64_t, uint64_t> > exons;
     std::vector<cds_entry> CDS;
     std::vector<std::tuple<feature_t, std::string> > lines;
 };
@@ -113,13 +115,14 @@ public:
     }
 
     template <bool copy_lines>
-    bool get_next_transcript(gff_transcript & transcript)
+    bool get_next_transcript(gff_transcript & transcript, bool get_exons = false, bool omit_other_features = false)
     {
         if (file_range_pos >= (size_t)file_size)
             return false;
 
         uint8_t transcript_occs = 0;
         transcript.CDS.clear();
+        transcript.exons.clear();
         transcript.lines.clear();
 
         while (file_range_pos < (size_t)file_size)
@@ -147,23 +150,30 @@ public:
                 char *next_col = strchr(cur_pos, '\t');
                 if (next_col == NULL || next_col > newline_pos)
                     next_col = newline_pos;
+
                 col_size = next_col - cur_pos;
-                memcpy(buf, cur_pos, col_size);
-                buf[col_size] = 0;
                 switch(col_id)
                 {
                     case 1:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         chr = buf; break;
                     case 3:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         feature = buf; break;
                     case 4:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         begin = std::stoull(buf); break;
                     case 5:
+                        memcpy(buf, cur_pos, col_size);
+                        buf[col_size] = 0;
                         end = std::stoull(buf); break;
                     case 7:
-                        strand = buf[0]; break;
+                        strand = *cur_pos; break; // first char only
                     case 8:
-                        phase = buf[0]; break;
+                        phase = *cur_pos; break; // first char only
                     default:
                         break;
                 }
@@ -197,9 +207,17 @@ public:
                 f = CDS;
                 transcript.CDS.emplace_back(begin, end, phase - '0');
             }
+            else if (feature == "exon" && get_exons)
+            {
+                f = EXON;
+                transcript.exons.emplace_back(begin, end);
+            }
 
             if (copy_lines)
-                transcript.lines.emplace_back(f, line);
+            {
+                if (f != OTHER || !omit_other_features)
+                    transcript.lines.emplace_back(f, line);
+            }
 
             free(line);
         }
