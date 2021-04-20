@@ -11,7 +11,6 @@
 #include "run.hpp"
 
 #include <sstream>
-#include <iostream>
 
 struct TrackCLIParams
 {
@@ -21,6 +20,7 @@ struct TrackCLIParams
     bool phylo_raw = true;
     bool phylo_power = true;
     bool phylo_bed_file = false;
+    bool smooth_wo_wig = false;
     std::string output_path;
 };
 
@@ -227,15 +227,19 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
                             if (params.phylo_smooth && !scores.empty())
                             {
-                                fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                                if (!params.smooth_wo_wig) {
+                                    fprintf(file_score[file_index],
+                                            "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(),
+                                            startBlockPos);
+                                }
 
                                 process_scores(model._hmm, scores, startBlockPos, region, bedregions);
 
-                                for (size_t i = 0; i < region.size(); i++)
-                                {
-                                    my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                                if (!params.smooth_wo_wig) {
+                                    for (size_t i = 0; i < region.size(); i++) {
+                                        my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                                    }
                                 }
-                                //TODO write be output code
                                 if (params.phylo_bed_file) {
                                     if (strand == '+') {
                                         for (size_t i = 0; i < bedregions.size(); i++) {
@@ -279,17 +283,22 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
 
                     if (params.phylo_smooth && !scores.empty())
                     {
-                        fprintf(file_score[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
+                        if (!params.smooth_wo_wig) {
+                            fprintf(file_score[file_index],
+                                    "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(),
+                                    startBlockPos);
+                        }
+
                         process_scores(model._hmm, scores, startBlockPos, region, bedregions);
 
-                        for(size_t i = 0; i < region.size(); i++)
-                        {
-                            my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                        if (!params.smooth_wo_wig) {
+                            for (size_t i = 0; i < region.size(); i++) {
+                                my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                            }
                         }
-                        //TODO write be output code
                         if (params.phylo_bed_file) {
                             if (strand == '+') {
-                                for (size_t i = 0; i < bedregions.size(); i++) {
+                                for(size_t i = 0; i < bedregions.size(); i++) {
                                     fprintf(file_score_bed[file_index],
                                             "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
                                             aln.chrom.c_str(),
@@ -376,6 +385,11 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     const char *address = bed_file_name.c_str();
                     remove(address);
                 }
+                if (params.smooth_wo_wig) {
+                    std::string wig_file_name = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig";
+                    const char *address_wig = wig_file_name.c_str();
+                    remove(address_wig);
+                }
             }
         }
     }
@@ -396,12 +410,12 @@ int main_build_tracks(int argc, char **argv)
     char threshold_default_str[10];
     sprintf(threshold_default_str, "%.1f", params.phylo_threshold);
 
-    args.add_option("output-phylo", ArgParse::Type::BOOL, "Compute all 6 smoothened PhyloCSF tracks. Requires coding exon coordinates and genome length. Default: " + std::to_string(params.phylo_smooth), ArgParse::Level::GENERAL, false);
     args.add_option("output-raw-phylo", ArgParse::Type::BOOL, "Compute all 6 unsmoothened PhyloCSF tracks. Default: " + std::to_string(params.phylo_raw), ArgParse::Level::GENERAL, false);
+    args.add_option("output-phylo", ArgParse::Type::BOOL, "Compute all 6 smoothened PhyloCSF tracks. Requires coding exon coordinates and genome length. Default: " + std::to_string(params.phylo_smooth), ArgParse::Level::GENERAL, false);
+    args.add_option("output-regions", ArgParse::Type::BOOL, "Generate bed files with coordinates of potential protein coding regions. Requires coding exon coordinates and genome length. Default: " + std::to_string(params.phylo_bed_file), ArgParse::Level::GENERAL,false);
     args.add_option("power-threshold", ArgParse::Type::FLOAT, "Minimum confidence score to output PhyloCSF score. Default: " + std::string(threshold_default_str), ArgParse::Level::GENERAL, false);
     args.add_option("genome-length", ArgParse::Type::INT, "Total genome length (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
     args.add_option("coding-exons", ArgParse::Type::STRING, "BED-like file (chrom name, strand, phase, start, end) with coordinates of coding exons (needed for --output-phylo).", ArgParse::Level::GENERAL, false);
-    args.add_option("output-regions", ArgParse::Type::BOOL, "Generate bed files with coordinates of potential protein coding regions (need to put --output-phylo as 1 to run the command). Default: " + std::to_string(params.phylo_bed_file), ArgParse::Level::GENERAL,false);
     args.add_option("threads", ArgParse::Type::INT, "Parallelize scoring of multiple MSAs in a file using multiple threads. Default: " + std::to_string(params.threads), ArgParse::Level::GENERAL, false);
     args.add_option("output", ArgParse::Type::STRING, "Directory where tracks in wig format will be written to. If it does not exist, it will be created. Default: output files are stored next to the input files.", ArgParse::Level::GENERAL, false);
     args.add_option("mapping", ArgParse::Type::STRING, "If the MSAs don't use common species names (like Human, Chimp, etc.) you can pass a two-column tsv file with a name mapping.", ArgParse::Level::GENERAL, false);
@@ -435,6 +449,12 @@ int main_build_tracks(int argc, char **argv)
     if (args.is_set("output-regions"))
         params.phylo_bed_file = args.get_bool("output-regions");
 
+    // when --output-regions is true and --output-phylo is false, we have to give only bed files, not wig files
+    if (params.phylo_bed_file && !params.phylo_smooth) {
+        params.phylo_smooth = true;
+        params.smooth_wo_wig = true;
+    }
+
     // this has to hold true: phylo_smooth => (args.is_set("genome-length") && args.is_set("coding-exons"))
     if (params.phylo_smooth && (!args.is_set("genome-length") || !args.is_set("coding-exons")))
     {
@@ -443,9 +463,10 @@ int main_build_tracks(int argc, char **argv)
     }
 
     // this has to hold true: output-regions => phylo_smooth
-    if (args.is_set("output-regions") && !(params.phylo_smooth))
+    if (params.phylo_bed_file && (!args.is_set("genome-length") || !args.is_set("coding-exons")))
     {
-        printf(OUT_ERROR "To generate bed file of possible coding regions (--output-regions) you need to provide --output-phylo as 1, and also need to provide --genome-length and --coding-exons.\n" OUT_RESET);
+        printf(OUT_ERROR "To generate bed file of possible coding regions (--output-regions) you need to provide --genome-length and --coding-exons.\n" OUT_RESET);
+        return -1;
     }
 
     if (args.is_set("output"))

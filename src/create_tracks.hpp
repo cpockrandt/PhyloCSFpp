@@ -247,14 +247,9 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
         double log_odds = compute_log_odds(state_probabilities[cur_codon_count][0]);
         result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
     }
-    //TODO fill bedresult with start and end positon of 0 blocks
-    //   uint32_t chunk_start_pos = blockStartPos + 3 * cur_codon_count;
-    //   uint32_t chunk_end_pos = chunk_start_pos + 2;
-    // maxProb=find max. coding prob in 0 block
-    // bedresult.emplace_back(start0Region, end0Region, maxProb)
     uint32_t starting_position;
     uint32_t end_position;
-    uint32_t starting_count;
+    uint32_t starting_count=0;
     uint32_t end_count;
     for (size_t i=0; i<path.size()-1; i++) {
         double prob=0;
