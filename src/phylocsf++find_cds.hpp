@@ -343,12 +343,12 @@ void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & 
         {
             if (is_gff)
             {
-                fprintf(gff_out, "%s;phylocsf_weightened_mean=%.3f", line.c_str(), t.phylo_score);
+                fprintf(gff_out, "%s;phylocsf_weighted_mean=%.3f", line.c_str(), t.phylo_score);
                 fprintf(gff_out, ";phylocsf_power_mean=%.3f", t.phylo_power);
             }
             else
             {
-                fprintf(gff_out, "%s phylocsf_weightened_mean \"%.3f\";", line.c_str(), t.phylo_score);
+                fprintf(gff_out, "%s phylocsf_weighted_mean \"%.3f\";", line.c_str(), t.phylo_score);
                 fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", t.phylo_power);
             }
             fprintf(gff_out, "\n");
@@ -366,12 +366,12 @@ void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & 
 
         if (is_gff)
         {
-            fprintf(gff_out, "phylocsf_weightened_mean=%.3f", c.phylo_score);
+            fprintf(gff_out, "phylocsf_weighted_mean=%.3f", c.phylo_score);
             fprintf(gff_out, ";phylocsf_power_mean=%.3f", c.phylo_power);
         }
         else
         {
-            fprintf(gff_out, "phylocsf_weightened_mean \"%.3f\";", c.phylo_score);
+            fprintf(gff_out, "phylocsf_weighted_mean \"%.3f\";", c.phylo_score);
             fprintf(gff_out, " phylocsf_power_mean \"%.3f\";", c.phylo_power);
         }
 
