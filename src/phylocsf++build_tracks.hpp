@@ -265,6 +265,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                                         }
                                     }
                                 }
+
                                 scores.clear();
                                 region.clear();
                                 bedregions.clear();
@@ -462,10 +463,10 @@ int main_build_tracks(int argc, char **argv)
         return -1;
     }
 
-    // this has to hold true: output-regions => phylo_smooth
+    // this has to hold true: output-regions => (args.is_set("genome-length") && args.is_set("coding-exons"))
     if (params.phylo_bed_file && (!args.is_set("genome-length") || !args.is_set("coding-exons")))
     {
-        printf(OUT_ERROR "To generate bed file of possible coding regions (--output-regions) you need to provide --genome-length and --coding-exons.\n" OUT_RESET);
+        printf(OUT_ERROR "To generate bed file of potential protein coding regions, you need to provide --genome-length and --coding-exons.\n" OUT_RESET);
         return -1;
     }
 
