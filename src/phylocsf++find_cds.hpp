@@ -445,6 +445,10 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
     gff_transcript t;
     while (reader.get_next_transcript<true>(t, true, true))
     {
+        // gencode has CDS and exons sorted in descending order for transcripts on the reverse strand. here we fix it:
+        std::sort(t.CDS.begin(), t.CDS.end(), [](const cds_entry & a, const cds_entry & b){ return a.begin < b.begin; });
+        std::sort(t.exons.begin(), t.exons.end(), [](const std::tuple<uint64_t, uint64_t> & a, const std::tuple<uint64_t, uint64_t> & b){ return std::get<0>(a) < std::get<0>(b); });
+
         ++nbr_transcripts;
 
         // change 1-based gff-coordinates to 0-based gff-coordinates (like seqan)
@@ -735,7 +739,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
     if (params.evaluate)
     {
         printf("%-73s %6" PRIu64 "\n", "Transcripts in total:", nbr_transcripts);
-        printf("--------------------------------------------------------\n");
+        printf("--------------------------------------------------------------------------------\n");
         printf("%-73s %6" PRIu64 "\n", "Transcripts with annotated CDS:", nbr_transcripts_with_annotated_orf);
         printf("%-73s %6" PRIu64 "\n", "- annotated CDS is a proper CDS (start/stop codon, no frame shifts,...):", nbr_transcripts_with_annotated_orf - nbr_transcripts_with_annotated_invalid_orf);
         printf("%-73s %6" PRIu64 "\n", "- annotated CDS satisfies criteria (min-codons and min-score):", nbr_transcripts_with_annotated_orf_satisfies_criteria);
