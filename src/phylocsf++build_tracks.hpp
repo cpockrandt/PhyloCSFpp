@@ -379,10 +379,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".wig", jobs,
                         file_id > 1);
                 merge_job_output_files(
-                        output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed", jobs,
+                        output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + "Regions.bed", jobs,
                         file_id > 1);
                 if (!params.phylo_bed_file) {
-                    std::string bed_file_name = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed";
+                    std::string bed_file_name = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + "Regions.bed";
                     const char *address = bed_file_name.c_str();
                     remove(address);
                 }
