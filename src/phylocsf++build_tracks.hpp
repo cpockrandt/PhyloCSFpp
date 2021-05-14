@@ -137,7 +137,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     printf(OUT_ERROR "Error creating wig file!\n" OUT_RESET);
                     exit(1);
                 }
-                const std::string filename_bed = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + ".bed." + std::to_string(job_id);
+                const std::string filename_bed = output_folder + "/PhyloCSF" + std::string(1, strand) + std::to_string(frame) + "Regions.bed." + std::to_string(job_id);
                 file_score_bed[i] = fopen(filename_bed.c_str(), "w");
                 if (file_score_bed[i] == NULL) {
                     printf(OUT_ERROR "Error creating bed file!\n" OUT_RESET);

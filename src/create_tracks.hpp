@@ -247,7 +247,7 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
         double log_odds = compute_log_odds(state_probabilities[cur_codon_count][0]);
         result.emplace_back(chunk_start_pos, chunk_end_pos, log_odds);
     }
-    uint32_t starting_position;
+    uint32_t starting_position=0;
     uint32_t end_position;
     uint32_t starting_count=0;
     uint32_t end_count;
@@ -257,9 +257,37 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
         if (i==0 && path[i]==0) {
             starting_position=blockStartPos-1;
             starting_count=0;
+            if (path[i+1]!=0) {
+                prob = state_probabilities[starting_count][0];
+                double log_odd = compute_log_odds(prob);
+                if (log_odd < 1) {
+                    color=210;
+                } else if (log_odd > 7) {
+                    color=0;
+                } else {
+                    color=210-30*int(floor(log_odd));
+                }
+                bedresult.emplace_back(starting_position, starting_position+3, prob, color);
+            }
         } else if (path[i+1]==0 && path[i]!=0) {
-            starting_position=blockStartPos+3*i+2;
-            starting_count=i+1;
+            if (i!=path.size()-2) {
+                starting_position = blockStartPos + 3 * i + 2;
+                starting_count = i + 1;
+            }
+            else {
+                end_position=blockStartPos+3*i+5;
+                end_count=i+1;
+                prob = state_probabilities[end_count][0];
+                double log_odd = compute_log_odds(prob);
+                if (log_odd < 1) {
+                    color=210;
+                } else if (log_odd > 7) {
+                    color=0;
+                } else {
+                    color=210-30*int(floor(log_odd));
+                }
+                bedresult.emplace_back(end_position-3, end_position, prob, color);
+            }
         } else if (path[i+1]!=0 && path[i]==0) {
             end_position=blockStartPos+3*i+2;
             end_count=i;
@@ -277,7 +305,7 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
                 color=210-30*int(floor(log_odd));
             }
             bedresult.emplace_back(starting_position, end_position, prob, color);
-        } else if (i==path.size()-2 && path[i+1]==0) {
+        } else if (i==path.size()-2 && path[i+1]==0 && path[i]==0) {
             end_position=blockStartPos+3*i+5;
             end_count=i+1;
             for (uint32_t codon=starting_count; codon<=end_count; codon++) {
