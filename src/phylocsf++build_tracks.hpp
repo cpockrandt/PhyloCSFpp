@@ -206,42 +206,42 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     // the last 0-2 remaining basepairs in the bls array do not have a codon entry
                     assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
 
-                    for (size_t xx = 0, bls_pos = aln.skip_bases; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
-                    {
-                        const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
-                                                    + bls_per_bp[thread_id][bls_pos + 1]
-                                                    + bls_per_bp[thread_id][bls_pos + 2];
-                        if (bls_codon_sum < params.phylo_threshold * 3)
+                    if (strand == '+') {
+                        for (size_t xx = 0, bls_pos = aln.skip_bases; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
                         {
-                            if (params.phylo_smooth && scores.empty())
-                                startBlockPos = aln.start_pos + ((xx + 1) * 3);
-                            continue;
-                        }
-
-                        int64_t newPos = aln.start_pos + (xx * 3);
-
-                        if (prevPos + 3 != newPos)
-                        {
-                            if (params.phylo_raw)
-                                fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), newPos);
-
-                            if (params.phylo_smooth && !scores.empty())
+                            const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
+                                                        + bls_per_bp[thread_id][bls_pos + 1]
+                                                        + bls_per_bp[thread_id][bls_pos + 2];
+                            if (bls_codon_sum < params.phylo_threshold * 3)
                             {
-                                if (!params.smooth_wo_wig) {
-                                    fprintf(file_score[file_index],
-                                            "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(),
-                                            startBlockPos);
-                                }
+                                if (params.phylo_smooth && scores.empty())
+                                    startBlockPos = aln.start_pos + ((xx + 1) * 3);
+                                continue;
+                            }
 
-                                process_scores(model._hmm, scores, startBlockPos, region, bedregions);
+                            int64_t newPos = aln.start_pos + (xx * 3);
 
-                                if (!params.smooth_wo_wig) {
-                                    for (size_t i = 0; i < region.size(); i++) {
-                                        my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                            if (prevPos + 3 != newPos)
+                            {
+                                if (params.phylo_raw)
+                                    fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), newPos);
+
+                                if (params.phylo_smooth && !scores.empty())
+                                {
+                                    if (!params.smooth_wo_wig) {
+                                        fprintf(file_score[file_index],
+                                                "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(),
+                                                startBlockPos);
                                     }
-                                }
-                                if (params.phylo_bed_file) {
-                                    if (strand == '+') {
+
+                                    process_scores(model._hmm, scores, startBlockPos, region, bedregions);
+
+                                    if (!params.smooth_wo_wig) {
+                                        for (size_t i = 0; i < region.size(); i++) {
+                                            my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                                        }
+                                    }
+                                    if (params.phylo_bed_file) {
                                         for (size_t i = 0; i < bedregions.size(); i++) {
                                             fprintf(file_score_bed[file_index],
                                                     "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t+\t%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
@@ -252,7 +252,60 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                                                     bedregions[i].region_end,
                                                     bedregions[i].color, bedregions[i].color, bedregions[i].color);
                                         }
-                                    } else {
+                                    }
+
+                                    scores.clear();
+                                    region.clear();
+                                    bedregions.clear();
+                                    startBlockPos = aln.start_pos + (xx * 3);
+                                }
+                            }
+
+                            prevPos = newPos;
+
+                            if (params.phylo_raw)
+                                my_fprintf(file_score_raw[file_index], "%.3f", lpr_per_codon[thread_id][xx]);
+
+                            if (params.phylo_smooth)
+                                scores.push_back(lpr_per_codon[thread_id][xx]);
+                        }
+                    }
+
+                    if (strand == '-') {
+                        for (size_t xx = 0, bls_pos = aln.length() % 3; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
+                        {
+                            const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
+                                                        + bls_per_bp[thread_id][bls_pos + 1]
+                                                        + bls_per_bp[thread_id][bls_pos + 2];
+                            if (bls_codon_sum < params.phylo_threshold * 3)
+                            {
+                                if (params.phylo_smooth && scores.empty())
+                                    startBlockPos = aln.start_pos + ((xx + 1) * 3);
+                                continue;
+                            }
+
+                            int64_t newPos = aln.start_pos + (xx * 3);
+
+                            if (prevPos + 3 != newPos)
+                            {
+                                if (params.phylo_raw)
+                                    fprintf(file_score_raw[file_index], "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), newPos);
+
+                                if (params.phylo_smooth && !scores.empty()) {
+                                    if (!params.smooth_wo_wig) {
+                                        fprintf(file_score[file_index],
+                                                "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(),
+                                                startBlockPos);
+                                    }
+
+                                    process_scores(model._hmm, scores, startBlockPos, region, bedregions);
+
+                                    if (!params.smooth_wo_wig) {
+                                        for (size_t i = 0; i < region.size(); i++) {
+                                            my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
+                                        }
+                                    }
+                                    if (params.phylo_bed_file) {
                                         for (size_t i = 0; i < bedregions.size(); i++) {
                                             fprintf(file_score_bed[file_index],
                                                     "%s\t%" PRIu32 "\t%" PRIu32 "\t%s:%" PRIu32 "-%" PRIu32 "\t0\t-\t%" PRIu32 "\t%" PRIu32 "\t%" PRIu32 ",%" PRIu32 ",%" PRIu32 "\n",
@@ -264,22 +317,22 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                                                     bedregions[i].color, bedregions[i].color, bedregions[i].color);
                                         }
                                     }
+
+                                    scores.clear();
+                                    region.clear();
+                                    bedregions.clear();
+                                    startBlockPos = aln.start_pos + (xx * 3);
                                 }
-
-                                scores.clear();
-                                region.clear();
-                                bedregions.clear();
-                                startBlockPos = aln.start_pos + (xx * 3);
                             }
+
+                            prevPos = newPos;
+
+                            if (params.phylo_raw)
+                                my_fprintf(file_score_raw[file_index], "%.3f", lpr_per_codon[thread_id][xx]);
+
+                            if (params.phylo_smooth)
+                                scores.push_back(lpr_per_codon[thread_id][xx]);
                         }
-
-                        prevPos = newPos;
-
-                        if (params.phylo_raw)
-                            my_fprintf(file_score_raw[file_index], "%.3f", lpr_per_codon[thread_id][xx]);
-
-                        if (params.phylo_smooth)
-                            scores.push_back(lpr_per_codon[thread_id][xx]);
                     }
 
                     if (params.phylo_smooth && !scores.empty())

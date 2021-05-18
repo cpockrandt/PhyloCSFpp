@@ -234,6 +234,17 @@ double compute_log_odds(double prob) {
     }
 }
 
+uint32_t computing_color_code(double log_odd) {
+    uint32_t color = 0;
+    if (log_odd < 1) {
+        color = 210;
+    } else if (log_odd > 7) {
+        color = 0;
+    } else {
+        color = 210 - 30 * int(floor(log_odd));
+    }
+    return color;
+}
 /*
  * Processes a set of contiguous scores and returns coding regions with its respective maximal log-odds score
  */
@@ -260,13 +271,7 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
             if (path[i+1]!=0) {
                 prob = state_probabilities[starting_count][0];
                 double log_odd = compute_log_odds(prob);
-                if (log_odd < 1) {
-                    color=210;
-                } else if (log_odd > 7) {
-                    color=0;
-                } else {
-                    color=210-30*int(floor(log_odd));
-                }
+                computing_color_code(log_odd);
                 bedresult.emplace_back(starting_position, starting_position+3, prob, color);
             }
         } else if (path[i+1]==0 && path[i]!=0) {
@@ -279,13 +284,7 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
                 end_count=i+1;
                 prob = state_probabilities[end_count][0];
                 double log_odd = compute_log_odds(prob);
-                if (log_odd < 1) {
-                    color=210;
-                } else if (log_odd > 7) {
-                    color=0;
-                } else {
-                    color=210-30*int(floor(log_odd));
-                }
+                computing_color_code(log_odd);
                 bedresult.emplace_back(end_position-3, end_position, prob, color);
             }
         } else if (path[i+1]!=0 && path[i]==0) {
@@ -297,13 +296,7 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
                 }
             }
             double log_odd = compute_log_odds(prob);
-            if (log_odd < 1) {
-                color=210;
-            } else if (log_odd > 7) {
-                color=0;
-            } else {
-                color=210-30*int(floor(log_odd));
-            }
+            computing_color_code(log_odd);
             bedresult.emplace_back(starting_position, end_position, prob, color);
         } else if (i==path.size()-2 && path[i+1]==0 && path[i]==0) {
             end_position=blockStartPos+3*i+5;
@@ -314,13 +307,7 @@ void process_scores(hmm const & hmm, std::vector<double> &scores,
                 }
             }
             double log_odd = compute_log_odds(prob);
-            if (log_odd < 1) {
-                color=210;
-            } else if (log_odd > 7) {
-                color=0;
-            } else {
-                color=210-30*int(floor(log_odd));
-            }
+            computing_color_code(log_odd);
             bedresult.emplace_back(starting_position, end_position, prob, color);
         }
     }
