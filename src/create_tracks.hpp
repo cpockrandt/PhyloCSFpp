@@ -235,15 +235,13 @@ double compute_log_odds(double prob) {
 }
 
 uint32_t computing_color_code(double log_odd) {
-    uint32_t color = 0;
     if (log_odd < 1) {
-        color = 210;
+        return 210;
     } else if (log_odd > 7) {
-        color = 0;
+        return 0;
     } else {
-        color = 210 - 30 * int(floor(log_odd));
+        return 210 - 30 * int(floor(log_odd));
     }
-    return color;
 }
 /*
  * Processes a set of contiguous scores and returns coding regions with its respective maximal log-odds score
