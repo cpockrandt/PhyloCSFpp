@@ -596,7 +596,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
             uint32_t first_exon_id_in_CDS = 0;
             uint32_t last_exon_id_in_CDS = 0;
             std::vector<cds_entry> CDS;
-            for (auto const e : t.exons)
+            for (auto const & e : t.exons)
             {
                 uint32_t const len_new = len + END(e) - BEGIN(e);
 
