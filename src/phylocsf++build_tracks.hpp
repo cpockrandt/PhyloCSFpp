@@ -167,10 +167,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                     skip_bases += 3;
 
                 // do not print header if no values are following
-                if (2 + 2 < bls_per_bp[thread_id].size())
+                if (static_cast<uint64_t>(skip_bases) + 2 < bls_per_bp[thread_id].size())
                     fprintf(file_power, "fixedStep chrom=%s start=%" PRId64 " step=3 span=3\n", aln.chrom.c_str(), aln.start_pos + skip_bases);
 
-                for (uint32_t pos = 2; pos + 2 < bls_per_bp[thread_id].size(); pos += 3)
+                for (uint32_t pos = skip_bases; pos + 2 < bls_per_bp[thread_id].size(); pos += 3)
                 {
                     const float bls_codon_avg = (bls_per_bp[thread_id][pos]
                                                  +  bls_per_bp[thread_id][pos + 1]
