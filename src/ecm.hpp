@@ -22,6 +22,12 @@ struct empirical_codon_model
     {
         FILE* stream = fopen(path, "r");
 
+        if (!stream)
+        {
+            printf(OUT_ERROR "Could not open model file '%s'. Please pass the prefix to the model files without any file endings.\n" OUT_RESET, path);
+            exit(-1);
+        }
+
         char line[4096];
 
         // read file

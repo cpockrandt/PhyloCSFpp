@@ -132,7 +132,7 @@ uint16_t newick_count_leaves(const newick_node * const node)
 
 inline newick_node* newick_open(const char * const file_path)
 {
-    char * linebuf;
+    char * linebuf = NULL;
     size_t linesiz = 0;
 
     FILE *fptr;

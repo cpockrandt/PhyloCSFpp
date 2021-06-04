@@ -5,7 +5,7 @@ THREADS=$1
 
 mkdir ./build/results
 
-### build-tracks
+### build-tracks (with model from file)
 
 # download data: wget -m -nd ftp://ftp.ccb.jhu.edu/pub/pocki/phylocsf++/tests/s
 if [ ! -f "example/galGal6_chr22_25_28_each_30k_bases.maf" ]; then
@@ -14,7 +14,7 @@ fi
 
 $PhyloCSFpp build-tracks --genome-length 1065365434 --coding-exons example/galGal6_coding_exons.txt \
   --output-phylo 1 --output-raw-phylo 1 --threads $THREADS --output ./build/results/build-tracks \
-  53birds example/galGal6_chr22_25_28_each_30k_bases.maf
+  test/53birds example/galGal6_chr22_25_28_each_30k_bases.maf
 
 diff -r ./build/results/build-tracks ./test/expected_results/build-tracks
 
