@@ -440,15 +440,18 @@ public:
         int64_t ref_seq_id = -1;
         char line_type;
         uint64_t prev_cumulative_len_wo_ref_gaps = 0;
+        size_t old_file_range_pos = file_range_pos[job_id];
+
         // check whether we can extend the alignment (i.e., next alignment starts on the next base where the last one ended)
         while ((!abort_next_alignment || first_alignment_block) && file_range_pos[job_id] < (size_t)file_size)
         {
-            const size_t old_file_range_pos = file_range_pos[job_id];
+            // restore file_range_pos later if we read in an alignment block that we want to read again next time
+            old_file_range_pos = file_range_pos[job_id];
             skip(job_id); // skip "a score=..."
 
             int64_t ref_seq_id_subsequent_block = -1;
 
-            // get the next alignment
+            // get the next alignment block
             while ((!abort_next_alignment || first_alignment_block) && file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')
             {
                 if (line_type == 's')
@@ -498,11 +501,7 @@ public:
                         continue;
                     }
 
-                    assert(seq != NULL); // check because of a former bug
-                    aln.seqs[alnid->second] += seq; // TODO: std::move?
-                    if (species_seen_in_alignment != NULL)
-                        (*species_seen_in_alignment)[alnid->second] = true;
-
+                    // first alignment block
                     // first sequence we encounter is the reference sequence. store its length!
                     if (ref_seq_id == -1 && first_alignment_block)
                     {
@@ -518,6 +517,8 @@ public:
                             exit(-1);
                         }
                     }
+                    // subsequent alignment block
+                    // encountering first sequence of this alignment block
                     else if (ref_seq_id_subsequent_block == -1 && !first_alignment_block)
                     {
                         ref_seq_id_subsequent_block = alnid->second;
@@ -534,7 +535,13 @@ public:
                             exit(-1);
                         }
                     }
-                    else
+
+                    assert(seq != NULL); // check because of a former bug
+                    aln.seqs[alnid->second] += seq; // TODO: std::move?
+                    if (species_seen_in_alignment != NULL)
+                        (*species_seen_in_alignment)[alnid->second] = true;
+
+                    if (!(ref_seq_id == -1 && first_alignment_block) && !(ref_seq_id_subsequent_block == -1 && !first_alignment_block))
                     {
                         assert(aln.seqs[ref_seq_id].size() == aln.seqs[alnid->second].size()); // all seqs same length
                     }
@@ -548,24 +555,24 @@ public:
                 }
             }
 
-            if (abort_next_alignment && !first_alignment_block)
+            // for species not included in the alignment add to them the sequence NNNN...NNNN.
+            const size_t new_ref_seq_len2 = aln.seqs[ref_seq_id].size();
+            for (uint64_t i = 0; i < aln.seqs.size(); ++i)
             {
-                file_range_pos[job_id] = old_file_range_pos;
-            }
-            else
-            {
-                // for species not included in the alignment add to them the sequence NNNN...NNNN.
-                const size_t new_ref_seq_len2 = aln.seqs[ref_seq_id].size();
-                for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+                if (aln.seqs[i].size() != new_ref_seq_len2)
                 {
-                    if (aln.seqs[i].size() != new_ref_seq_len2)
-                    {
-                        aln.seqs[i] += std::string(new_ref_seq_len2 - aln.seqs[i].size(), 'N');
-                    }
+                    aln.seqs[i] += std::string(new_ref_seq_len2 - aln.seqs[i].size(), 'N');
                 }
             }
 
             first_alignment_block = false; // we now have finished reading the first alignment block
+        }
+
+        if (abort_next_alignment && this->concatenate_alignments)
+        {
+            // restore file_range_pos because we read in an alignment block (or started partially)
+            // that we want to read in again next time we call this function
+            file_range_pos[job_id] = old_file_range_pos;
         }
 
         // replace gaps in reference sequence with X
