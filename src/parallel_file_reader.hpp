@@ -14,6 +14,8 @@
 
 #include "translation.hpp"
 
+#define BREAKPOINT_POS 10000
+
 struct alignment_t
 {
     uint64_t start_pos = 0;
@@ -437,19 +439,38 @@ public:
 
         bool first_alignment_block = true;
         bool abort_next_alignment = !this->concatenate_alignments;
+        bool reached_breakpoint = false;
+        bool stop_saving_file_pos = false;
+        size_t saved_file_range_pos = file_range_pos[job_id];
+        uint64_t saved_bytes_progress = 0;
+
         int64_t ref_seq_id = -1;
         char line_type;
         uint64_t prev_cumulative_len_wo_ref_gaps = 0;
-        size_t old_file_range_pos = file_range_pos[job_id];
+        uint64_t cumulative_len_wo_ref_gaps_after_block_with_breakpoint = 0;
 
         // check whether we can extend the alignment (i.e., next alignment starts on the next base where the last one ended)
         while ((!abort_next_alignment || first_alignment_block) && file_range_pos[job_id] < (size_t)file_size)
         {
             // restore file_range_pos later if we read in an alignment block that we want to read again next time
-            old_file_range_pos = file_range_pos[job_id];
+            if (!stop_saving_file_pos)
+            {
+                // make sure that we only store the file_range_pos in the first iteration of the while-loop after reaching the breakpoint
+                if (reached_breakpoint)
+                    stop_saving_file_pos = true;
+                saved_file_range_pos = file_range_pos[job_id];
+                saved_bytes_progress = bytes_processing[job_id];
+            }
             skip(job_id); // skip "a score=..."
 
             int64_t ref_seq_id_subsequent_block = -1;
+
+            // continue reading alignments after breakpoint until we have at least 2 more (non-gap) bases read in
+            if (reached_breakpoint && prev_cumulative_len_wo_ref_gaps >= cumulative_len_wo_ref_gaps_after_block_with_breakpoint + 2)
+            {
+                abort_next_alignment = true;
+                // printf("Breakpoint reached a, 2 bases extended (start: %lld, cum len: %lld)\n", aln.start_pos, prev_cumulative_len_wo_ref_gaps);
+            }
 
             // get the next alignment block
             while ((!abort_next_alignment || first_alignment_block) && file_range_pos[job_id] < (size_t)file_size && (line_type = get_char(job_id)) != 'a')
@@ -475,6 +496,7 @@ public:
                         // when the first seq is retrieved (for now it's the reference sequence), check whether it can extend the previous alignment
                         if (ref_seq_id_subsequent_block == -1 && !((aln.start_pos - 1) + prev_cumulative_len_wo_ref_gaps == start_pos && (strcmp(chrom, aln.chrom.c_str()) == 0)))
                         {
+                            // printf("Hard abort: cannot be extended\n");
                             abort_next_alignment = true;
                             free(id);
                             free(seq);
@@ -511,10 +533,23 @@ public:
                         aln.strand = ref_strand;
                         ref_seq_id = alnid->second;
                         prev_cumulative_len_wo_ref_gaps = tmp_len_wo_ref_gaps;
+
+                        // printf("First alignment block (chrom: %s, start: %lld, cum len: %lld)\n", aln.chrom.c_str(), aln.start_pos, prev_cumulative_len_wo_ref_gaps);
+
                         if (ref_strand != '+')
                         {
                             printf(OUT_ERROR "Reference sequence is not on the + strand (%s.%s at position %" PRIu64 ")!\n" OUT_RESET, id, chrom, start_pos);
                             exit(-1);
+                        }
+
+                        uint64_t prev_endpos = aln.start_pos + 0 /*prev_cumulative_len_wo_ref_gaps*/;
+                        uint64_t  new_endpos = aln.start_pos + 0 /*prev_cumulative_len_wo_ref_gaps*/ + tmp_len_wo_ref_gaps;
+                        if (!reached_breakpoint && prev_endpos / BREAKPOINT_POS < new_endpos / BREAKPOINT_POS)
+                        {
+                            reached_breakpoint = true;
+                            cumulative_len_wo_ref_gaps_after_block_with_breakpoint = prev_cumulative_len_wo_ref_gaps;
+                            // printf("Breakpoint reached a (start: %lld, cum len: %lld)\n", aln.start_pos, prev_cumulative_len_wo_ref_gaps);
+                            // do not "break" or abort the alignment, we still need to process the rest of the alignment, and read 2 extra bases of the next alignment(s)
                         }
                     }
                     // subsequent alignment block
@@ -522,7 +557,17 @@ public:
                     else if (ref_seq_id_subsequent_block == -1 && !first_alignment_block)
                     {
                         ref_seq_id_subsequent_block = alnid->second;
+                        uint64_t prev_endpos = aln.start_pos + prev_cumulative_len_wo_ref_gaps;
+                        uint64_t  new_endpos = aln.start_pos + prev_cumulative_len_wo_ref_gaps + tmp_len_wo_ref_gaps;
                         prev_cumulative_len_wo_ref_gaps += tmp_len_wo_ref_gaps;
+
+                        if (!reached_breakpoint && prev_endpos / BREAKPOINT_POS < new_endpos / BREAKPOINT_POS)
+                        {
+                            reached_breakpoint = true;
+                            cumulative_len_wo_ref_gaps_after_block_with_breakpoint = prev_cumulative_len_wo_ref_gaps;
+                            // printf("Breakpoint reached b (start: %lld, cum len: %lld)\n", aln.start_pos, prev_cumulative_len_wo_ref_gaps);
+                        }
+
                         if (ref_seq_id != ref_seq_id_subsequent_block)
                         {
                             unresolved_identifiers.emplace(id);
@@ -572,7 +617,8 @@ public:
         {
             // restore file_range_pos because we read in an alignment block (or started partially)
             // that we want to read in again next time we call this function
-            file_range_pos[job_id] = old_file_range_pos;
+            file_range_pos[job_id] = saved_file_range_pos;
+            bytes_processing[job_id] = saved_bytes_progress;
         }
 
         // replace gaps in reference sequence with X
@@ -613,6 +659,17 @@ public:
                 }
             }
             s.resize(pos_w);
+        }
+
+        if (reached_breakpoint && prev_cumulative_len_wo_ref_gaps > cumulative_len_wo_ref_gaps_after_block_with_breakpoint + 2)
+        {
+            // only keep 2 bases more than the alignment needed. throw away the remaining bases
+            for (uint64_t i = 0; i < aln.seqs.size(); ++i)
+            {
+                assert(prev_cumulative_len_wo_ref_gaps == aln.seqs.size());
+                aln.seqs[i].resize(cumulative_len_wo_ref_gaps_after_block_with_breakpoint + 2);
+            }
+            // printf("Breakpoint shortened seq to: (start: %lld, cum len: %ld)\n", aln.start_pos, aln.seqs[ref_seq_id].size());
         }
 
         aln.skip_bases = 0;
