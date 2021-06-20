@@ -359,7 +359,7 @@ gsl_vector * get_prior(instance_t & instance)
     }
 }
 
-void lpr_leaves(instance_t & instance, const alignment_t & alignment, const double t, double & lpr, double & elpr_anc, std::vector<double> & lpr_per_codon)
+void lpr_leaves(instance_t & instance, const alignment_t & alignment, const double t, double & lpr, double & elpr_anc, std::vector<double> & lpr_per_codon, bool compute_anc_score)
 {
     // don't think a deep-copy is necessary. there's a
     // 1.  copy instance (not sure whether it's necessary), but it doesn't seem that
@@ -378,13 +378,15 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
     workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
-// BEGIN - THIS IS FOR ANC SCORE
-    gsl_vector * anc_lprior = gsl_vector_alloc(64);
-    gsl_vector_memcpy(anc_lprior, get_prior(instance));
-    for (uint8_t i = 0; i < 64; ++i)
-        gsl_vector_set(anc_lprior, i, log(gsl_vector_get(anc_lprior, i)));
+    gsl_vector * anc_lprior;
     const uint16_t root_node_id = instance.model.tree.size() - 1;
-// END - THIS IS FOR ANC SCORE
+    if (compute_anc_score)
+    {
+        anc_lprior = gsl_vector_alloc(64);
+        gsl_vector_memcpy(anc_lprior, get_prior(instance));
+        for (uint8_t i = 0; i < 64; ++i)
+            gsl_vector_set(anc_lprior, i, log(gsl_vector_get(anc_lprior, i)));
+    }
 
     gsl_vector * tmp_prior = get_prior(instance); // TODO: move this out of the for loop below!
 
@@ -430,19 +432,20 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
         lpr += log_z;
         lpr_per_codon.push_back(log_z);
 
-// BEGIN - THIS IS FOR ANC SCORE
-        gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
-        assert(pr_root->size == anc_lprior->size);
-        for (uint16_t xx = 0; xx < anc_lprior->size; ++xx)
+        if (compute_anc_score)
         {
-            elpr_anc += gsl_vector_get(anc_lprior, xx) * gsl_vector_get(pr_root, xx);
+            gsl_vector * pr_root = node_posterior(instance, workspace, alignment, aa_pos, root_node_id);
+            assert(pr_root->size == 64);
+            for (uint16_t xx = 0; xx < 64; ++xx)
+            {
+                elpr_anc += gsl_vector_get(anc_lprior, xx) * gsl_vector_get(pr_root, xx);
+            }
+            gsl_vector_free(pr_root);
         }
-        gsl_vector_free(pr_root);
-// END - THIS IS FOR ANC SCORE
     }
-// BEGIN - THIS IS FOR ANC SCORE
-    gsl_vector_free(anc_lprior);
-// END - THIS IS FOR ANC SCORE
+
+    if (compute_anc_score)
+        gsl_vector_free(anc_lprior);
 }
 
 struct minimizer_params_t {
@@ -451,6 +454,7 @@ struct minimizer_params_t {
     double x;
     double lpr;
     double elpr_anc;
+    bool compute_anc_score;
 };
 
 double minimizer_lpr_leaves(const double x, void * params)
@@ -458,7 +462,7 @@ double minimizer_lpr_leaves(const double x, void * params)
     minimizer_params_t * min_params = (minimizer_params_t*) params;
     min_params->x = x;
     std::vector<double> TODO_remove;
-    lpr_leaves(min_params->instance, min_params->alignment, x, min_params->lpr, min_params->elpr_anc, TODO_remove);
+    lpr_leaves(min_params->instance, min_params->alignment, x, min_params->lpr, min_params->elpr_anc, TODO_remove, min_params->compute_anc_score);
     return (-1) * min_params->lpr;
 }
 
@@ -505,11 +509,11 @@ void fit_find_init(const uint32_t max_tries, const double init, const double lo,
 }
 
 template <typename function_t>
-void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, double &lpr, double &elpr_anc, const double init, double lo, double hi, function_t * min_func, std::mt19937 & gen)
+void max_lik_lpr_leaves(instance_t &instance, const alignment_t &alignment, double &lpr, double &elpr_anc, const double init, double lo, double hi, function_t * min_func, std::mt19937 & gen, const bool compute_anc_score)
 {
     const double accuracy = 0.01;
 
-    minimizer_params_t params {instance, alignment, 0.0, 0.0, 0.0};
+    minimizer_params_t params {instance, alignment, 0.0, 0.0, 0.0, compute_anc_score};
     fit_find_init(250/*max_tries*/, init, lo, hi, &min_func, &params, gen);
     if (lo < params.x && params.x < hi)
     {

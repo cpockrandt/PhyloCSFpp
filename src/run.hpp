@@ -45,8 +45,8 @@ void run_tracks(Data & data, const Model & model, const alignment_t & alignment,
     nc_lpr_per_codon.reserve(alignment.length() / 3);
 
     // TODO: skip triplets with PhyloPower < 0.1 to speed up computation!
-    lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, lpr_per_codon);
-    lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
+    lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, lpr_per_codon, false);
+    lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon, false);
 
     for (uint32_t i = 0; i < lpr_per_codon.size(); ++i)
     {
@@ -54,7 +54,7 @@ void run_tracks(Data & data, const Model & model, const alignment_t & alignment,
     }
 }
 
-std::tuple<float, float> run(Data & data, const Model & model, const alignment_t & alignment, const algorithm_t algo, std::mt19937 & gen)
+std::tuple<float, float> run(Data & data, const Model & model, const alignment_t & alignment, const algorithm_t algo, std::mt19937 & gen, const bool compute_anc_score)
 {
     if (algo == algorithm_t::OMEGA)
     {
@@ -150,10 +150,10 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 for (uint8_t i = 0; i < 3; ++i)
                 {
                     const double init_rho = inst.tree_settings;
-                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen, false);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
-                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H0, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen, false);
                 }
             }
 
@@ -168,10 +168,10 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
                 for (uint8_t i = 0; i < 3; ++i)
                 {
                     const double init_rho = inst.tree_settings;
-                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_rho, 0.001, 10.0, &minimizer_lpr_leaves_rho, gen, false);
 
                     const double init_kappa = gsl_vector_get(inst.q_settings, 0);
-                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen);
+                    max_lik_lpr_leaves(inst, alignment, lpr_H1, elpr_anc, init_kappa, 1.0, 10.0, &minimizer_lpr_leaves_kappa, gen, false);
                 }
             }
         }
@@ -190,8 +190,8 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
 
         if (algo == algorithm_t::MLE)
         {
-            max_lik_lpr_leaves(data.c_instance, alignment, lpr_c, elpr_anc_c, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves, gen);
-            max_lik_lpr_leaves(data.nc_instance, alignment, lpr_nc, elpr_anc_nc, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves, gen);
+            max_lik_lpr_leaves(data.c_instance, alignment, lpr_c, elpr_anc_c, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves, gen, compute_anc_score);
+            max_lik_lpr_leaves(data.nc_instance, alignment, lpr_nc, elpr_anc_nc, 1.0, 1e-2, 10.0, &minimizer_lpr_leaves, gen, compute_anc_score);
         }
         else // if (algo == algorithm_t::FIXED)
         {
@@ -199,8 +199,8 @@ std::tuple<float, float> run(Data & data, const Model & model, const alignment_t
             c_lpr_per_codon.reserve(alignment.length() / 3);
             nc_lpr_per_codon.reserve(alignment.length() / 3);
 
-            lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, c_lpr_per_codon);
-            lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon);
+            lpr_leaves(data.c_instance, alignment, 1.0, lpr_c, elpr_anc_c, c_lpr_per_codon, compute_anc_score);
+            lpr_leaves(data.nc_instance, alignment, 1.0, lpr_nc, elpr_anc_nc, nc_lpr_per_codon, compute_anc_score);
         }
 
         const float phylocsf_score = 10.0 * (lpr_c - lpr_nc) / log(10.0);
