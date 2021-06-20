@@ -107,14 +107,13 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
 
             results.emplace_back(aln.chrom, aln.start_pos, aln.start_pos + aln.length() - 1, aln.strand, NAN, NAN, NAN);
 
-            // TODO: only compute phylocsf score and/or anc score if necessary
             if (!params.avg_codon_score)
             {
                 if (params.comp_phylo || params.comp_anc)
                 {
                     try {
                         gen.seed(42); // NOTE: make sure that parallelization does not affect resultss
-                        std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy, gen);
+                        std::tuple<float, float> result = run(data[thread_id], model, aln, params.strategy, gen, params.comp_anc);
 
                         if (params.comp_phylo)
                             results.back().phylo = std::get<0>(result);
@@ -164,7 +163,7 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
 //                    const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
 //                                              + bls_per_bp[thread_id][bls_pos + 1]
 //                                              + bls_per_bp[thread_id][bls_pos + 2];
-//                    if (bls_codon_sum < 0.1 * 3) // TODO: document this fixed threshold
+//                    if (bls_codon_sum < 0.1 * 3)
 //                    {
 //                        if (scores.empty())
 //                            startBlockPos = aln.start_pos + ((xx + 1) * 3);
@@ -177,12 +176,10 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
                     {
                         if (!scores.empty())
                         {
-                            // fprintf(file_score[file_index], "fixedStep chrom=%s start=%ld step=3 span=3\n", aln.chrom.c_str(), startBlockPos);
                             process_scores(model._hmm, scores, startBlockPos, region, bedregions);
 
                             for(size_t i = 0; i < region.size(); i++)
                                 sum_smoothened_scores += region[i].log_odds_prob;
-                                //my_fprintf(file_score[file_index], "%.3f", region[i].log_odds_prob);
                             cnt_smoothened_scores += region.size();
 
                             scores.clear();
