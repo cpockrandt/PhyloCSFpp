@@ -55,7 +55,7 @@ void merge_job_output_files(const std::string & base_name, const unsigned jobs, 
 void run_tracks(const std::string & alignment_path, const Model & model, const TrackCLIParams & params,
                 const uint32_t file_id, const uint32_t files, std::vector<std::vector<bool> > & species_seen_in_alignment)
 {
-    unsigned jobs = (params.threads > 1) ? params.threads * 10 : 1;
+    unsigned jobs = (params.threads > 1) ? params.threads * 32 : 1;
 
     std::vector<Data> data(params.threads);
 
