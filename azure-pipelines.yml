@@ -1,0 +1,126 @@
+trigger:
+- master
+
+jobs:
+  - job: build_ubuntu_1804
+    displayName: Ubuntu 1804
+    pool:
+      vmImage: 'Ubuntu-18.04'
+    timeoutInMinutes: 120
+    strategy:
+      matrix:
+        gcc_9_debug_asn:
+          CXX: 'g++-9'
+          CMAKE_CXX_FLAGS: '-fsanitize=address -fno-omit-frame-pointer'
+          THREADS: 1
+          STATIC: 0
+          BUILD_TYPE: Debug
+        gcc_49:
+          CXX: 'g++-4.9'
+          THREADS: 1
+          STATIC: 0
+          BUILD_TYPE: Release
+        gcc_5:
+          CXX: 'g++-5'
+          THREADS: 2
+          STATIC: 0
+          BUILD_TYPE: Release
+        gcc_6:
+          CXX: 'g++-6'
+          THREADS: 3
+          STATIC: 0
+          BUILD_TYPE: Release
+        gcc_7:
+          CXX: 'g++-7'
+          THREADS: 4
+          STATIC: 0
+          BUILD_TYPE: Release
+        gcc_8:
+          CXX: 'g++-8'
+          THREADS: 5
+          STATIC: 0
+          BUILD_TYPE: Release
+        gcc_9:
+          CXX: 'g++-9'
+          THREADS: 6
+          STATIC: 0
+          BUILD_TYPE: Release
+        gcc_10:
+          CXX: 'g++-10'
+          THREADS: 7
+          STATIC: 1
+          BUILD_TYPE: Release
+        # clang_38:
+        #   CXX: 'clang++-3.8'
+        #   THREADS: 2
+        #   STATIC: 0
+        #   BUILD_TYPE: Release
+        # clang_80:
+        #   CXX: 'clang++-8'
+        #   THREADS: 5
+        #   STATIC: 1
+        #   BUILD_TYPE: Release
+
+    steps:
+      - checkout: self
+      - script: |
+          if [ "${CXX}" = "clang++-3.8" ]; then
+            wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+            sudo add-apt-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-3.8 main"
+            # sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install clang-3.8 libc++-3.8-dev libomp-dev 
+            # not necessary: libc++abi-3.8-dev lld-3.8
+          elif [ "${CXX}" = "clang++-8" ]; then
+            wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+            sudo add-apt-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main"
+            # sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install clang-8 libc++-8-dev libomp-dev
+            # not necessary: libc++abi-8-dev lld-8
+          elif [ "${CXX}" = "g++-4.9" ]; then
+            sudo add-apt-repository "deb http://dk.archive.ubuntu.com/ubuntu/ xenial main"
+            sudo add-apt-repository "deb http://dk.archive.ubuntu.com/ubuntu/ xenial universe"
+            sudo apt-get update
+            sudo apt-get install -y g++-4.9
+          else
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install -y ${CXX}
+          fi
+        displayName: Install compiler/dependencies
+      - script: |
+          mkdir build && cd build
+          if [ "${STATIC}" -eq "1" ]; then
+            cmake -DCMAKE_CXX_COMPILER=${CXX} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror" -DPHYLOCSFPP_STATIC_BUILD=1 ..
+          else
+            cmake -DCMAKE_CXX_COMPILER=${CXX} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror" ..
+          fi
+          make -j $(nproc --all) VERBOSE=1
+        displayName: Build PhyloCSF++
+      - script: |
+         ./test/tests.sh ${THREADS}
+      #  ./build/phylocsf++ build-tracks --help
+        displayName: Test PhyloCSF++
+
+  # - job: build_macos_1015
+  #   displayName: macOS 1015
+  #   pool:
+  #     vmImage: 'macos-10.15'
+  #   timeoutInMinutes: 120
+  #   steps:
+  #     - checkout: self
+  #     - script: |
+  #         clang++ --version
+  #         brew update
+  #         brew install gsl
+  #       displayName: Install compiler/dependencies
+  #     - script: |
+  #         mkdir build && cd build
+  #         cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror" ..
+  #         make -j $(nproc --all) VERBOSE=1
+  #       displayName: Build PhyloCSF++
+  #     - script: |
+  #         ./build/phylocsf++ build-tracks --help
+  #         ./test/tests.sh ${THREADS}
+  #       displayName: Test PhyloCSF++
