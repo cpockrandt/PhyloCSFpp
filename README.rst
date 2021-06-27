@@ -7,9 +7,9 @@ PhyloCSF++: A fast and user-friendly implementation of PhyloCSF with annotation 
 .. image:: https://img.shields.io/github/downloads/cpockrandt/phylocsfpp/total.svg
     :target: https://github.com/cpockrandt/PhyloCSFpp/releases/latest
     :alt: Github All Releases
-.. image:: https://travis-ci.com/cpockrandt/PhyloCSFpp.svg?branch=master
-    :target: https://travis-ci.com/cpockrandt/PhyloCSFpp
-    :alt: Travis CI
+.. image:: https://dev.azure.com/cpockrandt/PhyloCSFpp/_apis/build/status/cpockrandt.PhyloCSFpp?branchName=azure-pipelines
+    :target: https://dev.azure.com/cpockrandt/PhyloCSFpp/_build/latest?definitionId=2&branchName=azure-pipelines
+    :alt: Azure Pipelines
 .. image:: https://img.shields.io/badge/License-AGPLv3-blue.svg
     :target: https://opensource.org/licenses/AGPL-3.0
     :alt: AGPL v3 License
