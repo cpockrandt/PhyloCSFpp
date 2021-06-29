@@ -99,7 +99,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
             file_power = fopen(filename_power.c_str(), "w");
             if (file_power == NULL)
             {
-                printf(OUT_ERROR "Error creating file!\n" OUT_RESET);
+                printf(OUT_ERROR "Error creating file '%s'!\n" OUT_RESET, filename_power.c_str());
                 exit(1);
             }
         }
@@ -117,7 +117,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                 file_score_raw[i] = fopen(filename_score_raw.c_str(), "w");
                 if (file_score_raw[i] == NULL)
                 {
-                    printf(OUT_ERROR "Error creating file!\n" OUT_RESET);
+                    printf(OUT_ERROR "Error creating file '%s'!\n" OUT_RESET, filename_score_raw.c_str());
                     exit(1);
                 }
             }
