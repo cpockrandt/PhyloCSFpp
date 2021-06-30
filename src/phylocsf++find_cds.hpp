@@ -341,7 +341,7 @@ void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & 
             is_gff = is_gff_format(line);
         }
 
-        if (f == TRANSCRIPT)
+        if (f == TRANSCRIPT && !CDS.empty())
         {
             if (is_gff)
             {
