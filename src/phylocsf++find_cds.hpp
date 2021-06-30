@@ -1,6 +1,7 @@
 #include "common.hpp"
 #include "arg_parse.hpp"
 
+#include <array>
 #include <regex>
 
 #define BEGIN(exon) std::get<0>(exon)
@@ -361,17 +362,17 @@ void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & 
         }
     }
     // print computed CDS
-    for (const auto c : CDS)
+    for (const cds_entry & c : CDS)
     {
         // transform 0-based indices from seqan back to 1-based indices of gff
         fprintf(gff_out, "%s\tPhyloCSF++\tCDS\t%" PRIu64 "\t%" PRIu64 "\t.\t%c\t%d\t", t.chr.c_str(), c.begin + 1, c.end, t.strand, c.phase);
 
         if (transcript_id_str != "")
         {
-            fprintf(gff_out, transcript_id_str.c_str());
+            fprintf(gff_out, "%s", transcript_id_str.c_str());
             if (transcript_id_str.back() != ';')
-                fprintf(gff_out, ";");
-            fprintf(gff_out, " ");
+                fprintf(gff_out, "%s", ";");
+            fprintf(gff_out, "%s", " ");
         }
 
 
