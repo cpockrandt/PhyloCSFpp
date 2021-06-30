@@ -1,6 +1,8 @@
 #include "common.hpp"
 #include "arg_parse.hpp"
 
+#include <regex>
+
 #define BEGIN(exon) std::get<0>(exon)
 #define END(exon) std::get<1>(exon)
 
@@ -323,7 +325,7 @@ compute_PhyloCSF(TExons & exons, TIter first, TIter last, char const strand,
     );
 }
 
-void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & CDS, FILE * gff_out)
+void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & CDS, FILE * gff_out, const std::string & transcript_id_str)
 {
     bool first_processed_line = true;
     bool is_gff = true;
@@ -363,6 +365,15 @@ void output_transcript(const gff_transcript & t, const std::vector<cds_entry> & 
     {
         // transform 0-based indices from seqan back to 1-based indices of gff
         fprintf(gff_out, "%s\tPhyloCSF++\tCDS\t%" PRIu64 "\t%" PRIu64 "\t.\t%c\t%d\t", t.chr.c_str(), c.begin + 1, c.end, t.strand, c.phase);
+
+        if (transcript_id_str != "")
+        {
+            fprintf(gff_out, transcript_id_str.c_str());
+            if (transcript_id_str.back() != ';')
+                fprintf(gff_out, ";");
+            fprintf(gff_out, " ");
+        }
+
 
         if (is_gff)
         {
@@ -421,6 +432,8 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         printf(OUT_ERROR "Error creating file %s!\n" OUT_RESET, output_file_path.c_str());
         exit(1);
     }
+
+    const std::regex regex_transcript_id(".*(transcript_id[ =\"]*[A-Za-z0-9/\\._\\-]+[\";]*).*");
 
     fprintf(gff_out, "# CDS predicted with PhyloCSF++ %sles (%s, %s) and precomputed tracks %s "
                      "(options: --mode %s --min-score %f --min-codons %" PRIu32 ")\n",
@@ -489,6 +502,22 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         {
             printf(OUT_DEL OUT_INFO "Skipped a transcript with no strand information.\n" OUT_RESET);
             continue;
+        }
+
+        // extract transcript_id
+        std::string transcript_id_str = "";
+        // 1. get line that is a transcript feature
+        auto lines_it = std::find_if(t.lines.begin(), t.lines.end(),
+            [](const std::tuple<feature_t, std::string> & l){
+                return std::get<0>(l) == TRANSCRIPT;
+            });
+        if (lines_it != t.lines.end())
+        {
+            const std::string transcript_line = std::get<1>(*lines_it);
+            // 2. match to extract transcript_id
+            std::smatch match;
+            if (std::regex_search(transcript_line.begin(), transcript_line.end(), match, regex_transcript_id))
+                transcript_id_str = match[1].str();
         }
 
         annotated_cds_seq = "";
@@ -687,7 +716,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
                     CDS_outputted_or_found = true;
                     t.phylo_score = std::get<0>(phylo_stats);
                     t.phylo_power = std::get<1>(phylo_stats);
-                    output_transcript(t, CDS, gff_out);
+                    output_transcript(t, CDS, gff_out, transcript_id_str);
                 }
                 else if (params.mode == LONGEST && !CDS_outputted_or_found)
                 {
@@ -707,7 +736,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         {
             t.phylo_score = std::get<0>(longest_or_best_phylo_stats);
             t.phylo_power = std::get<1>(longest_or_best_phylo_stats);
-            output_transcript(t, longest_or_best_CDS, gff_out);
+            output_transcript(t, longest_or_best_CDS, gff_out, transcript_id_str);
 
             if (longest_or_best_seq == annotated_cds_seq)
                 ++nbr_transcripts_with_annotated_orf_matches_predicted_start_and_stop;
@@ -718,7 +747,7 @@ void run_find_cds(const std::string & gff_path, const FindCDSCLIParams & params,
         }
         else if (!CDS_outputted_or_found)
         {
-            output_transcript(t, std::vector<cds_entry>{}, gff_out);
+             output_transcript(t, std::vector<cds_entry>{}, gff_out, transcript_id_str);
         }
 
         if (found_an_orf_satisfying_criteria && annotated_cds_seq == "")
