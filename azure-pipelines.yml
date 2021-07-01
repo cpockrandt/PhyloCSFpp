@@ -3,7 +3,7 @@ trigger:
 
 jobs:
   - job: build_ubuntu_1804
-    displayName: Ubuntu 1804
+    displayName: Linux
     pool:
       vmImage: 'Ubuntu-18.04'
     timeoutInMinutes: 120
@@ -104,23 +104,26 @@ jobs:
         displayName: Test PhyloCSF++
 
   # - job: build_macos_1015
-  #   displayName: macOS 1015
+  #   displayName: Mac
   #   pool:
   #     vmImage: 'macos-10.15'
   #   timeoutInMinutes: 120
   #   steps:
   #     - checkout: self
   #     - script: |
-  #         clang++ --version
   #         brew update
   #         brew install gsl
   #       displayName: Install compiler/dependencies
   #     - script: |
   #         mkdir build && cd build
+  #         export LDFLAGS=-L/usr/local/Cellar/gsl/2.7/lib
   #         cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Werror" ..
   #         make -j $(nproc --all) VERBOSE=1
   #       displayName: Build PhyloCSF++
   #     - script: |
+  #         export DYLD_LIBRARY_PATH=`pwd`/build/libBigWig
+  #         echo $DYLD_LIBRARY_PATH
+  #         ls -l ./build/libBigWig
   #         ./build/phylocsf++ build-tracks --help
   #         ./test/tests.sh ${THREADS}
   #       displayName: Test PhyloCSF++
