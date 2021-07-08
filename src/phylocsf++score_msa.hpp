@@ -245,8 +245,8 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
 int main_score_msa(int argc, char **argv)
 {
     ArgParse args("phylocsf++ score-msa",
-                  "Computes PhyloCSF scores and confidence scores for whole alignments in FASTA or \n"
-                  "MAF files. Output is written to bed file(s). Optionally the ancestral sequence \n"
+                  "Computes PhyloCSF scores and confidence scores for whole alignments in MAF \n"
+                  "files. Output is written to bed file(s). Optionally the ancestral sequence \n"
                   "composition score can be computed as well. Only one forward frame is computed, \n"
                   "i.e., for other frames reverse the alignments and/or remove the first one or two \n"
                   "bases.");
