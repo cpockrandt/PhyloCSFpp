@@ -95,7 +95,7 @@ public:
         total_bytes_processed += bytes_processing;
         bytes_processing = 0;
 
-        while (true)
+        while (file_range_pos < (size_t)file_size)
         {
             char *newline_begin = strchr((char*) file_mem + file_range_pos, '\n');
             if (newline_begin == nullptr)
@@ -134,7 +134,7 @@ public:
 
             file_range_pos = new_file_range_pos + 1; // skip \n
         }
-        return true;
+        return !scores.empty();
     }
 
     ~wig_reader()
