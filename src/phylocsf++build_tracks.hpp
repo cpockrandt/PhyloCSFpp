@@ -187,12 +187,7 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         // the last 0-2 remaining basepairs in the bls array do not have a codon entry
                         assert(lpr_per_codon[thread_id].size() * 3 <= bls_per_bp[thread_id].size());
 
-                        size_t bls_pos;
-                        if (strand == '+')
-                            bls_pos = aln.skip_bases;
-                        else
-                            bls_pos = aln.length() % 3;
-                        for (size_t xx = 0; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
+                        for (size_t xx = 0, bls_pos = aln.skip_bases; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
                         {
                             const float bls_codon_sum = bls_per_bp[thread_id][bls_pos]
                                                         + bls_per_bp[thread_id][bls_pos + 1]
