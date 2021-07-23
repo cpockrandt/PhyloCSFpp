@@ -613,6 +613,13 @@ public:
             first_alignment_block = false; // we now have finished reading the first alignment block
         }
 
+        // continue reading alignments after breakpoint until we have at least 2 more (non-gap) bases read in
+        if (reached_breakpoint && prev_cumulative_len_wo_ref_gaps >= cumulative_len_wo_ref_gaps_after_block_with_breakpoint + 2)
+        {
+            abort_next_alignment = true;
+            // printf("Breakpoint reached c, 2 bases extended (start: %lld, cum len: %lld)\n", aln.start_pos, prev_cumulative_len_wo_ref_gaps);
+        }
+
         if (abort_next_alignment && this->concatenate_alignments)
         {
             // restore file_range_pos because we read in an alignment block (or started partially)
