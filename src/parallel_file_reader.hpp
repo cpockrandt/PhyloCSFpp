@@ -14,7 +14,7 @@
 
 #include "translation.hpp"
 
-#define BREAKPOINT_POS 1000000
+#define BREAKPOINT_POS 10000000
 
 struct alignment_t
 {
