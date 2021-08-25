@@ -469,6 +469,6 @@ public:
     }
 };
 
-const std::string ArgParse::version = "v1.1.0";
+const std::string ArgParse::version = "v1.1.1";
 const std::string ArgParse::git_hash = xstr(GIT_HASH);
 const std::string ArgParse::git_date = xstr(GIT_DATE);
