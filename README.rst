@@ -138,6 +138,8 @@ The wig files are written to ``./galgal6-tracks``.
         --output-phylo 1 --genome-length 1065365434 --coding-exons example/galGal6_coding_exons.txt \
         53birds example/galGal6_chr22_25_28_each_30k_bases.maf
 
+Instead of using a pre-defined model such as ``53birds``, you can also pass an external model from the files, e.g., ``./test/53_birds``.
+
 Annotating GFF files with tracks
 """"""""""""""""""""""""""""""""
 
