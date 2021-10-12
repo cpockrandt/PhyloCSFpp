@@ -673,7 +673,7 @@ public:
             // only keep 2 bases more than the alignment needed. throw away the remaining bases
             for (uint64_t i = 0; i < aln.seqs.size(); ++i)
             {
-                assert(prev_cumulative_len_wo_ref_gaps == aln.seqs.size());
+                assert(prev_cumulative_len_wo_ref_gaps == aln.seqs[i].size());
                 aln.seqs[i].resize(cumulative_len_wo_ref_gaps_after_block_with_breakpoint + 2);
             }
             // printf("Breakpoint shortened seq to: (start: %lld, cum len: %ld)\n", aln.start_pos, aln.seqs[ref_seq_id].size());
