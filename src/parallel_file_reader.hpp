@@ -427,7 +427,7 @@ public:
     // in practice aln.ids will already be set and only
     // if only \n is at the end of the range for a thread, don't process it
     // if "\na" isn at the end of the range for a thread, process it
-    bool get_next_alignment(alignment_t & aln, const unsigned job_id, std::vector<bool> * species_seen_in_alignment = NULL)
+    bool get_next_alignment(alignment_t & aln, const unsigned job_id, std::vector<bool> * species_seen_in_alignment = NULL, const bool single_block_scoring = false)
     {
         #pragma omp atomic
         total_bytes_processed += bytes_processing[job_id];
@@ -536,7 +536,7 @@ public:
 
                         // printf("First alignment block (chrom: %s, start: %lld, cum len: %lld)\n", aln.chrom.c_str(), aln.start_pos, prev_cumulative_len_wo_ref_gaps);
 
-                        if (ref_strand != '+')
+                        if (ref_strand != '+' && !single_block_scoring)
                         {
                             printf(OUT_ERROR "Reference sequence is not on the + strand (%s.%s at position %" PRIu64 ")!\n" OUT_RESET, id, chrom, start_pos);
                             exit(-1);
@@ -574,7 +574,7 @@ public:
                             printf(OUT_ERROR "Encountered an alignment block that didn't start with the reference species: %s.%s at position %" PRIu64 "!\n" OUT_RESET, id, chrom, start_pos);
                             exit(1);
                         }
-                        if (ref_strand != '+')
+                        if (ref_strand != '+' && !single_block_scoring)
                         {
                             printf(OUT_ERROR "Reference sequence is not on the + strand (%s.%s at position %" PRIu64 ")!\n" OUT_RESET, id, chrom, start_pos);
                             exit(-1);

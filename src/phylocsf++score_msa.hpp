@@ -99,7 +99,7 @@ void run_scoring_msa(const std::string & alignment_path, const Model & model, co
         alignment_t & aln = alignments[thread_id];
         std::vector<scoring_result> & results = all_results[job_id];
 
-        while (maf_rd.get_next_alignment(aln, job_id))
+        while (maf_rd.get_next_alignment(aln, job_id, NULL, true))
         {
             maf_rd.print_progress();
 
