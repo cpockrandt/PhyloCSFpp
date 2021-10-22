@@ -191,6 +191,10 @@ void run_tracks(const std::string & alignment_path, const Model & model, const T
                         if (strand == '+')
                             bls_pos = aln.skip_bases;
                         else
+                            // alignment was shortened by 0-2 bases at the beginning after rev/compl
+                            // then scores are computed and the order reversed back
+                            // since scores are based on triplets in the reverse sequence and ignored 0-2 extra bases at the end
+                            // those bases (that occur at the beginning in bls_per_bp) need to be skipped
                             bls_pos = aln.length() % 3;
                         for (size_t xx = 0; xx < lpr_per_codon[thread_id].size(); ++xx, bls_pos += 3)
                         {
