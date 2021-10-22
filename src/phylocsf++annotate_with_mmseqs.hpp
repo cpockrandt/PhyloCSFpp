@@ -329,7 +329,7 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
 
         for (uint16_t i = 0; i < params.aligning_genomes.size(); ++i)
         {
-            cmd = "bash -c $'" + params.mmseqs2_bin + " createsubdb <(awk \\'$3 == " + std::to_string(i) + "\\' " + dir_genomesdb + "/genbankseqs.lookup) " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i) + "'";
+            cmd = "awk '$3 == " + std::to_string(i) + "' " + dir_genomesdb + "/genbankseqs.lookup > " + dir_genomesdb + "/tmp && " + params.mmseqs2_bin + " createsubdb " + dir_genomesdb + "/tmp " + dir_genomesdb + "/genbankseqs " + dir_genomesdb + "/genbankseqs_" + std::to_string(i);
             if (system_with_return(cmd.c_str()))
                 exit(3);
 
