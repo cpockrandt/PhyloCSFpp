@@ -23,7 +23,7 @@ struct AnnotateWithMSACLIParams
     std::string reference_genome_name;
     std::string reference_genome_path;
 
-    std::vector<std::tuple<std::string, std::string> > aligning_genomes;
+    std::vector<std::tuple<std::string, std::string> > aligning_genomes; // storing name and path to altered fasta file (sequence names are prefixed with genome name)
 };
 
 // TODO: make this function prettier (e.g., no local struct def)
@@ -204,7 +204,13 @@ void load_genome_file(const std::string & genome_file, std::vector<std::tuple<st
         }
         else
         {
-            genome_file_paths.emplace_back(name, path);
+            const std::string altered_fasta_file = std::string(path) + ".tmp";
+            // we copy the fasta file and add the species name as prefix to all its sequences
+            const std::string cmd = "awk '$0 ~ /^>/ { gsub(/^[> ]+/, \"\"); $0=\">" + std::string(name) + ".\" $0 } 1' " + std::string(path) + " > " + altered_fasta_file;
+            if (system_with_return(cmd.c_str()))
+                exit(3);
+
+            genome_file_paths.emplace_back(name, altered_fasta_file);
         }
     }
     fclose(file);
@@ -337,6 +343,12 @@ void run_annotate_with_mmseqs(const std::string & gff_path, const AnnotateWithMS
             if (system_with_return(cmd.c_str()))
                 exit(4);
         }
+    }
+
+    // remove altered fasta files
+    for (const auto & p : params.aligning_genomes)
+    {
+        unlink(std::get<1>(p).c_str());
     }
 
     // load lookup table (seq id -> genome id)
