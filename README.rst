@@ -28,7 +28,7 @@ annotate GFF/GTF files with PhyloCSF and its confidence scores.
 
 If you find our implementation useful and use it in your work, please consider citing it:
 
-    Christopher Pockrandt, Martin Steinegger, Steven Salzberg. **PhyloCSF++: A fast and user-friendly implementation of PhyloCSF with annotation tools**. `bioRxiv`_, 2021.
+    Christopher Pockrandt, Martin Steinegger, Steven Salzberg. **PhyloCSF++: A fast and user-friendly implementation of PhyloCSF with annotation tools**. `Bioinformatics`_, 2021.
 
 Please also consider citing the original method papers:
 
@@ -36,7 +36,7 @@ Please also consider citing the original method papers:
 
     Mudge JM et al. Discovery of high-confidence human protein-coding genes and exons by whole-genome PhyloCSF helps elucidate 118 GWAS loci. Genome Research, 2019.
 
-.. _bioRxiv: https://doi.org/10.1101/2021.03.10.434297
+.. _Bioinformatics: https://doi.org/10.1093/bioinformatics/btab756
 
 Installation
 ^^^^^^^^^^^^
