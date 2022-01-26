@@ -378,7 +378,7 @@ void lpr_leaves(instance_t & instance, const alignment_t & alignment, const doub
     workspace.workspace_generation = MY_MIN_INT; // TODO: min_int from Ocaml, but should be 1ULL << 63??? std::numeric_limits<int64_t>::min()
     workspace.workspace_data = gsl_matrix_alloc(rows, 64);
 
-    gsl_vector * anc_lprior;
+    gsl_vector * anc_lprior = NULL;
     const uint16_t root_node_id = instance.model.tree.size() - 1;
     if (compute_anc_score)
     {
